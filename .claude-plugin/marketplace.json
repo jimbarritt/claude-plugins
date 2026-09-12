@@ -3,5 +3,10 @@
   "owner": {
     "name": "Jim Barritt"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "software-english-lint",
+      "source": "./software-english-lint"
+    }
+  ]
 }

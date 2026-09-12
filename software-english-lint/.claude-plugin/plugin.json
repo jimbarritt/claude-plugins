@@ -1,0 +1,5 @@
+{
+  "name": "software-english-lint",
+  "description": "Enforces Software English on agent prose via a Stop hook.",
+  "version": "0.1.0"
+}

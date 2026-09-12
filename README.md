@@ -10,7 +10,7 @@ here is a live install; a harness is a drop-in artefact.
 
 ## Layout
 
-```
+```text
 claude-plugins/
   .claude-plugin/
     marketplace.json    - lists every plugin in this repo
@@ -31,7 +31,7 @@ A plugin needs only a `plugin.json` with a `name` field. Add `skills/`,
 
 1. Create `<plugin-name>/.claude-plugin/plugin.json`.
 2. Add its content (`skills/`, `agents/`, `hooks/`, ...).
-3. Add an entry to `.claude-plugin/marketplace.json`:
+3. Add an entry to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json):
 
 ```json
 {
@@ -42,7 +42,7 @@ A plugin needs only a `plugin.json` with a `name` field. Add `skills/`,
 
 ## Installing from this marketplace
 
-```
+```text
 /plugin marketplace add jimbarritt/claude-plugins
 /plugin install <plugin-name>@jimbarritt-claude-plugins
 ```

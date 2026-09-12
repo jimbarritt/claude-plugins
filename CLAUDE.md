@@ -10,7 +10,7 @@ models. A plugin here is a live install; a harness is a drop-in artefact.
 
 ## Structure
 
-```
+```text
 claude-plugins/
   .claude-plugin/
     marketplace.json      - lists every plugin in this repo
@@ -35,7 +35,7 @@ claude-plugins/
 
 1. Create `<plugin-name>/.claude-plugin/plugin.json`.
 2. Add its content.
-3. Add an entry to `.claude-plugin/marketplace.json`:
+3. Add an entry to [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json):
    ```json
    { "name": "<plugin-name>", "source": "./<plugin-name>" }
    ```
