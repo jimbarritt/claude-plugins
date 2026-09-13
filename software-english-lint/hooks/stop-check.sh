@@ -29,7 +29,7 @@ REPLY_FILE="$(mktemp)"
 trap 'rm -f "$REPLY_FILE"' EXIT
 printf '%s' "$REPLY" > "$REPLY_FILE"
 
-ARGS=(--diff --added-only --reply-file "$REPLY_FILE" --run-inference --stop-hook-active "$STOP_HOOK_ACTIVE" --quiet-vocab)
+ARGS=(--diff --added-only --reply-file "$REPLY_FILE" --run-inference --stop-hook-active "$STOP_HOOK_ACTIVE" --quiet-vocab --cwd "$CWD")
 if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
   ARGS+=(--transcript "$TRANSCRIPT")
 fi

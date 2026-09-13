@@ -1,0 +1,4 @@
+# Files exempt from software-english-lint's checks. One glob pattern per
+# line. A pattern with a "/" matches the path relative to this file's
+# directory; a pattern with no "/" matches the basename, at any depth.
+software-english-lint/docs/agent-guide.md

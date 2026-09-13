@@ -2,14 +2,14 @@
 
 ## Terms
 
-- **D tier** — deterministic rules (`vocabulary-membership`, `banned-word`,
+- **D tier**: deterministic rules (`vocabulary-membership`, `banned-word`,
   `no-continuous-tense`, `anthropomorphism-fixed-list`, `abstract-location`).
   A Python script checks them. No model call.
-- **I tier** — inference-based rules (`sentence-length`,
+- **I tier**: inference-based rules (`sentence-length`,
   `no-perfect-tense-for-behaviour`, `anthropomorphism-paraphrase`,
   `vacuous-classification-property`, `no-process-narration`,
   `document-type-template`). A model checks them.
-- **Stop input** — the JSON a Stop hook receives. It holds
+- **Stop input**: the JSON a Stop hook receives. It holds
   `last_assistant_message`, `transcript_path` and `stop_hook_active`.
 
 ## Mechanism constraints
@@ -40,13 +40,13 @@
 |---|---|---|:-:|:-:|---|
 | 1 | Chat reply, final text of the turn | `last_assistant_message`; not on disk | ✓ | ✓ | Runs on every Stop event. The I tier runs only when the threshold check passes. Not checked today. The Stop input holds the reply at no cost, and it is the largest volume of prose a person reads. |
 | 2 | Chat text between tool calls (progress updates) | Transcript only | ✓ | ✗ | Read from the transcript for the current turn. Short lines; the D tier is enough. Not checked today. |
-| 3 | Markdown files in the repo (docs, specs, READMEs, ADRs, plans) | Working tree; git diff | ✓ | ✓ | Today: D tier on added lines of tracked files only. Recommended: also cover untracked files — a real gap today. `document-type-template` runs only here. Persisted prose has the longest life. |
+| 3 | Markdown files in the repo (docs, specs, READMEs, ADRs, plans) | Working tree; git diff | ✓ | ✓ | Today: D tier on added lines of tracked files only. Recommended: also cover untracked files, a real gap today. `document-type-template` runs only here. Persisted prose has the longest life. |
 | 4 | Markdown files outside the repo (plan files, memory files, `~/.claude`) | Disk; not in any git diff of the project | ✓ | ✓ | Via `PostToolUse` on `Write` and `Edit` where `file_path` ends `.md`. The git diff cannot see these paths; the tool input holds the new text directly. Not checked today. |
-| 5 | Code comments | Source files; git diff | ✓ | ✓ | Added comment lines, extracted per language. Same I-tier threshold as #3. Comments are prose that persists, and most projects' own conventions limit them to cases needing judgement to write well — the same class of judgement the I tier checks. A comment extractor is a bounded addition to the script. Not checked today. |
+| 5 | Code comments | Source files; git diff | ✓ | ✓ | Added comment lines, extracted per language. Same I-tier threshold as #3. Comments are prose that persists, and most projects' own conventions limit them to cases needing judgement to write well: the same class of judgement the I tier checks. A comment extractor is a bounded addition to the script. Not checked today. |
 | 6 | Commit messages | Argument to `git commit` in a `Bash` call | ✓ | ✗ | Via `PreToolUse` on `Bash` matching `git commit`; extracts `-m` text and `-F` file content. The Stop hook never sees the message, and the message is short. Not checked today. |
 | 7 | PR titles and bodies, issue and PR comments | Argument to `gh pr create`, `gh pr comment`, `gh issue` in a `Bash` call | ✓ | ✓ | Same `PreToolUse` hook as #6, matcher on `gh pr` and `gh issue`. A PR body is often long enough for I-tier rules to matter. Not checked today. |
 | 8 | Artifacts (HTML or markdown page) | File at `file_path`; published on `Artifact` publish | ✓ | ✓ | Via `PreToolUse` on `Artifact` with `action` publish. Lint `.md` directly; extract text nodes from `.html` first. The page has an audience. Today: checked only if the file is a tracked `.md` that changed. |
-| 9 | Outbound messages via MCP (`Slack`, `Gmail` send, `Drive` create) | Tool input | ✓ | ✓ | Via `PreToolUse` on each send tool. Same reader class as a PR body; decided — both tiers apply to all three. |
+| 9 | Outbound messages via MCP (`Slack`, `Gmail` send, `Drive` create) | Tool input | ✓ | ✓ | Via `PreToolUse` on each send tool. Same reader class as a PR body; decided: both tiers apply to all three. |
 | 10 | Sub-agent final messages and teammate messages | Returned to the parent agent, not the user | ✗ | ✗ | The parent rewrites or relays the content. The parent's own reply is row #1, and gets checked there instead. |
 | 11 | Tool-call-only turn, empty reply | `last_assistant_message` is empty | ✗ | ✗ | The D-tier script exits 0 at once; the I-tier threshold check fails. No prose to check. |
 | 12 | Code: identifiers, syntax, string literals, log messages, CLI help text | Source files | ✗ | ✗ | Out of scope by the spec. String literals follow the codebase. See open question 7 for user-facing strings. |

@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # PostToolUse on Write|Edit. Two independent cases; PostToolUse cannot
-# block (the write already happened), so this only reports either way:
-#   - A markdown file the Stop hook's git diff cannot see — outside the
+# block the write (it already happened), but exit 2 still surfaces
+# stderr to Claude as a system message, so an error-severity finding
+# gets exit 2 to reach Claude, not exit 0 (which only reaches the
+# transcript, not the model):
+#   - A markdown file the Stop hook's git diff cannot see: outside the
 #     working tree, or untracked.
-#   - A code file's comments (taxonomy row 5) — nothing else checks these,
-#     tracked or not, since stop-check.sh's own diff is markdown-only.
+#   - A code file's comments (taxonomy row 5): nothing else checks
+#     these, tracked or not, since stop-check.sh's own diff is
+#     markdown-only.
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LINTER="$HERE/../scripts/software_english_lint.py"
@@ -39,7 +43,9 @@ if ! "$HERE/../scripts/fetch-software-english-data.sh" >&2; then
   exit 0
 fi
 
-OUTPUT="$("$LINTER" "$FILE_PATH" --run-inference --quiet-vocab 2>&1)"
+CWD_ARGS=()
+[ -n "$CWD" ] && [ -d "$CWD" ] && CWD_ARGS=(--cwd "$CWD")
+OUTPUT="$("$LINTER" "$FILE_PATH" --run-inference --quiet-vocab "${CWD_ARGS[@]}" 2>&1)"
 STATUS=$?
 
 if [ -z "$OUTPUT" ] || [ "$OUTPUT" = "No sources to check." ]; then
@@ -47,8 +53,11 @@ if [ -z "$OUTPUT" ] || [ "$OUTPUT" = "No sources to check." ]; then
 fi
 
 echo "$OUTPUT" >&2
-if [ "$STATUS" -ne 0 ]; then
-  echo "" >&2
-  echo "Software English violations found in $FILE_PATH." >&2
+
+if [ "$STATUS" -eq 0 ]; then
+  exit 0
 fi
-exit 0
+
+echo "" >&2
+echo "Software English violations found in $FILE_PATH. Fix them." >&2
+exit 2

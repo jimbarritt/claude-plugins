@@ -18,8 +18,12 @@ hook block (--stop-hook-active true), and the combined prose exceeds a
 small size threshold (config.json) — see
 ~/.planning/claude-plugins/task9-enforcement-strategy.md for the design
 this implements. When those hold, this script shells out to
-`claude -p` with a fast model, asking it to judge only the inference-based
-rules, and folds the result into the same report.
+`claude -p --safe-mode` with a fast model, asking it to judge only the
+inference-based rules, and folds the result into the same report.
+`--safe-mode` disables CLAUDE.md, hooks, skills, and plugins for that
+one call — without it, the subprocess loads this project's own global
+CLAUDE.md and mandatory session-start skill, which competes with the
+prompt below and was found live to cause spurious timeouts.
 
 A second, plugin-owned rule set lives in ../rules/plugin-rules.toml,
 separate from the vendored catalogue: it governs interaction structure
@@ -40,13 +44,17 @@ skip applies to a fenced or inline code span, at every source.
 """
 
 import argparse
+import datetime
+import fnmatch
 import html.parser
 import json
 import re
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
+import uuid
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -54,6 +62,57 @@ PLUGIN_ROOT = HERE.parent
 DATA = PLUGIN_ROOT / "data"
 CONFIG_PATH = PLUGIN_ROOT / "config.json"
 PLUGIN_RULES_PATH = PLUGIN_ROOT / "rules" / "plugin-rules.toml"
+FEEDBACK_LOG_PATH = Path.home() / ".claude" / "software-english-lint" / "feedback.jsonl"
+
+
+def log_feedback_event(entry):
+    """Append one JSON line to the feedback log. Read by /swe-send-feedback.
+
+    Fails silently: a logging problem must never affect linting itself."""
+    try:
+        FEEDBACK_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with FEEDBACK_LOG_PATH.open("a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except OSError:
+        pass
+
+
+def load_ignore_patterns(cwd):
+    """Reads <cwd>/.swe-ignore: one glob pattern per line, gitignore-style.
+    A blank line or a line starting with "#" is skipped. No negation, no
+    directory-only trailing-slash handling: a small, real subset, not a
+    full gitignore implementation."""
+    path = Path(cwd) / ".swe-ignore"
+    if not path.exists():
+        return []
+    patterns = []
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        patterns.append(line)
+    return patterns
+
+
+def is_path_ignored(file_path, cwd, patterns):
+    """A pattern with a "/" matches the path relative to cwd; a pattern
+    with no "/" matches the basename, at any depth (gitignore's rule)."""
+    if not patterns:
+        return False
+    path = Path(file_path)
+    try:
+        rel = path.resolve().relative_to(Path(cwd).resolve())
+        rel_str = rel.as_posix()
+    except ValueError:
+        rel_str = path.as_posix()
+    name = path.name
+    for pattern in patterns:
+        if "/" in pattern:
+            if fnmatch.fnmatch(rel_str, pattern):
+                return True
+        elif fnmatch.fnmatch(name, pattern):
+            return True
+    return False
 
 FENCE = re.compile(r"^\s*(```|~~~)")
 INLINE_CODE = re.compile(r"`[^`]*`")
@@ -218,6 +277,11 @@ def check_line(number, line, vocabulary, structure_nouns, banned_rules, rules, f
             banned_spans.append((m.start(), m.end()))
             findings.append((number, rules["banned-word"]["severity"], "banned-word", f'"{phrase}" -> {fix}'))
 
+    em_dash = rules["no-em-dash"]["character"]
+    if em_dash in line:
+        for _ in range(line.count(em_dash)):
+            findings.append((number, rules["no-em-dash"]["severity"], "no-em-dash", "replace with a period, a colon, or a comma"))
+
     max_words = rules["sentence-length"]["max_words"]
     for sentence in re.split(r"(?<=[.!?])\s+", line.strip()):
         words = WORD.findall(sentence)
@@ -266,8 +330,6 @@ def check_line(number, line, vocabulary, structure_nouns, banned_rules, rules, f
 
 
 def lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions, only_lines=None):
-    if exemptions["skip_file_marker"] in text:
-        return []
     findings = []
     for number, line in prose_lines(text, exemptions, only_lines):
         check_line(number, line, vocabulary, structure_nouns, banned_rules, rules, findings)
@@ -412,33 +474,57 @@ offending text, kept short. "fix" is a short instruction, not a full
 rewrite."""
 
 
-def run_inference(prose, inference_rules, cfg):
+def run_inference(prose, inference_rules, cfg, source_label="unknown"):
+    call_id = uuid.uuid4().hex
+    log_feedback_event({
+        "type": "inference_call_start",
+        "call_id": call_id,
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "source": source_label,
+        "rule_ids": sorted(inference_rules),
+    })
+    start_time = time.monotonic()
+
+    def log_end(outcome):
+        log_feedback_event({
+            "type": "inference_call_end",
+            "call_id": call_id,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "outcome": outcome,
+            "duration_ms": round((time.monotonic() - start_time) * 1000),
+        })
+
     if not shutil.which("claude"):
         print("software-english-lint: 'claude' not on PATH, skipping inference tier", file=sys.stderr)
+        log_end("no-claude-on-path")
         return []
     prompt = build_inference_prompt(prose, inference_rules)
     try:
         result = subprocess.run(
-            ["claude", "-p", "--model", cfg["fast_model"]],
+            ["claude", "-p", "--safe-mode", "--model", cfg["fast_model"]],
             input=prompt, text=True, capture_output=True,
             timeout=cfg["model_call_timeout_seconds"], check=False,
         )
     except subprocess.TimeoutExpired:
         print("software-english-lint: inference-tier model call timed out, skipping", file=sys.stderr)
+        log_end("timeout")
         return []
     if result.returncode != 0:
         print(f"software-english-lint: inference-tier model call failed: {result.stderr.strip()[:200]}", file=sys.stderr)
+        log_end("call-failed")
         return []
     raw = result.stdout.strip()
     start = raw.find("{")
     end = raw.rfind("}")
     if start == -1 or end == -1:
         print("software-english-lint: inference-tier response had no JSON, skipping", file=sys.stderr)
+        log_end("no-json")
         return []
     try:
         parsed = json.loads(raw[start:end + 1])
     except json.JSONDecodeError:
         print("software-english-lint: inference-tier response was not valid JSON, skipping", file=sys.stderr)
+        log_end("bad-json")
         return []
     out = []
     for item in parsed.get("findings", []):
@@ -449,6 +535,7 @@ def run_inference(prose, inference_rules, cfg):
         fix = item.get("fix", "")
         severity = inference_rules[rule_id]["severity"]
         out.append((rule_id, severity, quote, fix))
+    log_end("ok")
     return out
 
 
@@ -466,6 +553,7 @@ def main():
     parser.add_argument("--run-inference", action="store_true", help="run the inference tier if the deterministic tier is clean and the threshold passes")
     parser.add_argument("--stop-hook-active", default="false", choices=["true", "false"])
     parser.add_argument("--quiet-vocab", action="store_true", help="omit vocabulary-membership lines from the printed report (they never block; this only reduces noise)")
+    parser.add_argument("--cwd", default=None, help="project root .swe-ignore is read from (defaults to the current directory)")
     args = parser.parse_args()
 
     rules, exemptions = load_rule_catalogue()
@@ -474,6 +562,8 @@ def main():
     structure_nouns = load_structure_nouns()
     banned_rules = load_banned()
     cfg = load_config()
+    cwd = args.cwd or Path.cwd()
+    ignore_patterns = load_ignore_patterns(cwd)
 
     # sources: list of (label, findings, prose_text_for_threshold)
     sources = []
@@ -481,6 +571,7 @@ def main():
     file_list = list(args.files)
     if args.diff:
         file_list = changed_markdown_files() + untracked_markdown_files()
+    file_list = [f for f in file_list if not is_path_ignored(f, cwd, ignore_patterns)]
 
     for f in file_list:
         path = Path(f)
@@ -563,7 +654,8 @@ def main():
             is_conversational = bool(args.reply_file or args.transcript)
             if is_conversational:
                 inference_rules.update(plugin_rules)
-            i_findings = run_inference(combined_prose, inference_rules, cfg)
+            source_label = ",".join(label for label, _, _ in sources)
+            i_findings = run_inference(combined_prose, inference_rules, cfg, source_label)
             for rule_id, severity, quote, fix in i_findings:
                 print(f'{rule_id}: inference: "{quote}" — {fix}')
                 if severity == "error":

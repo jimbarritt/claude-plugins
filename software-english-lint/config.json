@@ -3,5 +3,5 @@
   "threshold_sentences": 4,
   "html_min_chars": 25,
   "fast_model": "claude-haiku-4-5-20251001",
-  "model_call_timeout_seconds": 45
+  "model_call_timeout_seconds": 75
 }
