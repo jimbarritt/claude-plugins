@@ -1,35 +1,59 @@
 #!/usr/bin/env python3
-"""Software English deterministic-tier linter.
+"""Software English linter: deterministic tier plus a gated inference tier.
 
-Checks Markdown prose against Software English's deterministic-tier
-rules: closed vocabulary, banned-word substitutions, sentence length,
-tense patterns, and a fixed anthropomorphism word list.
+Checks prose against Software English's rules. Vocabulary data and the
+rule catalogue are vendored under ../data/ from the software-english
+repository (source of truth), fetched by fetch-software-english-data.sh
+per the tag pinned in ../software-english.json. Rules are parsed directly
+from core-rules.toml via Python's stdlib tomllib.
 
-Vocabulary data and the rule catalogue are vendored under ../data/ from
-the software-english repository (source of truth). Run
-sync-from-software-english-repo.sh to refresh them. Rules are parsed
-directly from core-rules.toml via Python's stdlib tomllib — nothing here
-duplicates the catalogue by hand.
+Deterministic-tier rules (vocabulary, banned words, tense patterns,
+anthropomorphism, abstract-location) run on every source, every time, at
+no cost beyond one Python process.
 
-A finding has a severity, read from the catalogue. Only "error" findings
-cause a non-zero exit (and so block the Stop hook, via stop-check.sh).
-"warning" findings print but do not block — the vocabulary is a seed
-set, not exhaustive yet, so vocabulary-membership stays a warning until
-it is measured against real usage (see spec Implementation Notes).
+Inference-based rules (check == "model-judgement" in the catalogue) run
+only when: every deterministic-tier finding across all sources given to
+this invocation is absent, the caller is not already re-running after a
+hook block (--stop-hook-active true), and the combined prose exceeds a
+small size threshold (config.json) — see
+~/.planning/claude-plugins/task9-enforcement-strategy.md for the design
+this implements. When those hold, this script shells out to
+`claude -p` with a fast model, asking it to judge only the inference-based
+rules, and folds the result into the same report.
+
+A second, plugin-owned rule set lives in ../rules/plugin-rules.toml,
+separate from the vendored catalogue: it governs interaction structure
+(for example, raising more than one decision point in one reply) rather
+than prose wording, so it is not part of the Software English spec. It
+is added to the inference-tier prompt only for a conversational source
+(--reply-file or --transcript), never for a file, a commit message, or
+an artifact.
+
+A finding has a severity, read from the catalogue. An "error"-severity
+finding causes a non-zero exit, unless --stop-hook-active true was passed
+(then the finding is still reported, but the exit stays 0, so a hook
+built on this script never blocks more than once per turn).
 
 A Markdown blockquote line (starts with ">") is not checked — it holds
-someone else's words, quoted verbatim, not this writer's prose.
+someone else's words, quoted verbatim, not this writer's prose. The same
+skip applies to a fenced or inline code span, at every source.
 """
 
 import argparse
+import html.parser
+import json
 import re
+import shutil
 import subprocess
 import sys
 import tomllib
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DATA = HERE.parent / "data"
+PLUGIN_ROOT = HERE.parent
+DATA = PLUGIN_ROOT / "data"
+CONFIG_PATH = PLUGIN_ROOT / "config.json"
+PLUGIN_RULES_PATH = PLUGIN_ROOT / "rules" / "plugin-rules.toml"
 
 FENCE = re.compile(r"^\s*(```|~~~)")
 INLINE_CODE = re.compile(r"`[^`]*`")
@@ -56,12 +80,36 @@ LITERAL_TOKEN = re.compile(
     r")$"
 )
 
+# Line-comment prefix per file extension. Extend as new languages appear in
+# the repos this plugin lints. Block comments are not extracted yet — no
+# language in scope today (Python, Bash) uses them for real comments.
+COMMENT_PREFIXES = {
+    ".py": "#",
+    ".sh": "#",
+    ".bash": "#",
+}
+
+
+def load_config():
+    with CONFIG_PATH.open() as f:
+        return json.load(f)
+
 
 def load_rule_catalogue():
     path = DATA / "core-rules.toml"
     with path.open("rb") as f:
         catalogue = tomllib.load(f)
     return {r["id"]: r for r in catalogue["rules"]}, catalogue["exemptions"]
+
+
+def load_plugin_rules():
+    """Interaction-structure rules owned by this plugin, not the Software
+    English spec (SPEC governs prose wording; this governs reply shape)."""
+    if not PLUGIN_RULES_PATH.exists():
+        return {}
+    with PLUGIN_RULES_PATH.open("rb") as f:
+        catalogue = tomllib.load(f)
+    return {r["id"]: r for r in catalogue["rules"]}
 
 
 def load_vocabulary():
@@ -250,50 +298,315 @@ def changed_markdown_files():
     return [f for f in out.stdout.splitlines() if f.endswith(".md")]
 
 
+def untracked_markdown_files():
+    out = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "--", "*.md"],
+        capture_output=True, text=True, check=False,
+    )
+    return [f for f in out.stdout.splitlines() if f.strip()]
+
+
+class _TextNodeExtractor(html.parser.HTMLParser):
+    """Pulls out text nodes, skipping <script> and <style> content."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self._skip_depth = 0
+        self.nodes = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("script", "style"):
+            self._skip_depth += 1
+
+    def handle_endtag(self, tag):
+        if tag in ("script", "style") and self._skip_depth:
+            self._skip_depth -= 1
+
+    def handle_data(self, data):
+        if self._skip_depth:
+            return
+        text = data.strip()
+        if text:
+            self.nodes.append(text)
+
+
+def html_text_nodes(text, min_chars):
+    parser = _TextNodeExtractor()
+    parser.feed(text)
+    return [node for node in parser.nodes if len(node) >= min_chars]
+
+
+def _unquoted_prefix_index(line, prefix):
+    """Index of prefix's first char outside a '...' or "..." span, else -1."""
+    in_single = False
+    in_double = False
+    i = 0
+    n = len(line)
+    while i < n:
+        ch = line[i]
+        if in_single:
+            if ch == "'" and line[i - 1] != "\\":
+                in_single = False
+        elif in_double:
+            if ch == '"' and line[i - 1] != "\\":
+                in_double = False
+        elif ch == "'":
+            in_single = True
+        elif ch == '"':
+            in_double = True
+        elif line.startswith(prefix, i):
+            return i
+        i += 1
+    return -1
+
+
+def extract_comments(text, extension):
+    """A prefix's own line, or a trailing comment after real code, per line."""
+    prefix = COMMENT_PREFIXES.get(extension)
+    if not prefix:
+        return []
+    out = []
+    for number, raw in enumerate(text.splitlines(), start=1):
+        idx = _unquoted_prefix_index(raw, prefix)
+        if idx == -1:
+            continue
+        comment = raw[idx + len(prefix):].strip()
+        if not comment:
+            continue
+        if idx == 0 and comment.startswith("!"):  # skip a shebang
+            continue
+        out.append((number, comment))
+    return out
+
+
+def threshold_pass(text, cfg):
+    words = WORD.findall(text)
+    sentences = [s for s in re.split(r"(?<=[.!?])\s+", text.strip()) if s.strip()]
+    return len(words) > cfg["threshold_words"] or len(sentences) > cfg["threshold_sentences"]
+
+
+def build_inference_prompt(prose, inference_rules):
+    rule_lines = []
+    for rule_id, rule in inference_rules.items():
+        rule_lines.append(f"- {rule_id}: {rule['description']}")
+    rules_block = "\n".join(rule_lines)
+    return f"""You check prose against Software English's inference-based rules —
+the ones needing judgement, not a fixed pattern. Here are the rules:
+
+{rules_block}
+
+Check ONLY these rules. Do not report vocabulary, banned words, tense
+patterns, or the fixed anthropomorphism/abstract-location word lists —
+those are checked separately, by a different mechanism.
+
+Prose to check:
+---
+{prose}
+---
+
+Reply with ONLY a JSON object, no other text, in this exact shape:
+{{"findings": [{{"rule_id": "...", "quote": "...", "fix": "..."}}]}}
+
+An empty findings array means no fault found. "quote" is the exact
+offending text, kept short. "fix" is a short instruction, not a full
+rewrite."""
+
+
+def run_inference(prose, inference_rules, cfg):
+    if not shutil.which("claude"):
+        print("software-english-lint: 'claude' not on PATH, skipping inference tier", file=sys.stderr)
+        return []
+    prompt = build_inference_prompt(prose, inference_rules)
+    try:
+        result = subprocess.run(
+            ["claude", "-p", "--model", cfg["fast_model"]],
+            input=prompt, text=True, capture_output=True,
+            timeout=cfg["model_call_timeout_seconds"], check=False,
+        )
+    except subprocess.TimeoutExpired:
+        print("software-english-lint: inference-tier model call timed out, skipping", file=sys.stderr)
+        return []
+    if result.returncode != 0:
+        print(f"software-english-lint: inference-tier model call failed: {result.stderr.strip()[:200]}", file=sys.stderr)
+        return []
+    raw = result.stdout.strip()
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start == -1 or end == -1:
+        print("software-english-lint: inference-tier response had no JSON, skipping", file=sys.stderr)
+        return []
+    try:
+        parsed = json.loads(raw[start:end + 1])
+    except json.JSONDecodeError:
+        print("software-english-lint: inference-tier response was not valid JSON, skipping", file=sys.stderr)
+        return []
+    out = []
+    for item in parsed.get("findings", []):
+        rule_id = item.get("rule_id", "")
+        if rule_id not in inference_rules:
+            continue
+        quote = item.get("quote", "")
+        fix = item.get("fix", "")
+        severity = inference_rules[rule_id]["severity"]
+        out.append((rule_id, severity, quote, fix))
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("files", nargs="*")
     parser.add_argument("--diff", action="store_true")
     parser.add_argument("--added-only", action="store_true")
     parser.add_argument("--count", action="store_true")
+    parser.add_argument("--text", action="store_true", help="read one prose source from stdin")
+    parser.add_argument("--reply-file", help="path to a file holding last_assistant_message text")
+    parser.add_argument("--transcript", help="path to the Stop hook transcript JSONL")
+    parser.add_argument("--html-file", help="path to an HTML file; text nodes are extracted as prose")
+    parser.add_argument("--source-label", default=None, help="label for --text's source in the report")
+    parser.add_argument("--run-inference", action="store_true", help="run the inference tier if the deterministic tier is clean and the threshold passes")
+    parser.add_argument("--stop-hook-active", default="false", choices=["true", "false"])
+    parser.add_argument("--quiet-vocab", action="store_true", help="omit vocabulary-membership lines from the printed report (they never block; this only reduces noise)")
     args = parser.parse_args()
 
     rules, exemptions = load_rule_catalogue()
+    plugin_rules = load_plugin_rules()
     vocabulary = load_vocabulary()
     structure_nouns = load_structure_nouns()
     banned_rules = load_banned()
+    cfg = load_config()
 
-    files = args.files
+    # sources: list of (label, findings, prose_text_for_threshold)
+    sources = []
+
+    file_list = list(args.files)
     if args.diff:
-        files = changed_markdown_files()
+        file_list = changed_markdown_files() + untracked_markdown_files()
 
-    if not files:
-        print("No files to check.")
-        return 0
-
-    error_total = 0
-    warning_total = 0
-    for f in files:
+    for f in file_list:
         path = Path(f)
         if not path.exists():
             continue
-        only_lines = changed_line_numbers(f) if (args.diff and args.added_only) else None
-        findings = lint_text(path.read_text(), vocabulary, structure_nouns, banned_rules, rules, exemptions, only_lines)
-        if args.count:
-            error_total += sum(1 for _, sev, _, _ in findings if sev == "error")
-            warning_total += sum(1 for _, sev, _, _ in findings if sev == "warning")
-            continue
+        ext = path.suffix
+        text = path.read_text()
+        if ext in COMMENT_PREFIXES:
+            # A code file: only its comments are prose. The code itself is
+            # never linted as if it were Markdown.
+            findings = []
+            comment_lines = []
+            for number, comment in extract_comments(text, ext):
+                check_line(number, comment, vocabulary, structure_nouns, banned_rules, rules, findings)
+                comment_lines.append(comment)
+            prose_for_threshold = "\n".join(comment_lines)
+        else:
+            only_lines = changed_line_numbers(f) if (args.diff and args.added_only and f in changed_markdown_files()) else None
+            findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions, only_lines)
+            prose_for_threshold = "\n".join(line for _, line in prose_lines(text, exemptions, only_lines))
+        sources.append((f, findings, prose_for_threshold))
+
+    if args.text:
+        text = sys.stdin.read()
+        label = args.source_label or "text"
+        findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
+        prose_for_threshold = "\n".join(line for _, line in prose_lines(text, exemptions))
+        sources.append((label, findings, prose_for_threshold))
+
+    if args.reply_file:
+        path = Path(args.reply_file)
+        text = path.read_text() if path.exists() else ""
+        findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
+        prose_for_threshold = "\n".join(line for _, line in prose_lines(text, exemptions))
+        sources.append(("reply", findings, prose_for_threshold))
+
+    if args.transcript:
+        path = Path(args.transcript)
+        text = extract_transcript_reply_text(path) if path.exists() else ""
+        findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
+        prose_for_threshold = "\n".join(line for _, line in prose_lines(text, exemptions))
+        sources.append(("transcript", findings, prose_for_threshold))
+
+    if args.html_file:
+        path = Path(args.html_file)
+        text = path.read_text() if path.exists() else ""
+        nodes = html_text_nodes(text, cfg["html_min_chars"])
+        synthetic = "\n".join(nodes)
+        findings = lint_text(synthetic, vocabulary, structure_nouns, banned_rules, rules, exemptions)
+        sources.append((args.html_file, findings, synthetic))
+
+    if not sources:
+        print("No sources to check.")
+        return 0
+
+    if args.count:
+        error_total = sum(1 for _, findings, _ in sources for _, sev, _, _ in findings if sev == "error")
+        warning_total = sum(1 for _, findings, _ in sources for _, sev, _, _ in findings if sev == "warning")
+        print(f"{error_total} errors, {warning_total} warnings across {len(sources)} files")
+        return 1 if error_total else 0
+
+    error_total = 0
+    warning_total = 0
+    for label, findings, _ in sources:
         for number, severity, rule, detail in findings:
-            print(f"{f}:{number}: [{severity}] [{rule}] {detail}")
             if severity == "error":
                 error_total += 1
             else:
                 warning_total += 1
+            if args.quiet_vocab and rule == "vocabulary-membership":
+                continue
+            print(f"{label}:{number}: [{severity}] [{rule}] {detail}")
 
-    if args.count:
-        print(f"{error_total} errors, {warning_total} warnings across {len(files)} files")
+    stop_hook_active = args.stop_hook_active == "true"
+
+    if args.run_inference and error_total == 0 and not stop_hook_active:
+        combined_prose = "\n".join(prose for _, _, prose in sources if prose.strip())
+        if combined_prose.strip() and threshold_pass(combined_prose, cfg):
+            inference_rules = {rid: r for rid, r in rules.items() if r.get("check") == "model-judgement"}
+            is_conversational = bool(args.reply_file or args.transcript)
+            if is_conversational:
+                inference_rules.update(plugin_rules)
+            i_findings = run_inference(combined_prose, inference_rules, cfg)
+            for rule_id, severity, quote, fix in i_findings:
+                print(f'{rule_id}: inference: "{quote}" — {fix}')
+                if severity == "error":
+                    error_total += 1
+                else:
+                    warning_total += 1
+
+    if error_total and stop_hook_active:
+        # Already re-running after a prior block this turn — report, don't block again.
+        return 0
 
     return 1 if error_total else 0
+
+
+def extract_transcript_reply_text(path):
+    """Assistant text blocks after the last user message in a Stop hook transcript."""
+    lines = path.read_text().splitlines()
+    last_user_index = -1
+    for i, raw in enumerate(lines):
+        try:
+            entry = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        message = entry.get("message", {})
+        if message.get("role") == "user":
+            last_user_index = i
+    texts = []
+    for raw in lines[last_user_index + 1:]:
+        try:
+            entry = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        message = entry.get("message", {})
+        if message.get("role") != "assistant":
+            continue
+        content = message.get("content", [])
+        if isinstance(content, str):
+            texts.append(content)
+            continue
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                texts.append(block.get("text", ""))
+    return "\n".join(texts)
 
 
 if __name__ == "__main__":

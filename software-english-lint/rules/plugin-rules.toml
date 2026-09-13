@@ -1,0 +1,17 @@
+# Plugin-owned rule catalogue — machine-readable.
+# Distinct from data/core-rules.toml, which is vendored from the
+# software-english repository and overwritten on each sync. A rule here
+# governs interaction structure across a whole reply, not prose wording,
+# so it does not belong in the Software English language spec. Parsed by
+# claude-plugins/software-english-lint/scripts/software_english_lint.py
+# via Python's stdlib tomllib, and applied only to a conversational
+# source (a chat reply or a transcript) — never to a file, a commit
+# message, or an artifact.
+
+version = "0.1"
+
+[[rules]]
+id = "one-point-at-a-time"
+check = "model-judgement"
+severity = "error"
+description = "When a reply raises more than one point that needs a decision or a response — findings, review comments, divergences — it states how many there are, then gives only the first one and stops, rather than listing them all at once. A plain factual answer to a question the user actually asked is not a violation, even if the answer has several parts."

@@ -1,1 +1,3 @@
 software-english-lint/data/
+__pycache__/
+*.pyc

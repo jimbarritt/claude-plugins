@@ -4,7 +4,48 @@
       "hooks": [
         {
           "type": "command",
-          "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/stop-check.sh\""
+          "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/stop-check.sh\"",
+          "timeout": 90
+        }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "Write|Edit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/file-check.sh\""
+        }
+      ]
+    }
+  ],
+  "PreToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/bash-check.sh\""
+        }
+      ]
+    },
+    {
+      "matcher": "Artifact",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/artifact-check.sh\""
+        }
+      ]
+    },
+    {
+      "matcher": "mcp__claude_ai_Gmail__.*|mcp__claude_ai_Google_Drive__.*|mcp__claude_ai_Slack__.*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/mcp-send-check.sh\""
         }
       ]
     }
