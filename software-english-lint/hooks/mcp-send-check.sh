@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # PreToolUse on outbound-message MCP tools (Slack, Gmail send/reply/forward,
-# Drive create_file): checks the message body before it reaches another
+# `create_file`): checks the message body before it arrives at another
 # person. Verified tool names in this Claude Code installation:
 #   mcp__claude_ai_Gmail__send_message   (fields: body, htmlBody)
 #   mcp__claude_ai_Gmail__reply          (fields: body, htmlBody)
 #   mcp__claude_ai_Gmail__forward        (fields: body, htmlBody)
 #   mcp__claude_ai_Google_Drive__create_file  (field: textContent)
 # No Slack send tool exists in this session's tool registry to verify
-# against (only authenticate/complete_authentication are present) — the
+# against (only authenticate/complete_authentication are present). The
 # matcher below guesses the naming convention this integration otherwise
 # follows (mcp__claude_ai_<Service>__<action>) so it starts working the
 # moment such a tool is added, without needing this hook rewritten. See
@@ -15,6 +15,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LINTER="$HERE/../scripts/software_english_lint.py"
+source "$HERE/_lib.sh"
 
 INPUT="$(cat)"
 TOOL_NAME="$(echo "$INPUT" | jq -r '.tool_name // empty')"
@@ -42,11 +43,6 @@ fi
 OUTPUT="$(printf '%s' "$TEXT" | "$LINTER" --text --source-label "$TOOL_NAME" --run-inference --quiet-vocab 2>&1)"
 STATUS=$?
 
-if [ "$STATUS" -eq 0 ] || [ -z "$OUTPUT" ]; then
-  exit 0
-fi
-
-echo "$OUTPUT" >&2
-echo "" >&2
-echo "Software English violations found in the outbound message. Fix the text, then send it again." >&2
-exit 2
+report_and_maybe_block "$OUTPUT" "$STATUS" "mcp-send" \
+  "Software English violations found in the outbound message. Fix the text, then send it again."
+exit $?

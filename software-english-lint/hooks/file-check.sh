@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # PostToolUse on Write|Edit. Two independent cases; PostToolUse cannot
-# block the write (it already happened), but exit 2 still surfaces
+# block the write (it already happened), but exit 2 still shows
 # stderr to Claude as a system message, so an error-severity finding
-# gets exit 2 to reach Claude, not exit 0 (which only reaches the
+# gets exit 2 to arrive at Claude, not exit 0 (which only arrives at the
 # transcript, not the model):
 #   - A markdown file the Stop hook's git diff cannot see: outside the
 #     working tree, or untracked.
@@ -12,6 +12,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LINTER="$HERE/../scripts/software_english_lint.py"
+source "$HERE/_lib.sh"
 
 INPUT="$(cat)"
 FILE_PATH="$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')"
@@ -48,16 +49,6 @@ CWD_ARGS=()
 OUTPUT="$("$LINTER" "$FILE_PATH" --run-inference --quiet-vocab "${CWD_ARGS[@]}" 2>&1)"
 STATUS=$?
 
-if [ -z "$OUTPUT" ] || [ "$OUTPUT" = "No sources to check." ]; then
-  exit 0
-fi
-
-echo "$OUTPUT" >&2
-
-if [ "$STATUS" -eq 0 ]; then
-  exit 0
-fi
-
-echo "" >&2
-echo "Software English violations found in $FILE_PATH. Fix them." >&2
-exit 2
+report_and_maybe_block "$OUTPUT" "$STATUS" "file" \
+  "Software English violations found in $FILE_PATH. Fix them."
+exit $?
