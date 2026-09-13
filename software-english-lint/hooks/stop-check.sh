@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Stop hook: runs the deterministic tier over the chat reply, the transcript
 # since the last user message, and changed markdown (tracked and untracked).
-# When that is clean and the prose passes a size threshold, also runs the
-# inference tier. See ~/.planning/claude-plugins/task9-enforcement-strategy.md
+# No inference tier here: a model call on every turn cost 15-50 seconds
+# even on success, and an occasional stall past that. File, artefact,
+# commit/PR, and outbound-message checks still run it (once per edit or
+# send, not once per turn).
 #
 # Fails open: any problem fetching rule data, or a missing/unreadable input
 # field, lets the turn end rather than blocking on a mechanism problem.
