@@ -124,7 +124,7 @@ SENTENCE_END = (".", "!", "?")
 
 SYSTEM_PRONOUNS = {"it", "this", "that"}
 # In vocabulary/structure.tsv for other reasons, but human referents, not
-# system referents — must not gate an anthropomorphism/abstract-location
+# system referents. Must not trigger an anthropomorphism/abstract-location
 # check ("the user lives in London" is correct English).
 HUMAN_SUBJECT_NOUNS = {"user"}
 
@@ -140,7 +140,7 @@ LITERAL_TOKEN = re.compile(
 )
 
 # Line-comment prefix per file extension. Extend as new languages appear in
-# the repos this plugin lints. Block comments are not extracted yet — no
+# the repos this plugin lints. Block comments are not extracted yet: no
 # language in scope today (Python, Bash) uses them for real comments.
 COMMENT_PREFIXES = {
     ".py": "#",
@@ -664,29 +664,55 @@ def main():
                     warning_total += 1
 
     if error_total and stop_hook_active:
-        # Already re-running after a prior block this turn — report, don't block again.
+        # Already re-running after a prior block this turn. Report, don't block again.
         return 0
 
     return 1 if error_total else 0
 
 
 def extract_transcript_reply_text(path):
-    """Assistant text blocks after the last user message in a Stop hook transcript."""
+    """Assistant text blocks after the last user message in a Stop hook transcript.
+
+    Two transcript shapes are supported, since both Claude Code and Copilot
+    CLI populate `transcript_path` on their Stop-equivalent hook, but write
+    a differently-shaped NDJSON file there:
+
+    - Claude Code: {"message": {"role": ..., "content": [...] | str}}
+    - Copilot CLI: {"type": "...", "data": {...}}, event types such as
+      "user.message" and "assistant.turn_start"/"assistant.message"
+
+    Copilot's exact field path for the assistant's final text is not
+    documented publicly and is unverified against a real transcript file;
+    the extraction below is a best-effort guess (data.content, else
+    data.text, else data.message.content) that returns nothing rather
+    than risk pulling in the wrong text as "the reply" on a shape it
+    does not recognise. See claude-plugins#1.
+    """
     lines = path.read_text().splitlines()
-    last_user_index = -1
-    for i, raw in enumerate(lines):
+    parsed = []
+    for raw in lines:
         try:
-            entry = json.loads(raw)
+            parsed.append(json.loads(raw))
         except json.JSONDecodeError:
+            parsed.append(None)
+
+    if any(entry is not None and "message" in entry for entry in parsed):
+        return _extract_claude_code_transcript_reply(parsed)
+    if any(entry is not None and "type" in entry and "data" in entry for entry in parsed):
+        return _extract_copilot_transcript_reply(parsed)
+    return ""
+
+
+def _extract_claude_code_transcript_reply(parsed):
+    last_user_index = -1
+    for i, entry in enumerate(parsed):
+        if entry is None:
             continue
-        message = entry.get("message", {})
-        if message.get("role") == "user":
+        if entry.get("message", {}).get("role") == "user":
             last_user_index = i
     texts = []
-    for raw in lines[last_user_index + 1:]:
-        try:
-            entry = json.loads(raw)
-        except json.JSONDecodeError:
+    for entry in parsed[last_user_index + 1:]:
+        if entry is None:
             continue
         message = entry.get("message", {})
         if message.get("role") != "assistant":
@@ -698,6 +724,37 @@ def extract_transcript_reply_text(path):
         for block in content:
             if isinstance(block, dict) and block.get("type") == "text":
                 texts.append(block.get("text", ""))
+    return "\n".join(texts)
+
+
+def _extract_copilot_transcript_reply(parsed):
+    last_user_index = -1
+    for i, entry in enumerate(parsed):
+        if entry is not None and entry.get("type") == "user.message":
+            last_user_index = i
+    texts = []
+    for entry in parsed[last_user_index + 1:]:
+        if entry is None:
+            continue
+        event_type = entry.get("type", "")
+        if not event_type.startswith("assistant"):
+            continue
+        data = entry.get("data", {})
+        if not isinstance(data, dict):
+            continue
+        text = data.get("content")
+        if isinstance(text, str) and text:
+            texts.append(text)
+            continue
+        text = data.get("text")
+        if isinstance(text, str) and text:
+            texts.append(text)
+            continue
+        message = data.get("message")
+        if isinstance(message, dict):
+            content = message.get("content")
+            if isinstance(content, str) and content:
+                texts.append(content)
     return "\n".join(texts)
 
 
