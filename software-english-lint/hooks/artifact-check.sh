@@ -29,5 +29,5 @@ OUTPUT="$("$LINTER" "${ARGS[@]}" --run-inference --quiet-vocab 2>&1)"
 STATUS=$?
 
 report_and_maybe_block "$OUTPUT" "$STATUS" "artifact" \
-  "Software English violations found in the artefact about to publish."
-exit $?
+  "Violations found in the artefact about to publish." "pretooluse"
+exit 0

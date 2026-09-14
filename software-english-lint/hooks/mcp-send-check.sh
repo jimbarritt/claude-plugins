@@ -44,5 +44,5 @@ OUTPUT="$(printf '%s' "$TEXT" | "$LINTER" --text --source-label "$TOOL_NAME" --r
 STATUS=$?
 
 report_and_maybe_block "$OUTPUT" "$STATUS" "mcp-send" \
-  "Software English violations found in the outbound message. Fix the text, then send it again."
-exit $?
+  "Fix the text, then send it again." "pretooluse"
+exit 0

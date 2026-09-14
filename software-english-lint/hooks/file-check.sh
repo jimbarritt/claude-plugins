@@ -50,5 +50,5 @@ OUTPUT="$("$LINTER" "$FILE_PATH" --run-inference --quiet-vocab "${CWD_ARGS[@]}" 
 STATUS=$?
 
 report_and_maybe_block "$OUTPUT" "$STATUS" "file" \
-  "Software English violations found in $FILE_PATH. Fix them."
-exit $?
+  "Violations found in $FILE_PATH. Fix them." "posttooluse"
+exit 0

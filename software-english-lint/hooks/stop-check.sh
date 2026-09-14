@@ -62,5 +62,5 @@ STATUS="$(cat "$STATUS_FILE")"
 OUTPUT="$(cat "$OUT_FILE")"
 
 report_and_maybe_block "$OUTPUT" "$STATUS" "stop" \
-  "Software English violations found. Fix each one, then finish the turn again."
-exit $?
+  "Fix each one, then finish the turn again." "stop"
+exit 0

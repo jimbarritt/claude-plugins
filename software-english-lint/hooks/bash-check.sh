@@ -45,5 +45,5 @@ OUTPUT="$(printf '%s' "$TEXT" | "$LINTER" --text --source-label commit-or-pr-tex
 STATUS=$?
 
 report_and_maybe_block "$OUTPUT" "$STATUS" "bash" \
-  "Software English violations found in the commit/PR text. Fix the text, then run the command again."
-exit $?
+  "Fix the text, then run the command again." "pretooluse"
+exit 0
