@@ -54,9 +54,18 @@ The `planning` branch is a detached branch (no shared history with `main`)
 used to track tasks and status across sessions. It holds `STATE.md` (current
 status) and `tasks/` (one file per workstream).
 
-When asked to "update the plan", use the `planning` branch: check it out (or
-fetch it) and update `STATE.md` and the relevant task file there, not files
-on `main`.
+When asked to "update the plan", use the `planning` branch. Do not switch
+the main working copy to it with `git checkout planning`. Instead, use a
+separate git worktree, e.g.:
+
+```sh
+git worktree add /home/user/claude-plugins-planning planning
+cd /home/user/claude-plugins-planning
+```
+
+If the worktree already exists, `cd` into it directly rather than adding it
+again. Update `STATE.md` and the relevant task file there, not files on
+`main`.
 
 Outside of planning documents, work directly on `main`. Do not use a
 feature branch for ordinary changes to this repo.
