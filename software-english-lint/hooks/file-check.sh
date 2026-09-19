@@ -19,14 +19,17 @@ FILE_PATH="$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')"
 CWD="$(echo "$INPUT" | jq -r '.cwd // empty')"
 
 [ -n "$FILE_PATH" ] && [ -f "$FILE_PATH" ] || exit 0
+hook_enabled '.hooks.file' "$CWD" || exit 0
 
 case "$FILE_PATH" in
   *.md)
     # Only files the Stop hook's own git diff cannot see: outside the
-    # working tree entirely, or inside one but untracked. A tracked
-    # in-tree file is already covered by stop-check.sh, so skip it here
-    # to avoid a duplicate report on the same content.
-    if [ -n "$CWD" ] && [ -d "$CWD" ]; then
+    # working tree entirely, inside one but untracked, or — when a
+    # project has turned hooks.stop.docs off — nowhere else checks
+    # tracked markdown at all, so this hook takes it over instead. A
+    # tracked in-tree file with hooks.stop.docs on is already covered by
+    # stop-check.sh, so skip it here to avoid a duplicate report.
+    if [ -n "$CWD" ] && [ -d "$CWD" ] && hook_enabled '.hooks.stop.docs' "$CWD"; then
       case "$FILE_PATH" in
         "$CWD"/*)
           if (cd "$CWD" && git ls-files --error-unmatch -- "$FILE_PATH" >/dev/null 2>&1); then

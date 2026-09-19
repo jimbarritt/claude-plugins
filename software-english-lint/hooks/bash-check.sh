@@ -10,8 +10,10 @@ source "$HERE/_lib.sh"
 
 INPUT="$(cat)"
 COMMAND="$(echo "$INPUT" | jq -r '.tool_input.command // empty')"
+CWD="$(echo "$INPUT" | jq -r '.cwd // empty')"
 
 [ -n "$COMMAND" ] || exit 0
+hook_enabled '.hooks.bash' "$CWD" || exit 0
 
 if ! echo "$COMMAND" | grep -qE '(^|[;&|]) *(git commit|gh pr|gh issue)'; then
   exit 0

@@ -19,6 +19,31 @@ is_claude_code() {
   [ "${CLAUDECODE:-}" = "1" ]
 }
 
+# Returns 1 when <jq-path> (e.g. '.hooks.stop.reply' or '.hooks["mcp-send"]')
+# resolves to false: the project's <cwd>/.claude/swe-lint.json if it sets
+# that path, else the plugin's own config.json ($SWE_LINT_CONFIG when set,
+# for tests, else "$HERE/../config.json"). Any other case (no cwd, missing
+# file, missing path, bad JSON) resolves to true (fail open, matching every
+# hook's behaviour before this toggle existed).
+#
+# Deliberately not "<jq-path> // empty": jq's // treats a literal `false`
+# the same as null/missing, which would make an explicit false at the
+# project layer fall through to the plugin default instead of disabling
+# the check. Read the raw value and check for the string "null" instead.
+hook_enabled() {
+  local jq_path="$1" cwd="$2"
+  local plugin_config="${SWE_LINT_CONFIG:-$HERE/../config.json}"
+  local project_file="$cwd/.claude/swe-lint.json"
+  local val=""
+  if [ -n "$cwd" ] && [ -f "$project_file" ]; then
+    val="$(jq -r "$jq_path" "$project_file" 2>/dev/null)"
+  fi
+  if [ -z "$val" ] || [ "$val" = "null" ]; then
+    val="$(jq -r "$jq_path" "$plugin_config" 2>/dev/null)"
+  fi
+  [ "$val" != "false" ]
+}
+
 # PreToolUse and Stop schemas are confirmed from each harness's own
 # hooks reference. PostToolUse cannot block in Copilot CLI (the tool
 # already ran by the time the hook fires): it only supports

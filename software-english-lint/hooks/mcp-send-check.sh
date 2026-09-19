@@ -19,6 +19,7 @@ source "$HERE/_lib.sh"
 
 INPUT="$(cat)"
 TOOL_NAME="$(echo "$INPUT" | jq -r '.tool_name // empty')"
+CWD="$(echo "$INPUT" | jq -r '.cwd // empty')"
 
 TEXT=""
 case "$TOOL_NAME" in
@@ -35,6 +36,7 @@ case "$TOOL_NAME" in
 esac
 
 [ -n "$TEXT" ] || exit 0
+hook_enabled '.hooks["mcp-send"]' "$CWD" || exit 0
 
 if ! "$HERE/../scripts/fetch-software-english-data.sh" >&2; then
   exit 0

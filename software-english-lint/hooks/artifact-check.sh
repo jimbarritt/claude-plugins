@@ -11,9 +11,11 @@ source "$HERE/_lib.sh"
 INPUT="$(cat)"
 ACTION="$(echo "$INPUT" | jq -r '.tool_input.action // "publish"')"
 FILE_PATH="$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')"
+CWD="$(echo "$INPUT" | jq -r '.cwd // empty')"
 
 [ "$ACTION" = "publish" ] || exit 0
 [ -n "$FILE_PATH" ] && [ -f "$FILE_PATH" ] || exit 0
+hook_enabled '.hooks.artifact' "$CWD" || exit 0
 
 if ! "$HERE/../scripts/fetch-software-english-data.sh" >&2; then
   exit 0

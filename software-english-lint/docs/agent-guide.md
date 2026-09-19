@@ -34,13 +34,20 @@ does not reach you at all; only exit 2 does.
 
 ## Hooks
 
-| Hook | Event | Covers |
-|---|---|---|
-| [`../hooks/stop-check.sh`](../hooks/stop-check.sh) | `Stop` | The chat reply, the transcript since the last user message, and changed markdown (tracked and untracked) |
-| [`../hooks/file-check.sh`](../hooks/file-check.sh) | `PostToolUse` on `Write`\|`Edit` | A markdown file the Stop hook's git diff cannot see: outside the working tree, or untracked |
-| [`../hooks/bash-check.sh`](../hooks/bash-check.sh) | `PreToolUse` on `Bash` | A `git commit` message or a `gh pr`/`gh issue` title or body |
-| [`../hooks/artifact-check.sh`](../hooks/artifact-check.sh) | `PreToolUse` on `Artifact` | A file about to publish: markdown directly, HTML via text-node extraction |
-| [`../hooks/mcp-send-check.sh`](../hooks/mcp-send-check.sh) | `PreToolUse` on the `Slack`/`Gmail`/`Drive` send tools | An outbound message body |
+| Hook | Event | Covers | Config key |
+|---|---|---|---|
+| [`../hooks/stop-check.sh`](../hooks/stop-check.sh) | `Stop` | The chat reply and the transcript since the last user message; changed tracked markdown | `hooks.stop.reply` (reply, transcript); `hooks.stop.docs` (tracked markdown) |
+| [`../hooks/file-check.sh`](../hooks/file-check.sh) | `PostToolUse` on `Write`\|`Edit` | A markdown file the Stop hook's git diff cannot see: outside the working tree, or untracked. Also tracked markdown, when `hooks.stop.docs` is off | `hooks.file` |
+| [`../hooks/bash-check.sh`](../hooks/bash-check.sh) | `PreToolUse` on `Bash` | A `git commit` message or a `gh pr`/`gh issue` title or body | `hooks.bash` |
+| [`../hooks/artifact-check.sh`](../hooks/artifact-check.sh) | `PreToolUse` on `Artifact` | A file about to publish: markdown directly, HTML via text-node extraction | `hooks.artifact` |
+| [`../hooks/mcp-send-check.sh`](../hooks/mcp-send-check.sh) | `PreToolUse` on the `Slack`/`Gmail`/`Drive` send tools | An outbound message body | `hooks["mcp-send"]` (hyphenated key, so a jq path needs bracket syntax) |
+
+Each config key resolves via `hook_enabled()` in
+[`../hooks/_lib.sh`](../hooks/_lib.sh): the project's own
+`.claude/swe-lint.json`, if it sets that key, else the plugin's own
+[`../config.json`](../config.json), else `true` (fail open). See the
+[README](../README.md#turn-off-a-check-for-one-project) for the
+project-level file's format.
 
 All five call
 [`../scripts/software_english_lint.py`](../scripts/software_english_lint.py)

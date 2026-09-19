@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Stop hook: runs the deterministic tier over the chat reply, the transcript
 # since the last user message, and changed markdown (tracked and untracked).
+# The reply/transcript check and the markdown-diff check are independently
+# toggleable (hooks.stop.reply, hooks.stop.docs in config.json); see
+# hook_enabled() in _lib.sh.
 # No inference tier here: a model call on every turn cost 15-50 seconds
 # even on success, and an occasional stall past that. File, artefact,
 # commit/PR, and outbound-message checks still run it (once per edit or
@@ -25,6 +28,15 @@ if [ -z "$CWD" ] || [ ! -d "$CWD" ]; then
   exit 0
 fi
 
+REPLY_ENABLED=true
+hook_enabled '.hooks.stop.reply' "$CWD" || REPLY_ENABLED=false
+DOCS_ENABLED=true
+hook_enabled '.hooks.stop.docs' "$CWD" || DOCS_ENABLED=false
+
+if [ "$REPLY_ENABLED" = false ] && [ "$DOCS_ENABLED" = false ]; then
+  exit 0
+fi
+
 REPLY_FILE="$(mktemp)"
 OUT_FILE="$(mktemp)"
 STATUS_FILE="$(mktemp)"
@@ -34,9 +46,15 @@ printf '%s' "$REPLY" > "$REPLY_FILE"
 (
   cd "$CWD" || exit 0
   "$HERE/../scripts/fetch-software-english-data.sh" >/dev/null 2>&1
-  ARGS=(--diff --added-only --reply-file "$REPLY_FILE" --stop-hook-active "$STOP_HOOK_ACTIVE" --quiet-vocab --cwd "$CWD")
-  if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
-    ARGS+=(--transcript "$TRANSCRIPT")
+  ARGS=(--stop-hook-active "$STOP_HOOK_ACTIVE" --quiet-vocab --cwd "$CWD")
+  if [ "$REPLY_ENABLED" = true ]; then
+    ARGS+=(--reply-file "$REPLY_FILE")
+    if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
+      ARGS+=(--transcript "$TRANSCRIPT")
+    fi
+  fi
+  if [ "$DOCS_ENABLED" = true ]; then
+    ARGS+=(--diff --added-only)
   fi
   "$LINTER" "${ARGS[@]}" > "$OUT_FILE" 2>&1
   echo $? > "$STATUS_FILE"

@@ -78,6 +78,35 @@ Add this marker to the line:
 A Markdown blockquote (a line starting with `>`) is exempt without a
 marker, for a deliberate quote of someone else's exact words.
 
+## Turn off a check for one project
+
+Each of the plugin's checks can be turned off for one project, without
+touching the plugin's own install. Create `.claude/swe-lint.json` at the
+project root and set only the keys you want to change:
+
+```json
+{
+  "hooks": {
+    "stop": { "reply": false }
+  }
+}
+```
+
+Keys, all `true` by default:
+
+| Key | Turns off |
+|---|---|
+| `stop.reply` | The Stop hook's check of the chat reply and the transcript |
+| `stop.docs` | The Stop hook's check of changed tracked markdown |
+| `file` | The per-edit check on an untracked or out-of-tree markdown file, or a code file's comments. Also takes over tracked markdown when `stop.docs` is off |
+| `bash` | The check on a `git commit`, `gh pr`, or `gh issue` message |
+| `artifact` | The check on a file about to publish as an Artifact |
+| `mcp-send` | The check on an outbound Slack/Gmail/Drive message |
+
+A missing file, a missing key, or a value other than `false` leaves that
+check on. The same defaults live in the plugin's own `config.json`, so a
+project file only needs to list what it changes.
+
 ## Pick up a newer version of the Software English spec
 
 Edit the tag in [`software-english.json`](software-english.json). The
