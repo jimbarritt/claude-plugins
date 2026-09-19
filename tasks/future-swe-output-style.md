@@ -1,68 +1,62 @@
-# Future task: a Software English output style for the plugin
+# Task: a Software English output style for the plugin
 
-No GitHub issue filed yet. Not started — queued after issue #2, and after
-`future-stop-reply-check.md`, which this replaces or complements. Jim is
-keen to start this as soon as issue #2 lands: "this sounds like exactly
-the feature our plugin has been waiting for."
+No GitHub issue filed yet. Implemented and committed to `main` at
+`24fa005`, not yet pushed — Jim to confirm the push.
 
-## What an output style is
+## What shipped
 
-Researched from [Output styles](https://code.claude.com/docs/en/output-styles),
-Claude Code v2.1.269 (11 September 2026 changelog entry, which added
-`/output-style [name]` for listing and switching, including over Remote
-Control and in cloud/headless sessions).
+`software-english-lint/output-styles/software-english.md`: a condensed,
+hand-written version of the Software English rules, with
+`keep-coding-instructions: true` and `force-for-plugin: true`. Claude
+Code applies it automatically whenever the plugin is enabled, sending
+its instructions with every request for the session, the same way it
+sends the system prompt.
 
-An output style is a Markdown file (frontmatter plus instructions)
-appended to the system prompt. It changes how Claude responds, not what
-it knows. Relevant frontmatter:
+`hooks/stop-check.sh`'s reply/transcript check now skips outright under
+Claude Code (`is_claude_code()`), regardless of `hooks.stop.reply`: the
+output style covers that ground instead. Copilot CLI, which has no
+output-style mechanism, keeps the check exactly as before, still gated
+by `hooks.stop.reply`.
 
-- `keep-coding-instructions: true` — keeps Claude Code's built-in
-  software-engineering behaviour, adds the style's instructions on top.
-- `force-for-plugin: true` — **plugin output styles only.** Applies the
-  style automatically whenever the plugin is enabled, with no user
-  action, overriding the user's own `outputStyle` setting. If more than
-  one enabled plugin sets this, Claude Code uses whichever loaded first.
+Docs updated to match: `docs/agent-guide.md` (new "Output style"
+section, naming two gaps it does not close: a subagent does not
+inherit the parent's output style, and the style is an instruction, not
+a check, so a rule the model still gets wrong still needs a downstream
+hook to catch it), `README.md`, `.claude-plugin/plugin.json` (version
+0.2.0 to 0.3.0). `output-styles/software-english.md` is added to
+`.swe-ignore`, alongside `agent-guide.md`, since it cites banned words
+and patterns as examples the linter cannot tell apart from a live
+violation. `tests/hooks_test.sh` gained two cases proving the split:
+Claude Code skips the reply check on a real violation, Copilot CLI
+still blocks on the same input.
 
-A plugin ships one in an `output-styles/` directory at its root
-(`software-english-lint/output-styles/`, alongside the existing
-`skills/`, `hooks/`, `rules/`).
+## Open questions, as answered
 
-## Why this matters for software-english-lint
+- **Replace the Stop hook's reply check, sit alongside it, or fold the
+  two tasks together?** Replace it for Claude Code; keep it unchanged
+  for Copilot CLI, which has no output-style equivalent. This was not
+  in the original three options and came from checking the plugin's
+  existing Copilot CLI support (`is_claude_code()`,
+  `_extract_copilot_transcript_reply`) before writing any code.
+- **`keep-coding-instructions: true`?** Yes, settled without
+  discussion. Claude is still doing software engineering.
+- **Content: condensed rules, or a pointer to fetch/read the spec?**
+  Condensed, hand-written into the style file. Confirmed the mechanism
+  first: Claude Code sends the style's instructions with every request,
+  not once per session, so there is no freshness gap to trade off
+  against.
+- **Multiple plugins forcing a style?** None Jim runs today, so no
+  load-order conflict.
 
-This is a second lever on the same problem `future-stop-reply-check.md`
-raised: today Software English is enforced reactively, by the Stop hook
-blocking a violating reply and making Claude retry the whole thing. An
-output style with `force-for-plugin: true` would instead put the spec's
-rules directly in the system prompt the moment the plugin is enabled —
-Claude writes in-spec from the first token, rather than being caught and
-corrected after the fact.
+## Related
 
-This does not necessarily replace the Stop hook (deterministic checks
-still catch what the model misses), but it could sharply cut how often
-the block-and-retry loop fires, which is exactly what Jim's `future-
-stop-reply-check.md` concern was about.
-
-## Open questions (not yet asked)
-
-- Does this replace the Stop hook's reply check, sit alongside it as a
-  first line of defence, or fold the two tasks into one?
-- `keep-coding-instructions: true` presumably yes, since Claude is still
-  doing software engineering — confirm.
-- What goes in the style's instructions: a condensed version of the
-  Software English rules, or a pointer to fetch/read the spec, given the
-  existing rule data already lives in `data/` (fetched, gitignored) and
-  `rules/plugin-rules.toml`?
-- Interaction with `force-for-plugin` and multiple plugins: does Jim run
-  other plugins that also force a style, and if so which should win?
-
-## Status
-
-Not scoped. Jim wants to start this as soon as issue #2's config work is
-done — see `STATE.md` for priority ordering against the other two future
-tasks.
+[future-stop-reply-check.md](future-stop-reply-check.md): its concern
+(a wasteful block-and-retry loop for a small mechanical fix) is now
+resolved for Claude Code, since the reply check no longer runs there at
+all. Still open for Copilot CLI, where the loop is unchanged.
 
 ## Next step
 
-Once issue #2 ships: read `hooks/stop-check.sh`, `docs/agent-guide.md`'s
-rule-tier section, and `rules/plugin-rules.toml` again with this in mind,
-then bring a proposal back to Jim, one question at a time as usual.
+Confirm with Jim whether to push `main` (currently one commit ahead of
+`origin/main`). After that, no further work queued on this task unless
+Jim finds the condensed rules miss something in practice.

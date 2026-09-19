@@ -31,8 +31,12 @@ correction path for a small, mechanical, deterministic-tier violation
 
 ## Related: a forced output style
 
-See [future-swe-output-style.md](future-swe-output-style.md). A plugin
-output style with `force-for-plugin: true` could put Software English's
-rules directly in the system prompt, cutting how often this block-and-
-retry loop fires in the first place. Jim is keen to explore this one
-first, right after issue #2.
+See [future-swe-output-style.md](future-swe-output-style.md). Shipped:
+`hooks/stop-check.sh`'s reply/transcript check now skips outright under
+Claude Code, since the output style shapes the reply before it is
+written. The block-and-retry loop this task describes no longer fires
+under Claude Code at all.
+
+Copilot CLI has no output-style mechanism, so it keeps the reply check,
+and this task's original concern, unchanged. Not scoped further; no
+Copilot-specific design work has been done.
