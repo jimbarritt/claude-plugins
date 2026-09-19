@@ -134,6 +134,13 @@ If `claude` is not on `PATH`, or the call fails or times out, the
 inference tier is skipped. The deterministic tier's result stands
 either way.
 
+`--force-inference` (used by `/swe-lint-file`, not by any hook) bypasses
+conditions 1 and 3 above: it runs inference regardless of deterministic
+errors already found, and regardless of the prose length threshold. It
+still skips on empty prose. Condition 2 (`stop_hook_active`) does not
+apply outside the `Stop` hook, so it is moot here. `--run-inference`'s
+own gating, used by the four hooks in the table above, is unchanged.
+
 ## Where the rule data comes from
 
 [`../software-english.json`](../software-english.json) pins a tag of
@@ -176,9 +183,10 @@ python3 scripts/software_english_lint.py --transcript /path/to/transcript.jsonl
 python3 scripts/software_english_lint.py --html-file page.html
 ```
 
-Add `--run-inference` to also run the inference tier. Add
-`--quiet-vocab` to omit `vocabulary-membership` lines; every hook does
-this by default.
+Add `--run-inference` to also run the inference tier, gated as above.
+Add `--force-inference` to run it unconditionally instead — this is
+what `/swe-lint-file` does. Add `--quiet-vocab` to omit
+`vocabulary-membership` lines; every hook does this by default.
 
 Run `scripts/fetch-software-english-data.sh` once by hand first, if
 `data/` is empty — the hooks do this automatically, a manual run does

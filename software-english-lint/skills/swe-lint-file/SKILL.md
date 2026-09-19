@@ -1,0 +1,48 @@
+---
+name: swe-lint-file
+description: Run a full software-english-lint check on a named file, on demand — both the deterministic tier and a forced inference tier, regardless of the automatic hooks' gating
+argument-hint: <file-path>
+allowed-tools: Bash
+disable-model-invocation: false
+---
+
+# swe-lint-file
+
+Check one named file against Software English, both tiers, right now.
+The automatic hooks only run the inference tier when the deterministic
+tier is already clean and the prose passes a length threshold; this
+command runs inference unconditionally, because it exists for the case
+where you want the full check regardless.
+
+## Step 1: Read the argument
+
+`$ARGUMENTS` holds one file path, relative to the current project unless
+given as absolute. If empty, ask which file to check.
+
+## Step 2: Fetch the rule data
+
+```
+"$CLAUDE_PLUGIN_ROOT/scripts/fetch-software-english-data.sh"
+```
+
+If this fails and prints "no cached data available", report that and
+stop — there is nothing to check against.
+
+## Step 3: Run both tiers
+
+```
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" <file-path> --force-inference --quiet-vocab
+```
+
+`--force-inference` runs the inference tier unconditionally: it ignores
+the deterministic-clean gate and the length threshold that
+`--run-inference` (used by the hooks) applies. It still skips if the
+file has no prose to check (e.g. empty, or a code file with no
+comments).
+
+## Step 4: Report
+
+Print the findings back exactly as the linter reported them, one line
+each, with severity. If there are none, say the file is clean, both
+tiers. Do not fix anything unless asked — this command is a check, not
+an edit.

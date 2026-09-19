@@ -42,6 +42,17 @@ attention from you.
 When a file write breaks a rule, Claude reads the printed report and
 fixes the file.
 
+## Check one file on demand
+
+```text
+/swe-lint-file <file-path>
+```
+
+Runs both tiers on the named file, right now: the deterministic tier,
+and the inference tier as well, regardless of whether the file already
+has deterministic errors or is short enough to normally skip it. Use
+this when you want the full check without editing the file first.
+
 ## Report a wrong finding
 
 If you see a finding that looks wrong, run this as soon as you notice

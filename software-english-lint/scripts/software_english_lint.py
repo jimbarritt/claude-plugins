@@ -559,6 +559,7 @@ def main():
     parser.add_argument("--html-file", help="path to an HTML file; text nodes are extracted as prose")
     parser.add_argument("--source-label", default=None, help="label for --text's source in the report")
     parser.add_argument("--run-inference", action="store_true", help="run the inference tier if the deterministic tier is clean and the threshold passes")
+    parser.add_argument("--force-inference", action="store_true", help="run the inference tier unconditionally: ignores the deterministic-clean gate and the length threshold (still skips on empty prose)")
     parser.add_argument("--stop-hook-active", default="false", choices=["true", "false"])
     parser.add_argument("--quiet-vocab", action="store_true", help="omit vocabulary-membership lines from the printed report (they never block; this only reduces noise)")
     parser.add_argument("--cwd", default=None, help="project root .swe-ignore is read from (defaults to the current directory)")
@@ -663,9 +664,10 @@ def main():
 
     stop_hook_active = args.stop_hook_active == "true"
 
-    if args.run_inference and error_total == 0 and not stop_hook_active:
+    gated_run = args.run_inference and error_total == 0 and not stop_hook_active
+    if gated_run or args.force_inference:
         combined_prose = "\n".join(prose for _, _, prose in sources if prose.strip())
-        if combined_prose.strip() and threshold_pass(combined_prose, cfg):
+        if combined_prose.strip() and (args.force_inference or threshold_pass(combined_prose, cfg)):
             inference_rules = {rid: r for rid, r in rules.items() if r.get("check") == "model-judgement"}
             is_conversational = bool(args.reply_file or args.transcript)
             if is_conversational:
