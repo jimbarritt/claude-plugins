@@ -36,23 +36,91 @@ find something new, without needing a person to ask for it each time.
 
 ## Status
 
-Not scoped. No design work done yet — captured as raised, per Jim's
-instruction to finish the issue #2 config work first.
+Done — shipped on `main` at
+[`3108620`](https://github.com/jimbarritt/claude-plugins/commit/3108620).
+Jim said "do it in one go": both ideas implemented and shipped in one
+pass, with design decisions made directly rather than asked one at a
+time first (per the open questions below, now answered by what shipped
+rather than by a prior conversation).
 
-## Open questions (not yet asked)
+Before implementing, delegated two Claude Code mechanics questions to
+the `claude-code-guide` agent (no prior confirmed answer existed in
+this repo): the correct non-blocking advisory hook JSON shape (a
+`systemMessage` alongside `permissionDecision: "allow"` for
+`PreToolUse`, or alongside no decision at all for `PostToolUse`, both
+Claude Code only; Copilot CLI uses `additionalContext` for
+`PostToolUse`, and — unverified — `permissionDecision: "allow"` +
+`permissionDecisionReason` for `PreToolUse`, mirroring how this file
+already handles Copilot's blocking case), and how an output style's
+picker description is shown (`description` verbatim, no truncation
+documented).
+
+**Idea 1, implemented as:** `file-check.sh`, `bash-check.sh`,
+`artifact-check.sh`, and `mcp-send-check.sh` now call the linter with
+a new `--advise-inference` flag instead of the removed `--run-inference`.
+This never runs a model call; it only decides whether a fresh pass is
+worth dispatching (see idea 2) and prints an `INFERENCE_ADVISED` marker
+line when it is. The hook (`strip_advise_marker()` and
+`advise_inference()`, new in `hooks/_lib.sh`) strips that marker out of
+the deterministic-tier report and, only when the deterministic tier
+itself found nothing to block, returns a non-blocking advisory hook
+response naming the exact command to run. Claude is expected to
+dispatch a subagent (the `Agent` tool) to run it — the subagent's job
+is to check and report only, same as `/swe:lint-file`, not to fix
+anything; Claude reads its findings and fixes the source itself. For a
+file source the command is `--force-inference` directly against the
+path; for a text source (a commit/PR message, an outbound MCP
+message), the hook first writes the checked text to a scratch file
+under `~/.claude/swe/pending-inference/` and points the command at it,
+since `bash-check.sh` and `mcp-send-check.sh` now let the underlying
+tool call proceed unblocked before the subagent's pass completes.
+Accepted cost, named in `docs/agent-guide.md`'s "Known limits": a sent
+message cannot be un-sent once the inference pass finds something; a
+commit can still be amended.
+
+**Idea 2, implemented as:** `inference_eligible()` in
+`software_english_lint.py`. A single named file — the only source with
+a stable identity across repeated edits — is compared against its last
+recorded `--force-inference` pass
+(`~/.claude/swe/inference-state.json`, written by `save_inference_state()`
+whenever `--force-inference` actually runs, whether dispatched by a
+hook's advisory or run directly via `/swe:lint-file`): eligible again
+only once its word or sentence count has grown by another
+`config.json` `threshold_words`/`threshold_sentences` since that
+recorded pass, not on every single edit regardless of whether the
+prior pass found something. A first pass, or a source with no stable
+identity across calls (piped text, an HTML file), falls back to the
+same plain absolute threshold as before this task.
+
+**Also this session:** the output style's picker description dropped
+the redundant "per the swe plugin" clause (Jim's second, unrelated ask
+in the same message as "do it in one go"). Version bumped to 0.6.0.
+
+**Verified directly**, not just by reading the code back: ran
+`file-check.sh` and `bash-check.sh` by hand against scratch files/`$HOME`s,
+confirming a fresh clean file advises, a second identical call still
+advises (no state recorded yet), a real `--force-inference` pass
+records state, a no-growth re-check then stays silent, and growth past
+threshold advises again; also confirmed a deterministic-error case
+still blocks and never advises in the same call. Both existing test
+suites (`hooks_test.sh`, `lint_fail_open_test.sh`) still pass; added
+new coverage: `strip_advise_marker()`/`advise_inference()` unit tests
+in `hooks_test.sh`, and a new `tests/inference_eligible_test.sh`
+covering the throttle logic directly and offline (no fetched rule
+catalogue needed).
+
+## Open questions from before this shipped, now answered by the design above
 
 - Does idea 2's trigger policy replace `file-check.sh`'s per-edit
-  `--run-inference` call entirely, or sit alongside it?
-- What signal decides "worth an inference pass now"? Candidates: a batch
-  of edits since the last pass, a explicit end-of-task signal, a time or
-  edit-count threshold, or something else.
+  `--run-inference` call entirely, or sit alongside it? — Replaces it:
+  `--run-inference` no longer exists; `--advise-inference` is the only
+  gating path a hook uses.
+- What signal decides "worth an inference pass now"? — Growth in word
+  or sentence count since the last recorded pass on that same file,
+  not a batch count, a time threshold, or an explicit end-of-task
+  signal.
 - Does idea 1 (subagent hand-off) change what idea 2's trigger can even
-  see — e.g. does the subagent track "20 known issues" as state across
-  calls, or does each invocation start fresh?
-
-## Next step
-
-Return to this once issue #2 ships. Read `file-check.sh`,
-`bash-check.sh`, `artifact-check.sh`, `mcp-send-check.sh`, and the
-inference-tier code path in `software_english_lint.py` again with these
-two ideas in mind, then bring a proposal back to Jim.
+  see? — The two are linked through the state file: any
+  `--force-inference` run, hook-dispatched or manual, updates the one
+  state entry a later `--advise-inference` call reads. No per-call
+  state lives inside the subagent itself.

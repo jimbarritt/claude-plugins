@@ -4,24 +4,35 @@ Last updated: 2026-09-19
 
 ## In progress
 
-None. Next task below is about to start.
+None.
 
 ## Next
 
 In priority order (Jim's pick):
 
-1. [tasks/future-inference-tier-rework.md](tasks/future-inference-tier-rework.md):
-   hand inference off to a subagent instead of running it in-hook, and
-   reconsider when the inference tier triggers at all (not every edit,
-   not requiring a manual reminder either).
-2. [tasks/future-stop-reply-check.md](tasks/future-stop-reply-check.md):
-   resolved for Claude Code by the output-style task above (the reply
-   check no longer runs there, so the block-and-retry loop does not
-   fire). Still open for Copilot CLI, which keeps the reply check
-   unchanged.
+1. [tasks/future-stop-reply-check.md](tasks/future-stop-reply-check.md):
+   resolved for Claude Code by the output-style task (the reply check
+   no longer runs there, so the block-and-retry loop does not fire).
+   Still open for Copilot CLI, which keeps the reply check unchanged.
 
 ## Recently done
 
+- [tasks/future-inference-tier-rework.md](tasks/future-inference-tier-rework.md):
+  both ideas shipped together. Idea 1: the four non-`Stop` hooks no
+  longer call `claude -p --safe-mode` themselves; each calls the
+  linter with a new `--advise-inference` flag, which only decides
+  whether a fresh pass is worth dispatching, and the hook turns that
+  into a non-blocking advisory hook response telling Claude to
+  dispatch a subagent to run the real check and report back. Idea 2:
+  a single named file is throttled by growth since its last recorded
+  `--force-inference` pass (`~/.claude/swe/inference-state.json`), not
+  a flat per-edit threshold, so a file with known outstanding findings
+  is not re-advised on every follow-up fix. Also fixed the output
+  style's picker description (Jim's second ask this session). Both
+  existing test suites pass; a new
+  `tests/inference_eligible_test.sh` covers the throttle directly.
+  Shipped on `main` at
+  [`3108620`](https://github.com/jimbarritt/claude-plugins/commit/3108620).
 - [tasks/future-plugin-rename.md](tasks/future-plugin-rename.md): renamed
   the plugin `software-english-lint` -> `swe` and dropped the `swe-`
   prefix from each command, so the picker shows `swe:feedback` instead
