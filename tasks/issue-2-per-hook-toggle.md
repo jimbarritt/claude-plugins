@@ -87,8 +87,8 @@ Plugin-root `config.json`:
 }
 ```
 
-Project `.claude/<name>.json` (name open, see Q2), only the keys a project
-wants to override:
+Project `.claude/swe-lint.json`, only the keys a project wants to
+override:
 
 ```json
 {
@@ -107,12 +107,12 @@ hook, reads both with no new dependency.
 
 ```sh
 # Returns 1 when hooks.<key> resolves to false: the project's
-# .claude/<name>.json if it sets that key, else the plugin's own
+# .claude/swe-lint.json if it sets that key, else the plugin's own
 # config.json. Any other case (missing file, missing key, bad JSON)
 # resolves to true.
 hook_enabled() {
   local key="$1" cwd="$2"
-  local project_file="$cwd/.claude/<name>.json"
+  local project_file="$cwd/.claude/swe-lint.json"
   local val=""
   [ -n "$cwd" ] && [ -f "$project_file" ] && \
     val="$(jq -r --arg k "$key" '.hooks[$k] // empty' "$project_file" 2>/dev/null)"
@@ -122,9 +122,6 @@ hook_enabled() {
   [ "$val" != "false" ]
 }
 ```
-
-`<name>` and the exact plugin-config.json path resolution are placeholders
-pending Q2.
 
 Each of `bash-check.sh`, `artifact-check.sh`, `mcp-send-check.sh`, and
 `file-check.sh` adds one line after parsing `cwd`:
@@ -185,10 +182,7 @@ weaker one.
 1. ~~**Config location.**~~ Decided: both layers. Plugin `config.json`
    holds the default `hooks` block; a project's `.claude/` file overrides
    it per key.
-2. **File name and path.** The project override file lives under
-   `.claude/` (decided). What filename: `.claude/software-english-lint.json`
-   (matches the plugin name), `.claude/swe-lint.json` (matches the
-   `.swe-` prefix `.swe-ignore` already uses), or something else?
+2. ~~**File name and path.**~~ Decided: `.claude/swe-lint.json`.
 3. **Key names.** Flat `stop-reply`, `stop-docs`, `file`, `bash`,
    `artifact`, `mcp-send` (proposed, matching script stems), or nested
    `stop: { reply, docs }`?
@@ -213,6 +207,8 @@ weaker one.
   project's `.claude/` directory, since that directory is already the
   convention for project-level Claude Code config and adds no new
   top-level clutter.
+- **Q2 (file name): `.claude/swe-lint.json`.** Matches the `.swe-` prefix
+  `.swe-ignore` already uses.
 
 ## Next step
 
