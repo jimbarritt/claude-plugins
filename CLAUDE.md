@@ -40,6 +40,24 @@ claude-plugins/
    { "name": "<plugin-name>", "source": "./<plugin-name>" }
    ```
 
+## Related repo
+
+Work in this repo sometimes needs a change in
+[`jimbarritt/software-english`](https://github.com/jimbarritt/software-english),
+the upstream spec this repo's linting and prose conventions follow. Treat
+`claude-plugins` as the primary repo and `software-english` as a secondary
+repo to change when a task needs a spec change there.
+
+## Cross-session planning
+
+The `planning` branch is a detached branch (no shared history with `main`)
+used to track tasks and status across sessions. It holds `STATE.md` (current
+status) and `tasks/` (one file per workstream).
+
+When asked to "update the plan", use the `planning` branch: check it out (or
+fetch it) and update `STATE.md` and the relevant task file there, not files
+on `main`.
+
 ## Conventions
 
 - **Language:** British English throughout - code, comments, docs.
