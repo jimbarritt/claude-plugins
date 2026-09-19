@@ -62,11 +62,11 @@ PLUGIN_ROOT = HERE.parent
 DATA = PLUGIN_ROOT / "data"
 CONFIG_PATH = PLUGIN_ROOT / "config.json"
 PLUGIN_RULES_PATH = PLUGIN_ROOT / "rules" / "plugin-rules.toml"
-FEEDBACK_LOG_PATH = Path.home() / ".claude" / "software-english-lint" / "feedback.jsonl"
+FEEDBACK_LOG_PATH = Path.home() / ".claude" / "swe" / "feedback.jsonl"
 
 
 def log_feedback_event(entry):
-    """Append one JSON line to the feedback log. Read by /swe-send-feedback.
+    """Append one JSON line to the feedback log. Read by /swe:send-feedback.
 
     Fails silently: a logging problem must never affect linting itself."""
     try:
@@ -503,7 +503,7 @@ def run_inference(prose, inference_rules, cfg, source_label="unknown"):
         })
 
     if not shutil.which("claude"):
-        print("software-english-lint: 'claude' not on PATH, skipping inference tier", file=sys.stderr)
+        print("swe: 'claude' not on PATH, skipping inference tier", file=sys.stderr)
         log_end("no-claude-on-path")
         return []
     prompt = build_inference_prompt(prose, inference_rules)
@@ -514,24 +514,24 @@ def run_inference(prose, inference_rules, cfg, source_label="unknown"):
             timeout=cfg["model_call_timeout_seconds"], check=False,
         )
     except subprocess.TimeoutExpired:
-        print("software-english-lint: inference-tier model call timed out, skipping", file=sys.stderr)
+        print("swe: inference-tier model call timed out, skipping", file=sys.stderr)
         log_end("timeout")
         return []
     if result.returncode != 0:
-        print(f"software-english-lint: inference-tier model call failed: {result.stderr.strip()[:200]}", file=sys.stderr)
+        print(f"swe: inference-tier model call failed: {result.stderr.strip()[:200]}", file=sys.stderr)
         log_end("call-failed")
         return []
     raw = result.stdout.strip()
     start = raw.find("{")
     end = raw.rfind("}")
     if start == -1 or end == -1:
-        print("software-english-lint: inference-tier response had no JSON, skipping", file=sys.stderr)
+        print("swe: inference-tier response had no JSON, skipping", file=sys.stderr)
         log_end("no-json")
         return []
     try:
         parsed = json.loads(raw[start:end + 1])
     except json.JSONDecodeError:
-        print("software-english-lint: inference-tier response was not valid JSON, skipping", file=sys.stderr)
+        print("swe: inference-tier response was not valid JSON, skipping", file=sys.stderr)
         log_end("bad-json")
         return []
     out = []
@@ -568,7 +568,7 @@ def main():
     rules, exemptions = load_rule_catalogue()
     if rules is None:
         print(
-            "software-english-lint: no rule catalogue cached "
+            "swe: no rule catalogue cached "
             "(data/core-rules.toml is missing). Run "
             "scripts/fetch-software-english-data.sh, or check network "
             "access; skipping this check."

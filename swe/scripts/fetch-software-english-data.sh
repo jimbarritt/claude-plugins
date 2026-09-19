@@ -28,13 +28,13 @@ trap 'rm -rf "$TMP"' EXIT
 URL="https://github.com/$REPO.git"
 
 if ! git clone --depth 1 --branch "$TAG" "$URL" "$TMP/src" >"$TMP/git.log" 2>&1; then
-  echo "software-english-lint: could not clone $URL at $TAG" >&2
+  echo "swe: could not clone $URL at $TAG" >&2
   cat "$TMP/git.log" >&2
   if [ -d "$DATA_DIR" ] && [ -n "$(ls -A "$DATA_DIR" 2>/dev/null)" ]; then
-    echo "software-english-lint: using existing cached data instead" >&2
+    echo "swe: using existing cached data instead" >&2
     exit 0
   fi
-  echo "software-english-lint: no cached data available; skipping this check" >&2
+  echo "swe: no cached data available; skipping this check" >&2
   exit 1
 fi
 

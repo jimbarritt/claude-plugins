@@ -4,7 +4,7 @@
 # disabled. Deterministic and offline: no network call, no `claude` or
 # `git` needed, since a disabled hook exits before either runs.
 #
-# Run: software-english-lint/tests/hooks_test.sh
+# Run: swe/tests/hooks_test.sh
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 HOOKS="$HERE/../hooks"

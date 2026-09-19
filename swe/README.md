@@ -1,4 +1,4 @@
-# software-english-lint
+# swe
 
 Shapes every Claude Code reply with a forced output style, and checks
 every file edit, commit message, artifact, and outbound message a
@@ -15,14 +15,14 @@ not for a person.
 
 ```text
 /plugin marketplace add jimbarritt/claude-plugins
-/plugin install software-english-lint@jimbarritt-claude-plugins
+/plugin install swe@jimbarritt-claude-plugins
 ```
 
 No further setup is needed.
 
 Have `jq` on `PATH` first: every hook parses its JSON input with it.
 For the inference tier, have `claude` on `PATH` too. For
-`/swe-send-feedback`, have `gh` on `PATH`, authenticated against
+`/swe:send-feedback`, have `gh` on `PATH`, authenticated against
 GitHub.
 
 ## What happens once it is installed
@@ -45,7 +45,7 @@ fixes the file.
 ## Check one file on demand
 
 ```text
-/swe-lint-file <file-path>
+/swe:lint-file <file-path>
 ```
 
 Runs both tiers on the named file, right now: the deterministic tier,
@@ -59,19 +59,19 @@ If you see a finding that looks wrong, run this as soon as you notice
 it:
 
 ```text
-/swe-feedback <false-positive|false-negative|wrong-fix> [note]
+/swe:feedback <false-positive|false-negative|wrong-fix> [note]
 ```
 
 This takes a few seconds and makes no network call. It logs the rule
 ID, the source, the flagged (or missed) text, and your note, to
-`~/.claude/software-english-lint/feedback.jsonl`.
+`~/.claude/swe/feedback.jsonl`.
 
 ## Review logged feedback and file issues
 
 Run this on your own schedule, not automatically:
 
 ```text
-/swe-send-feedback
+/swe:send-feedback
 ```
 
 Answer its questions one at a time. For each real pattern it finds

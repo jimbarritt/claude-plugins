@@ -3,7 +3,7 @@
 # software-english repository and overwritten on each sync. A rule here
 # governs interaction structure across a whole reply, not prose wording,
 # so it does not belong in the Software English language spec. Parsed by
-# claude-plugins/software-english-lint/scripts/software_english_lint.py
+# claude-plugins/swe/scripts/software_english_lint.py
 # via Python's stdlib tomllib, and applied only to a conversational
 # source (a chat reply or a transcript) — never to a file, a commit
 # message, or an artifact.

@@ -57,7 +57,7 @@ report_and_maybe_block() {
   [ "$output" = "No sources to check." ] && return 0
   [ "$status" -eq 0 ] && return 0
 
-  local dir="$HOME/.claude/software-english-lint/reports"
+  local dir="$HOME/.claude/swe/reports"
   mkdir -p "$dir"
   local file="$dir/$stem.txt"
   printf '%s\n' "$output" > "$file"

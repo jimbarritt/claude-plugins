@@ -14,7 +14,7 @@ Claude Code (`~/.claude/`).
 
 | Plugin | Description |
 |---|---|
-| [`software-english-lint`](software-english-lint/README.md) | Lints Claude Code output against [Software English](https://github.com/jimbarritt/software-english). |
+| [`swe`](swe/README.md) | Lints Claude Code output against [Software English](https://github.com/jimbarritt/software-english). |
 
 ## Contributing a plugin
 

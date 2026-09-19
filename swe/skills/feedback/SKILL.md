@@ -1,16 +1,16 @@
 ---
-name: swe-feedback
-description: Log a false positive, a false negative, or a wrong fix suggestion from software-english-lint, for later review by /swe-send-feedback
+name: feedback
+description: Log a false positive, a false negative, or a wrong fix suggestion from swe, for later review by /swe:send-feedback
 argument-hint: <false-positive|false-negative|wrong-fix> [note]
 allowed-tools: Bash
 disable-model-invocation: false
 ---
 
-# swe-feedback
+# feedback
 
-Log one piece of feedback about a software-english-lint finding. This
+Log one piece of feedback about a swe finding. This
 command makes no network call. It only appends one line to a local log
-file, at `~/.claude/software-english-lint/feedback.jsonl`.
+file, at `~/.claude/swe/feedback.jsonl`.
 
 ## Step 1: Read the arguments
 
@@ -28,7 +28,7 @@ an unrecognised verdict and ask for one of the three above.
 ## Step 2: Gather the finding's details
 
 **For `false-positive` or `wrong-fix`:** look back through this
-conversation for the most recent software-english-lint report (a Stop
+conversation for the most recent swe report (a Stop
 hook block, a `PreToolUse` block, or a `PostToolUse` report). Find the
 specific finding line the user means:
 
@@ -54,7 +54,7 @@ Run this, filling in the values found above (escape embedded quotes and
 newlines as normal JSON string content):
 
 ```
-mkdir -p ~/.claude/software-english-lint
+mkdir -p ~/.claude/swe
 python3 -c "
 import json, datetime, sys
 entry = {
@@ -67,7 +67,7 @@ entry = {
     'quote': '''<flagged text>''',
     'note': '''<note, or empty string>''',
 }
-with open('$HOME/.claude/software-english-lint/feedback.jsonl', 'a') as f:
+with open('$HOME/.claude/swe/feedback.jsonl', 'a') as f:
     f.write(json.dumps(entry) + '\n')
 print('Logged.')
 "

@@ -1,12 +1,12 @@
 ---
-name: swe-lint-file
-description: Run a full software-english-lint check on a named file, on demand — both the deterministic tier and a forced inference tier, regardless of the automatic hooks' gating
+name: lint-file
+description: Run a full swe check on a named file, on demand — both the deterministic tier and a forced inference tier, regardless of the automatic hooks' gating
 argument-hint: <file-path>
 allowed-tools: Bash
 disable-model-invocation: false
 ---
 
-# swe-lint-file
+# lint-file
 
 Check one named file against Software English, both tiers, right now.
 The automatic hooks only run the inference tier when the deterministic

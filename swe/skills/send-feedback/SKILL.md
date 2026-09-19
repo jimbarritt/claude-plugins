@@ -1,15 +1,15 @@
 ---
-name: swe-send-feedback
-description: Review the accumulated software-english-lint feedback log for real patterns, and file a GitHub issue for each one the user confirms
+name: send-feedback
+description: Review the accumulated swe feedback log for real patterns, and file a GitHub issue for each one the user confirms
 argument-hint: (no arguments)
 allowed-tools: Bash, Read
 disable-model-invocation: false
 ---
 
-# swe-send-feedback
+# send-feedback
 
-Read the feedback log at `~/.claude/software-english-lint/feedback.jsonl`
-(written by `/swe-feedback` and by the linter's inference tier). Find
+Read the feedback log at `~/.claude/swe/feedback.jsonl`
+(written by `/swe:feedback` and by the linter's inference tier). Find
 patterns worth a GitHub issue, discuss each one with the user, and file
 only the ones the user confirms.
 
@@ -19,7 +19,7 @@ is confirmed. Reading and clustering the log makes no network call.
 ## Step 1: Read the log
 
 ```
-cat ~/.claude/software-english-lint/feedback.jsonl 2>/dev/null
+cat ~/.claude/swe/feedback.jsonl 2>/dev/null
 ```
 
 If the file does not exist, or every line was already archived (see
@@ -77,10 +77,10 @@ When the user confirms a pattern:
 
 1. Decide the target repository:
    - If `rule_id` appears in
-     `software-english-lint/rules/plugin-rules.toml`, the target is
+     `swe/rules/plugin-rules.toml`, the target is
      `jimbarritt/claude-plugins`.
    - Otherwise, if it appears in
-     `software-english-lint/data/core-rules.toml` (or the working tree
+     `swe/data/core-rules.toml` (or the working tree
      at `~/Code/github/jimbarritt/software-english/rules/core-rules.toml`),
      the target is `jimbarritt/software-english`.
    - For the stalled-call pattern (Step 2), the target is
@@ -102,7 +102,7 @@ When the user confirms a pattern:
    --label auto-fix-candidate` (omit `--label` if Step 3 said not to
    apply it).
 5. Move every log line belonging to this pattern's entries into an
-   archive file: `~/.claude/software-english-lint/feedback-archive/{today's date, YYYY-MM-DD}.jsonl`. Rewrite the current log with those
+   archive file: `~/.claude/swe/feedback-archive/{today's date, YYYY-MM-DD}.jsonl`. Rewrite the current log with those
    lines removed. Use a small Python script for this: read all lines,
    split into "belongs to this pattern" and "everything else," append
    the first group to the archive file, and overwrite the current log

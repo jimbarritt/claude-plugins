@@ -5,8 +5,8 @@
   },
   "plugins": [
     {
-      "name": "software-english-lint",
-      "source": "./software-english-lint"
+      "name": "swe",
+      "source": "./swe"
     }
   ]
 }

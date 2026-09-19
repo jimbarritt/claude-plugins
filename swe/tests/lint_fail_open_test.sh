@@ -5,7 +5,7 @@
 # copy of scripts/ with no data/ directory, so it never touches the
 # network either.
 #
-# Run: software-english-lint/tests/lint_fail_open_test.sh
+# Run: swe/tests/lint_fail_open_test.sh
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="$HERE/.."

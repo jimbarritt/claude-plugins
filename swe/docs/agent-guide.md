@@ -1,4 +1,4 @@
-# Agent guide: software-english-lint
+# Agent guide: swe
 
 This file is for an agent (a Claude Code session) running inside a
 project with this plugin installed. It is not for a human — see
@@ -16,7 +16,7 @@ retry the tool call) again.
 
 If you believe a finding is wrong — a false positive, a false negative,
 or a correct finding with a bad suggested fix — do not just work around
-it. Run `/swe-feedback <false-positive|false-negative|wrong-fix> [note]`
+it. Run `/swe:feedback <false-positive|false-negative|wrong-fix> [note]`
 so the pattern gets tracked, then proceed with your own best correction.
 
 `stop_hook_active: true` on the hook's input means this turn already
@@ -134,7 +134,7 @@ If `claude` is not on `PATH`, or the call fails or times out, the
 inference tier is skipped. The deterministic tier's result stands
 either way.
 
-`--force-inference` (used by `/swe-lint-file`, not by any hook) bypasses
+`--force-inference` (used by `/swe:lint-file`, not by any hook) bypasses
 conditions 1 and 3 above: it runs inference regardless of deterministic
 errors already found, and regardless of the prose length threshold. It
 still skips on empty prose. Condition 2 (`stop_hook_active`) does not
@@ -185,7 +185,7 @@ python3 scripts/software_english_lint.py --html-file page.html
 
 Add `--run-inference` to also run the inference tier, gated as above.
 Add `--force-inference` to run it unconditionally instead — this is
-what `/swe-lint-file` does. Add `--quiet-vocab` to omit
+what `/swe:lint-file` does. Add `--quiet-vocab` to omit
 `vocabulary-membership` lines; every hook does this by default.
 
 Run `scripts/fetch-software-english-data.sh` once by hand first, if
