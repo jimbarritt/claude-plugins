@@ -1,6 +1,6 @@
 ---
 name: Software English
-description: Writes every reply in Software English from the first token.
+description: Writes every reply in Software English (github.com/jimbarritt/software-english).
 keep-coding-instructions: true
 force-for-plugin: true
 ---
