@@ -195,7 +195,7 @@ weaker one.
 4. ~~**`stop.docs` off.**~~ Decided: yes, `file-check.sh` takes over tracked
    markdown per edit.
 5. ~~**Reply and transcript.**~~ Decided: one switch (`stop.reply`) for both.
-6. **Version.** 0.2.0 (proposed) or 0.1.6?
+6. ~~**Version.**~~ Decided: 0.2.0.
 7. **Tests.** No hook tests exist. Add a small shell test that feeds each
    hook a JSON input with and without the config file and asserts exit 0
    with empty stdout when disabled? Or leave testing manual?
@@ -220,6 +220,7 @@ weaker one.
   flat key.
 - **Q4 (`stop.docs` off): `file-check.sh` takes over.** Confirmed.
 - **Q5 (reply/transcript): one switch.** `stop.reply` covers both.
+- **Q6 (version): 0.2.0.** Confirmed.
 
 ## Future work spun out of this task
 
