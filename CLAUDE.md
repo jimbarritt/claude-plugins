@@ -58,6 +58,9 @@ When asked to "update the plan", use the `planning` branch: check it out (or
 fetch it) and update `STATE.md` and the relevant task file there, not files
 on `main`.
 
+Outside of planning documents, work directly on `main`. Do not use a
+feature branch for ordinary changes to this repo.
+
 ## Conventions
 
 - **Language:** British English throughout - code, comments, docs.
