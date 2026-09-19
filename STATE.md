@@ -1,10 +1,12 @@
 # State
 
-Last updated: 2026-09-19
+Last updated: 2026-09-19 (in progress: on-demand lint command)
 
 ## In progress
 
-- Nothing right now.
+- [tasks/future-lint-command.md](tasks/future-lint-command.md): a manual
+  Claude Code command that runs a full lint (deterministic tier plus a
+  forced, ungated inference tier) on a named file, invokable at will.
 
 ## Next
 
