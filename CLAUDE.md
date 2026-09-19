@@ -70,6 +70,11 @@ again. Update `STATE.md` and the relevant task file there, not files on
 Outside of planning documents, work directly on `main`. Do not use a
 feature branch for ordinary changes to this repo.
 
+Committing and pushing to `main` is pre-approved: do not ask first.
+This does not cover a force push or a history rewrite (`git push
+--force`, `git reset --hard`, `git rebase`), which still need explicit
+confirmation.
+
 ## Working with Jim
 
 - **One question at a time.** When there are several questions to ask,
