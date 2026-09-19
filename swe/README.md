@@ -21,7 +21,8 @@ not for a person.
 No further setup is needed.
 
 Have `jq` on `PATH` first: every hook parses its JSON input with it.
-For the inference tier, have `claude` on `PATH` too. For
+For the inference tier — a subagent Claude dispatches, or
+`/swe:lint-file` run directly — have `claude` on `PATH` too. For
 `/swe:send-feedback`, have `gh` on `PATH`, authenticated against
 GitHub.
 
@@ -34,20 +35,24 @@ check after the fact. Under Copilot CLI, which has no output-style
 mechanism, the chat reply is checked once the turn ends instead.
 
 File edits, commit messages, artifacts, and outbound messages get
-checked as they happen, on both harnesses. When one breaks a rule,
-Claude Code blocks the action; Claude reads the printed report and
-fixes the text itself, then continues. Most of the time, this needs no
-attention from you.
+checked as they happen, on both harnesses. When the check finds a
+plain, pattern-checkable violation (the deterministic tier — banned
+words, vocabulary, tense, and similar), Claude Code blocks the action;
+Claude reads the printed report and fixes the text itself, then
+continues. Most of the time, this needs no attention from you.
 
-A check that passes can still be due a deeper, model-judged pass (the
-inference tier): rather than run that in the hook itself, which can
-stall, Claude dispatches it as a subagent, then fixes anything it
+A check that passes deterministically can still be due a deeper,
+model-judged pass (the inference tier). Rather than run that inside
+the hook itself, which can stall a tool call on a slow or failed model
+response, the hook only advises Claude that a fresh pass is worth
+doing; Claude dispatches it as a subagent, then fixes anything it
 reports. This does not happen on every single edit to a file already
 checked this way — only once the file has grown enough since its last
-pass to be worth checking again.
-
-When a file write breaks a rule, Claude reads the printed report and
-fixes the file.
+pass to be worth checking again. For a commit message or an outbound
+message, the underlying command or send already went through by the
+time the subagent's report comes back, since the hook does not hold it
+up for a model call: a commit can still be amended if something turns
+up, but a sent message cannot be un-sent.
 
 ## Check one file on demand
 
