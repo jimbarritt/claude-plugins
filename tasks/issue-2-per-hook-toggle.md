@@ -77,8 +77,10 @@ Plugin-root `config.json`:
   "fast_model": "claude-haiku-4-5-20251001",
   "model_call_timeout_seconds": 75,
   "hooks": {
-    "stop-reply": true,
-    "stop-docs": true,
+    "stop": {
+      "reply": true,
+      "docs": true
+    },
     "file": true,
     "bash": true,
     "artifact": true,
@@ -93,31 +95,37 @@ override:
 ```json
 {
   "hooks": {
-    "stop-reply": false
+    "stop": { "reply": false }
   }
 }
 ```
 
-Six keys, not five: the Stop hook splits into two named checks. Precedence:
-project value, if the key is present there, else the plugin `config.json`
-value, else `true`. JSON throughout, so `jq`, already required by every
-hook, reads both with no new dependency.
+Nested (decided at Q3): `stop` holds a `reply`/`docs` submap since it is
+the only hook with sub-checks today; `file`, `bash`, `artifact`, and
+`mcp-send` stay flat booleans, with room to nest any of them later if a
+sub-check appears. Precedence: project value, if the key is present there,
+else the plugin `config.json` value, else `true`. JSON throughout, so
+`jq`, already required by every hook, reads both with no new dependency.
 
 ### 2. One helper in `_lib.sh`
 
+Each hook passes its own `jq` path (`.hooks.stop.reply`, `.hooks.file`,
+...), since the nested shape means the path differs per hook rather than
+being a single flat key:
+
 ```sh
-# Returns 1 when hooks.<key> resolves to false: the project's
-# .claude/swe-lint.json if it sets that key, else the plugin's own
-# config.json. Any other case (missing file, missing key, bad JSON)
+# Returns 1 when <jq-path> resolves to false: the project's
+# .claude/swe-lint.json if it sets that path, else the plugin's own
+# config.json. Any other case (missing file, missing path, bad JSON)
 # resolves to true.
 hook_enabled() {
-  local key="$1" cwd="$2"
+  local jq_path="$1" cwd="$2"
   local project_file="$cwd/.claude/swe-lint.json"
   local val=""
   [ -n "$cwd" ] && [ -f "$project_file" ] && \
-    val="$(jq -r --arg k "$key" '.hooks[$k] // empty' "$project_file" 2>/dev/null)"
+    val="$(jq -r "$jq_path // empty" "$project_file" 2>/dev/null)"
   if [ -z "$val" ]; then
-    val="$(jq -r --arg k "$key" '.hooks[$k] // empty' "$HERE/../config.json" 2>/dev/null)"
+    val="$(jq -r "$jq_path // empty" "$HERE/../config.json" 2>/dev/null)"
   fi
   [ "$val" != "false" ]
 }
@@ -127,7 +135,7 @@ Each of `bash-check.sh`, `artifact-check.sh`, `mcp-send-check.sh`, and
 `file-check.sh` adds one line after parsing `cwd`:
 
 ```sh
-hook_enabled <key> "$CWD" || exit 0
+hook_enabled '.hooks.bash' "$CWD" || exit 0    # e.g. in bash-check.sh
 ```
 
 `bash-check.sh`, `artifact-check.sh`, and `mcp-send-check.sh` do not read
@@ -139,8 +147,8 @@ already have.
 Keep one `stop-check.sh` and one `Stop` entry in `hooks.json`. Build `ARGS`
 from the two flags:
 
-- `stop-reply` on: add `--reply-file` and `--transcript` (when present).
-- `stop-docs` on: add `--diff --added-only`.
+- `stop.reply` on: add `--reply-file` and `--transcript` (when present).
+- `stop.docs` on: add `--diff --added-only`.
 - Both off: exit 0 before the worker starts.
 
 One process, one `fetch-software-english-data.sh` call, one linter start
@@ -151,23 +159,23 @@ sources separate internally (finding 4).
 ### 4. Close the coupling in `file-check.sh`
 
 Change the tracked-`.md` skip from unconditional to: skip only when
-`stop-docs` is enabled for this project. When `stop-docs` is off,
+`stop.docs` is enabled for this project. When `stop.docs` is off,
 `file-check.sh` checks every `.md` it writes, tracked or not. No duplicate
 report either way, and no gap.
 
 Difference to note: `file-check.sh` runs per edit with `--run-inference`;
 the Stop diff runs per turn, deterministic tier only. So a project that
-turns `stop-docs` off and leaves `file` on gets a per-edit check with the
+turns `stop.docs` off and leaves `file` on gets a per-edit check with the
 inference tier on its tracked markdown. That is a stricter check, not a
 weaker one.
 
 ### 5. Documentation and version
 
 - `README.md`: a new section, "Turn off a check for one project", with the
-  JSON above and the six key names.
+  JSON above and the config path per hook.
 - `docs/agent-guide.md`: the hooks table gains a "Config key" column; a
   short paragraph under it states the file, the fail-open rule, and the
-  `file-check.sh` takeover when `stop-docs` is off.
+  `file-check.sh` takeover when `stop.docs` is off.
 - `plugin.json`: bump to 0.2.0 (new user-facing config surface).
 
 ### Out of scope, unless Jim says otherwise
@@ -183,10 +191,8 @@ weaker one.
    holds the default `hooks` block; a project's `.claude/` file overrides
    it per key.
 2. ~~**File name and path.**~~ Decided: `.claude/swe-lint.json`.
-3. **Key names.** Flat `stop-reply`, `stop-docs`, `file`, `bash`,
-   `artifact`, `mcp-send` (proposed, matching script stems), or nested
-   `stop: { reply, docs }`?
-4. **`stop-docs` off.** Should `file-check.sh` take over tracked markdown
+3. ~~**Key names.**~~ Decided: nested — `stop: { reply, docs }`, others flat.
+4. **`stop.docs` off.** Should `file-check.sh` take over tracked markdown
    per edit (proposed), or should tracked markdown go unchecked in that
    case?
 5. **Reply and transcript.** One switch for both conversational sources
@@ -209,6 +215,11 @@ weaker one.
   top-level clutter.
 - **Q2 (file name): `.claude/swe-lint.json`.** Matches the `.swe-` prefix
   `.swe-ignore` already uses.
+- **Q3 (key names): nested.** Jim finds it more extensible. `stop` holds a
+  `{ reply, docs }` submap; `file`, `bash`, `artifact`, `mcp-send` stay
+  flat booleans, each free to nest later if it grows a sub-check. Each
+  hook script now passes its own `jq` path to `hook_enabled` rather than a
+  flat key.
 
 ## Next step
 
