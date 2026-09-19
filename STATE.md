@@ -10,7 +10,8 @@ Last updated: 2026-09-19
 
 ## Next
 
-- Discuss and design the fix for issue #2.
+- Jim reviews the issue #2 proposal and answers its eight questions. Then
+  implement on `main`.
 
 See [tasks/index.md](tasks/index.md) for the full task list.
 
