@@ -194,8 +194,7 @@ weaker one.
 3. ~~**Key names.**~~ Decided: nested — `stop: { reply, docs }`, others flat.
 4. ~~**`stop.docs` off.**~~ Decided: yes, `file-check.sh` takes over tracked
    markdown per edit.
-5. **Reply and transcript.** One switch for both conversational sources
-   (proposed), or two?
+5. ~~**Reply and transcript.**~~ Decided: one switch (`stop.reply`) for both.
 6. **Version.** 0.2.0 (proposed) or 0.1.6?
 7. **Tests.** No hook tests exist. Add a small shell test that feeds each
    hook a JSON input with and without the config file and asserts exit 0
@@ -220,13 +219,17 @@ weaker one.
   hook script now passes its own `jq` path to `hook_enabled` rather than a
   flat key.
 - **Q4 (`stop.docs` off): `file-check.sh` takes over.** Confirmed.
+- **Q5 (reply/transcript): one switch.** `stop.reply` covers both.
 
 ## Future work spun out of this task
 
-Two ideas raised while discussing Q4, both about when/how the inference
-tier runs rather than the enable/disable surface this task covers. Split
-out to a separate task so they do not block finishing this one: see
-[future-inference-tier-rework.md](future-inference-tier-rework.md).
+Ideas raised while discussing Q4 and Q5, about when/how the reply and
+inference checks run rather than the enable/disable surface this task
+covers. Split out to separate tasks so they do not block finishing this
+one:
+
+- [future-inference-tier-rework.md](future-inference-tier-rework.md)
+- [future-stop-reply-check.md](future-stop-reply-check.md)
 
 ## Next step
 

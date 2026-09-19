@@ -11,13 +11,16 @@ Last updated: 2026-09-19
 ## Next
 
 - Jim reviews the issue #2 proposal and answers its remaining questions
-  (5-8). Then implement on `main`.
-- After issue #2 lands:
-  [tasks/future-inference-tier-rework.md](tasks/future-inference-tier-rework.md),
-  not yet filed as an issue. Two ideas: hand inference off to a subagent
-  instead of running it in-hook, and reconsider when the inference tier
-  triggers at all (not every edit, not requiring a manual reminder
-  either).
+  (6-8). Then implement on `main`.
+- After issue #2 lands, two queued future tasks (neither filed as an
+  issue yet):
+  - [tasks/future-inference-tier-rework.md](tasks/future-inference-tier-rework.md):
+    hand inference off to a subagent instead of running it in-hook, and
+    reconsider when the inference tier triggers at all (not every edit,
+    not requiring a manual reminder either).
+  - [tasks/future-stop-reply-check.md](tasks/future-stop-reply-check.md):
+    the Stop hook's per-reply block-and-retry loop is wasteful for a
+    small mechanical fix (e.g. an em dash) — find a lighter-weight path.
 
 See [tasks/index.md](tasks/index.md) for the full task list.
 
