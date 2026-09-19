@@ -4,7 +4,11 @@ Last updated: 2026-09-19
 
 ## In progress
 
-- Nothing right now.
+- [tasks/future-plugin-rename.md](tasks/future-plugin-rename.md): rename
+  the plugin `software-english-lint` -> `swe` and drop the `swe-`
+  prefix from each command, so the picker shows `swe:feedback` instead
+  of `software-english-lint:swe-feedback`. Jim's pick, ahead of the
+  inference-tier rework below.
 
 ## Next
 
@@ -19,10 +23,6 @@ In priority order (Jim's pick):
    check no longer runs there, so the block-and-retry loop does not
    fire). Still open for Copilot CLI, which keeps the reply check
    unchanged.
-3. [tasks/future-plugin-rename.md](tasks/future-plugin-rename.md):
-   rename the plugin `software-english-lint` -> `swe` and drop the
-   `swe-` prefix from each command, so the picker shows `swe:feedback`
-   instead of `software-english-lint:swe-feedback`.
 
 ## Recently done
 

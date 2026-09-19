@@ -20,27 +20,52 @@ Renaming the plugin to `swe` and dropping the `swe-` prefix from each
 command gives `swe:feedback`, `swe:send-feedback`, `swe:lint-file`
 instead.
 
-## Scope (not yet confirmed — check when this is picked up)
+## Naming mechanics (confirmed by research, not yet applied)
 
-- `.claude-plugin/marketplace.json`: `name` and `source` path.
-- `software-english-lint/.claude-plugin/plugin.json`: `name` (may need
-  the directory itself renamed too, or just the manifest field — check
-  which one drives the `<plugin-name>:` prefix).
-- Directory rename: `software-english-lint/` -> `swe/`, or keep the
-  directory and only change `plugin.json`'s `name` field — check which
-  is idiomatic before doing either.
-- Each `skills/swe-*/SKILL.md`: directory name and frontmatter `name`
-  field, dropping the `swe-` prefix (`swe-feedback` -> `feedback`,
-  `swe-send-feedback` -> `send-feedback`, `swe-lint-file` -> `lint-file`).
+- The `<plugin-name>:` prefix comes from `plugin.json`'s `"name"` field,
+  not the plugin's directory name. Renaming the field is what changes
+  the prefix; the directory does not have to move for that alone.
+  Doing it anyway is a separate, cosmetic call — see below.
+- For a skill-based command, the part after the colon comes from the
+  skill's directory name under `skills/` (e.g. `skills/swe-feedback/`
+  -> command `swe-feedback`), not from the `name:` frontmatter field
+  inside `SKILL.md`. They do not have to match, but should, for
+  anyone reading the file.
+- `marketplace.json`'s own `"name"` field for the entry is independent
+  — just a catalogue index key. Its `"source"` path does need to point
+  at wherever the plugin directory actually lives.
+- Renaming an already-installed plugin is a breaking change for anyone
+  with it installed: they see the old namespace until they run
+  `/plugin update` (or reinstall). Worth a version bump and a note in
+  the commit/README about needing to update.
+
+## Scope
+
+- `.claude-plugin/marketplace.json`: entry `"name"` (optional, for
+  consistency) and `"source"` path.
+- `software-english-lint/.claude-plugin/plugin.json`: `"name"` ->
+  `"swe"`. Version bump, since this breaks existing installs.
+- Directory rename `software-english-lint/` -> `swe/`: not required by
+  the mechanics above, but matches this repo's own convention
+  (`<plugin-name>/` per the top-level `CLAUDE.md`) — do it, and update
+  `marketplace.json`'s `source` to match.
+- Each `skills/swe-*/` directory: rename to drop the `swe-` prefix
+  (`swe-feedback` -> `feedback`, `swe-send-feedback` -> `send-feedback`,
+  `swe-lint-file` -> `lint-file`), and update each `SKILL.md`'s own
+  `name:` frontmatter to match.
 - Every place a command is referenced by its current long name:
   `README.md`, `docs/agent-guide.md`, and each `SKILL.md`'s own
   cross-references (e.g. `swe-feedback` mentions `/swe-send-feedback`
-  and vice versa).
-- Whether renaming breaks anyone's existing muscle memory or scripts
-  that call `/swe-feedback` etc. by name — ask Jim if this matters
-  before shipping, since it is a breaking rename for an installed
-  plugin.
+  and vice versa) — update to `/swe:feedback`, `/swe:send-feedback`,
+  `/swe:lint-file`. Also the install instructions in `README.md`
+  (`/plugin install software-english-lint@...` ->
+  `/plugin install swe@...`).
+- Run both existing test suites afterwards
+  (`tests/lint_fail_open_test.sh`, `tests/hooks_test.sh`) to catch any
+  hardcoded path assumption the directory rename breaks.
 
 ## Status
 
-Not started. Recorded for later, not this session.
+Next up — Jim has picked this to go first, ahead of
+`future-inference-tier-rework.md`. Not started yet: about to begin in a
+fresh session after this one clears.
