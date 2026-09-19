@@ -1,6 +1,6 @@
 ---
 name: Software English
-description: Writes every reply in Software English (github.com/jimbarritt/software-english).
+description: Writes every reply in Software English (https://github.com/jimbarritt/software-english).
 keep-coding-instructions: true
 force-for-plugin: true
 ---
