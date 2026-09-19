@@ -3,6 +3,12 @@
 # every invocation but does no network work once the pinned tag is already
 # cached (see MARKER below). Fails open: if a fetch cannot run (no network)
 # but a cache from any earlier fetch exists, that cache is used as-is.
+#
+# Fetches via `git clone --depth 1 --branch <tag>`, not a raw HTTPS tarball
+# download. A cloud session's egress policy can deny a generic HTTPS
+# download (curl against a raw github.com URL) while still serving git's
+# own smart-HTTP protocol for a public repo clone, through a separate,
+# git-specific proxy lane. See claude-plugins#3.
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="$HERE/software-english.json"
@@ -19,11 +25,11 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-URL="https://github.com/$REPO/archive/refs/tags/$TAG.tar.gz"
+URL="https://github.com/$REPO.git"
 
-if ! curl -fsSL "$URL" -o "$TMP/src.tar.gz" 2>"$TMP/curl.err"; then
-  echo "software-english-lint: could not fetch $URL" >&2
-  cat "$TMP/curl.err" >&2
+if ! git clone --depth 1 --branch "$TAG" "$URL" "$TMP/src" >"$TMP/git.log" 2>&1; then
+  echo "software-english-lint: could not clone $URL at $TAG" >&2
+  cat "$TMP/git.log" >&2
   if [ -d "$DATA_DIR" ] && [ -n "$(ls -A "$DATA_DIR" 2>/dev/null)" ]; then
     echo "software-english-lint: using existing cached data instead" >&2
     exit 0
@@ -32,10 +38,7 @@ if ! curl -fsSL "$URL" -o "$TMP/src.tar.gz" 2>"$TMP/curl.err"; then
   exit 1
 fi
 
-tar -xzf "$TMP/src.tar.gz" -C "$TMP"
-SRC_DIR="$(find "$TMP" -maxdepth 1 -type d -name 'software-english-*')"
-
 mkdir -p "$DATA_DIR"
-cp "$SRC_DIR"/vocabulary/*.tsv "$DATA_DIR/"
-cp "$SRC_DIR"/rules/core-rules.toml "$DATA_DIR/"
+cp "$TMP/src"/vocabulary/*.tsv "$DATA_DIR/"
+cp "$TMP/src"/rules/core-rules.toml "$DATA_DIR/"
 echo "$TAG" > "$MARKER"

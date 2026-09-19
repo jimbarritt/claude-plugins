@@ -155,7 +155,15 @@ def load_config():
 
 
 def load_rule_catalogue():
+    """Returns (rules_by_id, exemptions), or (None, None) when the rule
+    catalogue hasn't been fetched yet (see fetch-software-english-data.sh).
+    The caller must treat None as "skip this check" rather than lint with
+    an empty catalogue: check_line() indexes fixed rule IDs directly
+    (rules["no-em-dash"], and similar), so a missing entry there is a
+    KeyError, not a soft "no rule configured" case."""
     path = DATA / "core-rules.toml"
+    if not path.exists():
+        return None, None
     with path.open("rb") as f:
         catalogue = tomllib.load(f)
     return {r["id"]: r for r in catalogue["rules"]}, catalogue["exemptions"]
@@ -557,6 +565,14 @@ def main():
     args = parser.parse_args()
 
     rules, exemptions = load_rule_catalogue()
+    if rules is None:
+        print(
+            "software-english-lint: no rule catalogue cached "
+            "(data/core-rules.toml is missing). Run "
+            "scripts/fetch-software-english-data.sh, or check network "
+            "access; skipping this check."
+        )
+        return 0
     plugin_rules = load_plugin_rules()
     vocabulary = load_vocabulary()
     structure_nouns = load_structure_nouns()

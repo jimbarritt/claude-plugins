@@ -140,17 +140,30 @@ either way.
 the [`software-english`](https://github.com/jimbarritt/software-english)
 spec repository.
 [`../scripts/fetch-software-english-data.sh`](../scripts/fetch-software-english-data.sh)
-downloads that tag's `vocabulary/*.tsv` and `rules/core-rules.toml`
-into [`../data/`](../data/) on first run, and writes a marker file
-recording the fetched tag. A later run compares the marker against the
-pin, and fetches again only when they differ.
+clones that tag with `git clone --depth 1 --branch <tag>` and copies
+`vocabulary/*.tsv` and `rules/core-rules.toml` into [`../data/`](../data/)
+on first run, then writes a marker file recording the fetched tag. A
+later run compares the marker against the pin, and fetches again only
+when they differ.
+
+The fetch goes through `git clone`, not a raw HTTPS tarball download: a
+cloud session's egress policy can deny a generic HTTPS download while
+still serving git's own smart-HTTP protocol for a public repo clone,
+through a separate, git-specific proxy lane. See claude-plugins#3.
 
 [`../data/`](../data/) is gitignored — a local cache, not a vendored
 copy in this repository.
 
 If the fetch cannot connect to GitHub and no cache exists, the hook
 prints a warning and does not block the turn. An existing cache from an
-earlier fetch is used when a later fetch fails.
+earlier fetch is used when a later fetch fails. This holds even if a
+hook calls the linter without checking the fetch script's own exit code:
+`load_rule_catalogue()` returns `(None, None)` when
+`data/core-rules.toml` is still missing, and `main()` prints a skip
+message and returns 0 rather than crash with an uncaught
+`FileNotFoundError` (claude-plugins#3's second bug — the crash's
+traceback, not a real finding, used to reach `report_and_maybe_block` as
+a misleading "0 errors, 0 warnings" block).
 
 ## Run the linter directly
 
