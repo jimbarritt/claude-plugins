@@ -70,6 +70,12 @@ again. Update `STATE.md` and the relevant task file there, not files on
 Outside of planning documents, work directly on `main`. Do not use a
 feature branch for ordinary changes to this repo.
 
+## Working with Jim
+
+- **One question at a time.** When there are several questions to ask,
+  ask the first, wait for the answer, then ask the next. Never send a list
+  of questions in one message.
+
 ## Conventions
 
 - **Language:** British English throughout - code, comments, docs.
