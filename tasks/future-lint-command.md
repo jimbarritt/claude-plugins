@@ -40,4 +40,10 @@ unconditionally.
 
 ## Status
 
-In progress — being implemented now.
+Done — shipped on `main` at
+[`b06d0fc`](https://github.com/jimbarritt/claude-plugins/commit/b06d0fc):
+`--force-inference` on the linter, wired up as `/swe-lint-file`. Existing
+hook behaviour (`--run-inference`'s gate) untouched; existing tests pass.
+Verified by hand: a short file with a deterministic error still triggers
+a real inference-tier call and returns findings under `--force-inference`,
+where `--run-inference` correctly skips it on the same file.

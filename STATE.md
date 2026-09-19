@@ -1,12 +1,10 @@
 # State
 
-Last updated: 2026-09-19 (in progress: on-demand lint command)
+Last updated: 2026-09-19
 
 ## In progress
 
-- [tasks/future-lint-command.md](tasks/future-lint-command.md): a manual
-  Claude Code command that runs a full lint (deterministic tier plus a
-  forced, ungated inference tier) on a named file, invokable at will.
+- Nothing right now.
 
 ## Next
 
@@ -24,6 +22,12 @@ In priority order (Jim's pick):
 
 ## Recently done
 
+- [tasks/future-lint-command.md](tasks/future-lint-command.md): a new
+  `/swe-lint-file` command runs a full lint (deterministic tier plus a
+  forced, ungated inference tier) on a named file, on demand. Added
+  `--force-inference` to the linter for it; `--run-inference`'s gate,
+  used by the four hooks, is unchanged. Shipped on `main` at
+  [`b06d0fc`](https://github.com/jimbarritt/claude-plugins/commit/b06d0fc).
 - [tasks/issue-3-data-fetch-crash.md](tasks/issue-3-data-fetch-crash.md)
   ([issue #3](https://github.com/jimbarritt/claude-plugins/issues/3)):
   a cloud session's egress policy blocked the plugin's raw-HTTPS data
