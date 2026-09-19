@@ -1,7 +1,7 @@
 # Task: a Software English output style for the plugin
 
-No GitHub issue filed yet. Implemented and committed to `main` at
-`24fa005`, not yet pushed — Jim to confirm the push.
+No GitHub issue filed yet. Implemented and shipped on `main` at
+`24fa005`, pushed.
 
 ## What shipped
 
@@ -57,6 +57,5 @@ all. Still open for Copilot CLI, where the loop is unchanged.
 
 ## Next step
 
-Confirm with Jim whether to push `main` (currently one commit ahead of
-`origin/main`). After that, no further work queued on this task unless
-Jim finds the condensed rules miss something in practice.
+Done — pushed. No further work queued on this task unless Jim finds the
+condensed rules miss something in practice.

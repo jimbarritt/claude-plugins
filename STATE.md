@@ -4,9 +4,7 @@ Last updated: 2026-09-19
 
 ## In progress
 
-- [tasks/future-swe-output-style.md](tasks/future-swe-output-style.md)
-  is implemented and committed to `main` at `24fa005`, one commit ahead
-  of `origin/main`. Waiting on Jim to confirm the push.
+- Nothing right now.
 
 ## Next
 
@@ -24,12 +22,21 @@ In priority order (Jim's pick):
 
 ## Recently done
 
+- [tasks/issue-3-data-fetch-crash.md](tasks/issue-3-data-fetch-crash.md)
+  ([issue #3](https://github.com/jimbarritt/claude-plugins/issues/3)):
+  a cloud session's egress policy blocked the plugin's raw-HTTPS data
+  fetch, and the linter crashed instead of failing open, which blocked
+  every turn. Fixed (git-clone-based fetch, plus a real fail-open path
+  in the linter) and shipped on `main` at
+  [`6f08705`](https://github.com/jimbarritt/claude-plugins/commit/6f08705),
+  closing the issue automatically. Diagnosed and fixed in one pass, no
+  design discussion needed.
 - [tasks/future-swe-output-style.md](tasks/future-swe-output-style.md):
   a plugin output style, forced on with `force-for-plugin: true`, puts
   Software English's rules directly in the system prompt. Claude
   Code's `stop-check.sh` reply/transcript check now skips outright;
   Copilot CLI, which has no output-style mechanism, keeps it unchanged.
-  Committed to `main` at `24fa005`, not yet pushed.
+  Shipped on `main`, pushed.
 - [Issue #2](https://github.com/jimbarritt/claude-plugins/issues/2):
   `software-english-lint` per-hook enable/disable. Shipped on `main` at
   [`36391c4`](https://github.com/jimbarritt/claude-plugins/commit/36391c4),
