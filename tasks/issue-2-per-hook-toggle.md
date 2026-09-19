@@ -23,7 +23,11 @@ the Stop hook today removes both checks, not just the reply one.
 
 ## Status
 
-Proposal written. Awaiting Jim's review and answers to the questions below.
+Done. Fixed on `main` at
+[`36391c4`](https://github.com/jimbarritt/claude-plugins/commit/36391c4),
+which closed the issue automatically ("closes #2" in the commit message,
+pushed directly to the default branch). Q8's decision — no comment on the
+issue thread until the fix landed — held; the push itself closed it.
 
 ## Findings from reading the code
 
@@ -207,8 +211,10 @@ actual end-to-end steering behaviour, not part of this same step.
 5. ~~**Reply and transcript.**~~ Decided: one switch (`stop.reply`) for both.
 6. ~~**Version.**~~ Decided: 0.2.0.
 7. ~~**Tests.**~~ Decided: yes, the small deterministic shell check.
-8. **Issue thread.** Comment on #2 with a link to this plan once you
-   approve it, or keep the discussion here until the fix lands?
+8. ~~**Issue thread.**~~ Decided: keep it here, no comment. Checked:
+   plain GitHub issues have only open/closed state, no "in progress" —
+   this repo has no Projects board (no custom issue fields) and no
+   labels on #2. So wait until pushed, per Jim.
 
 ## Discussion / decisions
 
@@ -238,15 +244,30 @@ actual end-to-end steering behaviour, not part of this same step.
 
 ## Future work spun out of this task
 
-Ideas raised while discussing Q4 and Q5, about when/how the reply and
+Ideas raised while discussing Q4, Q5, and Q7, about when/how the reply and
 inference checks run rather than the enable/disable surface this task
-covers. Split out to separate tasks so they do not block finishing this
-one:
+covers. Split out to separate tasks so they did not block finishing this
+one, and queued in priority order (Jim's pick) once this task shipped:
 
-- [future-inference-tier-rework.md](future-inference-tier-rework.md)
-- [future-stop-reply-check.md](future-stop-reply-check.md)
+1. [future-swe-output-style.md](future-swe-output-style.md)
+2. [future-stop-reply-check.md](future-stop-reply-check.md)
+3. [future-inference-tier-rework.md](future-inference-tier-rework.md)
+
+## Implementation notes
+
+Shipped on `main` at
+[`36391c4`](https://github.com/jimbarritt/claude-plugins/commit/36391c4),
+matching the proposal above with all Q1-Q7 decisions applied. One bug
+found and fixed while writing the unit test, worth recording: `hook_enabled`'s
+first draft used jq's `<path> // empty`, which treats a literal `false`
+the same as `null`/missing (a known jq gotcha) — an explicit `false` at
+the project layer silently fell through to the plugin default instead of
+disabling the check. The unit test caught it immediately (3 of 18
+assertions failed). Fixed by reading the raw value and checking for the
+string `"null"` instead of relying on `//`. `tests/hooks_test.sh` passes
+18/18 after the fix.
 
 ## Next step
 
-Jim answers the questions above. Then implement on `main` in
-`software-english-lint/`.
+Done — this task is closed. See "Future work spun out of this task" above
+for what's next.
