@@ -178,6 +178,16 @@ weaker one.
   `file-check.sh` takeover when `stop.docs` is off.
 - `plugin.json`: bump to 0.2.0 (new user-facing config surface).
 
+### 6. Unit tests for the toggle logic
+
+A small deterministic shell test per hook, no model calls: feed each of
+the five hook scripts a minimal JSON stdin payload, once with a
+`.claude/swe-lint.json` that disables its key and once without it, and
+assert exit 0 with empty stdout in the disabled case. Treated as a unit
+test — fast, free, and separate from `claude plugin eval`, which Jim
+wants as a periodic, on-demand acceptance-test layer over the plugin's
+actual end-to-end steering behaviour, not part of this same step.
+
 ### Out of scope, unless Jim says otherwise
 
 - A user-level override file (e.g. `~/.claude/software-english-lint/`).
@@ -196,9 +206,7 @@ weaker one.
    markdown per edit.
 5. ~~**Reply and transcript.**~~ Decided: one switch (`stop.reply`) for both.
 6. ~~**Version.**~~ Decided: 0.2.0.
-7. **Tests.** No hook tests exist. Add a small shell test that feeds each
-   hook a JSON input with and without the config file and asserts exit 0
-   with empty stdout when disabled? Or leave testing manual?
+7. ~~**Tests.**~~ Decided: yes, the small deterministic shell check.
 8. **Issue thread.** Comment on #2 with a link to this plan once you
    approve it, or keep the discussion here until the fix lands?
 
@@ -221,6 +229,12 @@ weaker one.
 - **Q4 (`stop.docs` off): `file-check.sh` takes over.** Confirmed.
 - **Q5 (reply/transcript): one switch.** `stop.reply` covers both.
 - **Q6 (version): 0.2.0.** Confirmed.
+- **Q7 (tests): the small deterministic shell check, treated as a unit
+  test.** Add it. Jim's framing: this is a unit test, distinct from
+  `claude plugin eval`, which he wants as a separate, periodic, on-demand
+  acceptance-test layer over the plugin's actual steering behaviour (real
+  model calls, not free or deterministic, so not part of the same test
+  step). No suite request yet for the eval side; revisit later.
 
 ## Future work spun out of this task
 

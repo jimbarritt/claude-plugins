@@ -28,3 +28,11 @@ Not scoped. No design work done yet.
 Return to this once issue #2 ships. Think about a lighter-weight
 correction path for a small, mechanical, deterministic-tier violation
 (e.g. an em dash) versus the full block-and-retry loop.
+
+## Related: a forced output style
+
+See [future-swe-output-style.md](future-swe-output-style.md). A plugin
+output style with `force-for-plugin: true` could put Software English's
+rules directly in the system prompt, cutting how often this block-and-
+retry loop fires in the first place. Jim is keen to explore this one
+first, right after issue #2.
