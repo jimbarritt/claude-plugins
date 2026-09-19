@@ -58,15 +58,24 @@ These constrain the design.
 
 ## Proposal
 
-### 1. A per-project config file, read by every hook
+### 1. Two layers: a plugin default, and a project override under `.claude/`
 
-Add `<project-root>/.swe-lint.json` (name open, see Q2). JSON, so `jq`,
-already required by every hook, reads it with no new dependency. Absent
-file, absent key, or unreadable `cwd`: the hook runs (fail open to
-"enabled", matching current behaviour).
+Decided (see Discussion): both layers exist. The plugin's own
+`config.json` gains a `hooks` block as the default for every project that
+doesn't say otherwise. A project overrides it with a file under that
+project's `.claude/` directory (path open, see Q2) — `.claude/` already
+holds project-level Claude Code config, so this adds no new top-level
+clutter to a consuming repo.
+
+Plugin-root `config.json`:
 
 ```json
 {
+  "threshold_words": 60,
+  "threshold_sentences": 4,
+  "html_min_chars": 25,
+  "fast_model": "claude-haiku-4-5-20251001",
+  "model_call_timeout_seconds": 75,
   "hooks": {
     "stop-reply": true,
     "stop-docs": true,
@@ -78,20 +87,44 @@ file, absent key, or unreadable `cwd`: the hook runs (fail open to
 }
 ```
 
-Six keys, not five: the Stop hook splits into two named checks. Only
-`false` disables; any other value or a missing key means enabled.
+Project `.claude/<name>.json` (name open, see Q2), only the keys a project
+wants to override:
+
+```json
+{
+  "hooks": {
+    "stop-reply": false
+  }
+}
+```
+
+Six keys, not five: the Stop hook splits into two named checks. Precedence:
+project value, if the key is present there, else the plugin `config.json`
+value, else `true`. JSON throughout, so `jq`, already required by every
+hook, reads both with no new dependency.
 
 ### 2. One helper in `_lib.sh`
 
 ```sh
-# Returns 1 when <cwd>/.swe-lint.json sets hooks.<key> to false.
-# Any other case (no cwd, no file, no key, bad JSON) returns 0.
+# Returns 1 when hooks.<key> resolves to false: the project's
+# .claude/<name>.json if it sets that key, else the plugin's own
+# config.json. Any other case (missing file, missing key, bad JSON)
+# resolves to true.
 hook_enabled() {
   local key="$1" cwd="$2"
-  [ -n "$cwd" ] && [ -f "$cwd/.swe-lint.json" ] || return 0
-  [ "$(jq -r --arg k "$key" '.hooks[$k] // empty' "$cwd/.swe-lint.json" 2>/dev/null)" != "false" ]
+  local project_file="$cwd/.claude/<name>.json"
+  local val=""
+  [ -n "$cwd" ] && [ -f "$project_file" ] && \
+    val="$(jq -r --arg k "$key" '.hooks[$k] // empty' "$project_file" 2>/dev/null)"
+  if [ -z "$val" ]; then
+    val="$(jq -r --arg k "$key" '.hooks[$k] // empty' "$HERE/../config.json" 2>/dev/null)"
+  fi
+  [ "$val" != "false" ]
 }
 ```
+
+`<name>` and the exact plugin-config.json path resolution are placeholders
+pending Q2.
 
 Each of `bash-check.sh`, `artifact-check.sh`, `mcp-send-check.sh`, and
 `file-check.sh` adds one line after parsing `cwd`:
@@ -149,12 +182,13 @@ weaker one.
 
 ## Questions for Jim
 
-1. **Config location.** Per-project file at the project root (proposed),
-   or a plugin-root `config.json` entry (global to your install), or both
-   with project overriding plugin? The issue reads as per-project; confirm.
-2. **File name.** `.swe-lint.json` (proposed), `.swe-config.json`,
-   `.software-english.json`, or something else? `.swe-ignore` already
-   sets the `.swe-` prefix.
+1. ~~**Config location.**~~ Decided: both layers. Plugin `config.json`
+   holds the default `hooks` block; a project's `.claude/` file overrides
+   it per key.
+2. **File name and path.** The project override file lives under
+   `.claude/` (decided). What filename: `.claude/software-english-lint.json`
+   (matches the plugin name), `.claude/swe-lint.json` (matches the
+   `.swe-` prefix `.swe-ignore` already uses), or something else?
 3. **Key names.** Flat `stop-reply`, `stop-docs`, `file`, `bash`,
    `artifact`, `mcp-send` (proposed, matching script stems), or nested
    `stop: { reply, docs }`?
@@ -172,7 +206,13 @@ weaker one.
 
 ## Discussion / decisions
 
-(none yet)
+- **Q1 (config location): both layers.** Jim does not want a file at every
+  consuming repo's root by default. Decided: the plugin's own
+  `config.json` carries the default `hooks` block (already global to the
+  install); a project overrides individual keys via a file under that
+  project's `.claude/` directory, since that directory is already the
+  convention for project-level Claude Code config and adds no new
+  top-level clutter.
 
 ## Next step
 
