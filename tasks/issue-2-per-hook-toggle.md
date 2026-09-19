@@ -221,6 +221,29 @@ weaker one.
   hook script now passes its own `jq` path to `hook_enabled` rather than a
   flat key.
 
+## New idea raised mid-Q4 (not yet scoped)
+
+Jim, verbatim: the plugin should never run the inference tier itself. When
+the deterministic tier passes on a file, the hook should report back to
+the main session — "you now need to run a sub agent to do the inference
+check on this file `<path>`" — rather than calling `claude -p --safe-mode`
+in-process. This runs the inference tier as a subagent the main session
+dispatches, not a blocking call inside the hook. Motivation: this plugin's
+in-hook inference calls have timed out before; moving the call out of the
+hook removes that failure mode and makes the check's background work
+visible instead of hidden inside a hook process.
+
+Today only `file-check.sh`, `bash-check.sh`, `artifact-check.sh`, and
+`mcp-send-check.sh` run inference synchronously (`stop-check.sh` already
+skips it — see its own header comment on turn-latency cost). So this
+touches all four of those hooks, not just the `file`/`stop.docs` coupling
+Q4 was about.
+
+Open question before scoping this further: does it become a separate
+issue/task (it is a distinct architectural change: how inference runs,
+across four hooks, not just the enable/disable surface issue #2 asks
+for), or does it fold into the issue #2 work here? Asked in chat.
+
 ## Next step
 
 Jim answers the questions above. Then implement on `main` in
