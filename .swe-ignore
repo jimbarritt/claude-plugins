@@ -2,3 +2,4 @@
 # line. A pattern with a "/" matches the path relative to this file's
 # directory; a pattern with no "/" matches the basename, at any depth.
 software-english-lint/docs/agent-guide.md
+software-english-lint/output-styles/software-english.md

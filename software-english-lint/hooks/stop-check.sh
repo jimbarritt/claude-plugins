@@ -4,6 +4,15 @@
 # The reply/transcript check and the markdown-diff check are independently
 # toggleable (hooks.stop.reply, hooks.stop.docs in config.json); see
 # hook_enabled() in _lib.sh.
+#
+# Under Claude Code, the reply/transcript check always skips, regardless of
+# hooks.stop.reply: the plugin's own output style
+# (output-styles/software-english.md, force-for-plugin: true) puts the same
+# rules in the system prompt instead, so a reactive block-and-retry on the
+# reply is no longer the first line of defence there. Copilot CLI has no
+# output-style equivalent, so it keeps the same check, controlled by
+# hooks.stop.reply, as before.
+#
 # No inference tier here: a model call on every turn cost 15-50 seconds
 # even on success, and an occasional stall past that. File, artefact,
 # commit/PR, and outbound-message checks still run it (once per edit or
@@ -29,7 +38,11 @@ if [ -z "$CWD" ] || [ ! -d "$CWD" ]; then
 fi
 
 REPLY_ENABLED=true
-hook_enabled '.hooks.stop.reply' "$CWD" || REPLY_ENABLED=false
+if is_claude_code; then
+  REPLY_ENABLED=false
+else
+  hook_enabled '.hooks.stop.reply' "$CWD" || REPLY_ENABLED=false
+fi
 DOCS_ENABLED=true
 hook_enabled '.hooks.stop.docs' "$CWD" || DOCS_ENABLED=false
 

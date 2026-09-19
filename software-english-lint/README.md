@@ -1,7 +1,8 @@
 # software-english-lint
 
-Checks every reply, file edit, commit message, artifact, and outbound
-message a Claude Code session produces against
+Shapes every Claude Code reply with a forced output style, and checks
+every file edit, commit message, artifact, and outbound message a
+session produces, against
 [Software English](https://github.com/jimbarritt/software-english),
 automatically, once installed.
 
@@ -26,11 +27,17 @@ GitHub.
 
 ## What happens once it is installed
 
-Claude's own replies, file edits, commit messages, and outbound
-messages get checked as they happen. When one breaks a rule, Claude
-Code blocks the action; Claude reads the printed report and fixes the
-text itself, then continues. Most of the time, this needs no attention
-from you.
+Under Claude Code, the plugin's own output style puts the Software
+English rules in the system prompt as soon as the plugin is enabled,
+so a reply follows the rules from the first word, without a separate
+check after the fact. Under Copilot CLI, which has no output-style
+mechanism, the chat reply is checked once the turn ends instead.
+
+File edits, commit messages, artifacts, and outbound messages get
+checked as they happen, on both harnesses. When one breaks a rule,
+Claude Code blocks the action; Claude reads the printed report and
+fixes the text itself, then continues. Most of the time, this needs no
+attention from you.
 
 When a file write breaks a rule, Claude reads the printed report and
 fixes the file.
@@ -96,7 +103,7 @@ Keys, all `true` by default:
 
 | Key | Turns off |
 |---|---|
-| `stop.reply` | The Stop hook's check of the chat reply and the transcript |
+| `stop.reply` | The Stop hook's check of the chat reply and the transcript. Copilot CLI only: under Claude Code, this check always skips, and the output style covers the reply instead |
 | `stop.docs` | The Stop hook's check of changed tracked markdown |
 | `file` | The per-edit check on an untracked or out-of-tree markdown file, or a code file's comments. Also takes over tracked markdown when `stop.docs` is off |
 | `bash` | The check on a `git commit`, `gh pr`, or `gh issue` message |

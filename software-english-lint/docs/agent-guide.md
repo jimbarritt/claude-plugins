@@ -36,7 +36,7 @@ does not reach you at all; only exit 2 does.
 
 | Hook | Event | Covers | Config key |
 |---|---|---|---|
-| [`../hooks/stop-check.sh`](../hooks/stop-check.sh) | `Stop` | The chat reply and the transcript since the last user message; changed tracked markdown | `hooks.stop.reply` (reply, transcript); `hooks.stop.docs` (tracked markdown) |
+| [`../hooks/stop-check.sh`](../hooks/stop-check.sh) | `Stop` | The chat reply and the transcript since the last user message (Copilot CLI only — see below); changed tracked markdown | `hooks.stop.reply` (reply, transcript; Copilot CLI only); `hooks.stop.docs` (tracked markdown) |
 | [`../hooks/file-check.sh`](../hooks/file-check.sh) | `PostToolUse` on `Write`\|`Edit` | A markdown file the Stop hook's git diff cannot see: outside the working tree, or untracked. Also tracked markdown, when `hooks.stop.docs` is off | `hooks.file` |
 | [`../hooks/bash-check.sh`](../hooks/bash-check.sh) | `PreToolUse` on `Bash` | A `git commit` message or a `gh pr`/`gh issue` title or body | `hooks.bash` |
 | [`../hooks/artifact-check.sh`](../hooks/artifact-check.sh) | `PreToolUse` on `Artifact` | A file about to publish: markdown directly, HTML via text-node extraction | `hooks.artifact` |
@@ -53,6 +53,38 @@ All five call
 [`../scripts/software_english_lint.py`](../scripts/software_english_lint.py)
 after
 [`../scripts/fetch-software-english-data.sh`](../scripts/fetch-software-english-data.sh).
+
+## Output style
+
+[`../output-styles/software-english.md`](../output-styles/software-english.md)
+carries `force-for-plugin: true` and `keep-coding-instructions: true`.
+Claude Code applies it automatically whenever this plugin is enabled,
+overriding the session's own `outputStyle` setting, and sends its
+instructions with every request for the session, the same way it sends
+the system prompt.
+
+This is why `stop-check.sh`'s reply/transcript check always skips under
+Claude Code: the condensed rules in the output style shape the reply
+before it is written, instead of catching a violation after the fact.
+`hooks.stop.reply` still exists for Copilot CLI, which has no
+output-style mechanism and so keeps the reactive check.
+
+The output style is exempt from this plugin's own checks, listed in
+[`../../.swe-ignore`](../../.swe-ignore), for the same reason as this
+file: it cites banned words and patterns as examples, which the linter
+cannot tell apart from a live violation.
+
+Two gaps this does not close:
+
+- A subagent (the `Agent` tool) runs its own system prompt and does not
+  inherit the parent conversation's output style. Its written output is
+  covered by `file-check.sh`, `bash-check.sh`, `artifact-check.sh`, and
+  `mcp-send-check.sh` when it writes a file, a commit, an artifact, or a
+  message, same as before; nothing yet covers a subagent's own reply
+  text.
+- The output style is a system-prompt instruction, not a check. A rule
+  the model still gets wrong ships in the reply unless another hook
+  (`hooks.stop.docs`, `hooks.file`, and the rest) catches it downstream.
 
 ## Rule tiers
 

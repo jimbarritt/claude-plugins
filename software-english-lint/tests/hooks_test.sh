@@ -129,6 +129,29 @@ OUT="$(run_disabled_hook mcp-send-check.sh "{\"cwd\": \"$PROJECT\", \"tool_name\
 assert_eq "mcp-send-check.sh disabled: exit 0" "0" "$?"
 assert_eq "mcp-send-check.sh disabled: no stdout" "" "$OUT"
 
+# --- stop-check.sh: reply check skips under Claude Code, output style
+#     covers it there; Copilot CLI keeps the config-gated check ---
+
+cat > "$FIXTURE_CONFIG" <<'EOF'
+{
+  "hooks": {
+    "stop": { "reply": true, "docs": false }
+  }
+}
+EOF
+rm -f "$PROJECT/.claude/swe-lint.json"
+
+VIOLATION='{"cwd": "'"$PROJECT"'", "last_assistant_message": "a b — c"}'
+
+OUT="$(echo "$VIOLATION" | SWE_LINT_CONFIG="$FIXTURE_CONFIG" CLAUDECODE=1 "$HOOKS/stop-check.sh")"
+assert_eq "stop-check.sh under Claude Code: reply check skipped, no block" "" "$OUT"
+
+OUT="$(echo "$VIOLATION" | SWE_LINT_CONFIG="$FIXTURE_CONFIG" env -u CLAUDECODE "$HOOKS/stop-check.sh")"
+case "$OUT" in
+  *'"decision": "block"'*) assert_eq "stop-check.sh under Copilot CLI: reply check still runs, blocks" "blocked" "blocked" ;;
+  *) assert_eq "stop-check.sh under Copilot CLI: reply check still runs, blocks" "blocked" "$OUT" ;;
+esac
+
 echo
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
