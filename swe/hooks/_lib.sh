@@ -99,3 +99,59 @@ report_and_maybe_block() {
     esac
   fi
 }
+
+# The linter prints one INFERENCE_ADVISED line, on its own, when called
+# with --advise-inference and a fresh pass is worth dispatching (see
+# software_english_lint.py's inference_eligible()). Prints $1 with that
+# line removed either way, so a caller does
+# CLEAN="$(strip_advise_marker "$OUTPUT")"; ADVISED=$? in one step: exit
+# 0 means the marker was present, 1 means it was not.
+strip_advise_marker() {
+  local output="$1"
+  if grep -q '^INFERENCE_ADVISED$' <<<"$output"; then
+    grep -v '^INFERENCE_ADVISED$' <<<"$output"
+    return 0
+  fi
+  printf '%s' "$output"
+  return 1
+}
+
+# A non-blocking advisory: the tool call proceeds (or, for posttooluse,
+# already did) exactly as if this hook had produced no output. It only
+# tells Claude to dispatch a subagent to run the inference tier as a
+# followup, via $1's own instructions (built by the caller, which knows
+# the right file path or scratch file and command). Only pretooluse and
+# posttooluse call this; stop-check.sh never runs the inference tier at
+# all (see its own header comment on turn-latency cost).
+#
+# permissionDecision: "allow" plus a top-level systemMessage is the
+# confirmed advisory shape for Claude Code, both hook types. The Copilot
+# CLI branch mirrors report_and_maybe_block's own blocking shape
+# (permissionDecisionReason for pretooluse, additionalContext for
+# posttooluse) with an "allow" decision instead of "deny" — unverified
+# against a real Copilot session, same caveat as is_claude_code() above.
+advise_inference() {
+  local message="$1" hook_type="$2"
+  [ -z "$message" ] && return 0
+  if is_claude_code; then
+    case "$hook_type" in
+      pretooluse)
+        jq -n --arg msg "$message" \
+          '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "allow"}, systemMessage: $msg}'
+        ;;
+      posttooluse)
+        jq -n --arg msg "$message" \
+          '{hookSpecificOutput: {hookEventName: "PostToolUse"}, systemMessage: $msg}'
+        ;;
+    esac
+  else
+    case "$hook_type" in
+      pretooluse)
+        jq -n --arg msg "$message" '{permissionDecision: "allow", permissionDecisionReason: $msg}'
+        ;;
+      posttooluse)
+        jq -n --arg msg "$message" '{additionalContext: $msg}'
+        ;;
+    esac
+  fi
+}

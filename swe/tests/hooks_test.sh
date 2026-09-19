@@ -152,6 +152,31 @@ case "$OUT" in
   *) assert_eq "stop-check.sh under Copilot CLI: reply check still runs, blocks" "blocked" "$OUT" ;;
 esac
 
+# --- strip_advise_marker(): separates the linter's INFERENCE_ADVISED
+#     marker line from the rest of a hook's output ---
+
+OUT="$(strip_advise_marker "$(printf 'line one\nINFERENCE_ADVISED\nline two')")"
+ADVISED=$?
+assert_eq "strip_advise_marker: marker present, exit 0" "0" "$ADVISED"
+assert_eq "strip_advise_marker: marker line removed" "$(printf 'line one\nline two')" "$OUT"
+
+OUT="$(strip_advise_marker "$(printf 'line one\nline two')")"
+ADVISED=$?
+assert_eq "strip_advise_marker: no marker, exit 1" "1" "$ADVISED"
+assert_eq "strip_advise_marker: output unchanged" "$(printf 'line one\nline two')" "$OUT"
+
+# --- advise_inference(): non-blocking shape, both harnesses, both hook types ---
+
+OUT="$(CLAUDECODE=1 advise_inference "check this" "pretooluse")"
+case "$OUT" in
+  *'"permissionDecision": "allow"'*'"systemMessage": "check this"'*) assert_eq "advise_inference: Claude Code pretooluse allows with a systemMessage" "0" "0" ;;
+  *) assert_eq "advise_inference: Claude Code pretooluse allows with a systemMessage" "0" "1: $OUT" ;;
+esac
+
+OUT="$(unset CLAUDECODE; advise_inference "check this" "posttooluse")"
+assert_eq "advise_inference: Copilot posttooluse uses additionalContext" \
+  '{"additionalContext":"check this"}' "$(echo "$OUT" | jq -c .)"
+
 echo
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

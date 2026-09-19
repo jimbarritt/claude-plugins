@@ -39,6 +39,13 @@ Claude Code blocks the action; Claude reads the printed report and
 fixes the text itself, then continues. Most of the time, this needs no
 attention from you.
 
+A check that passes can still be due a deeper, model-judged pass (the
+inference tier): rather than run that in the hook itself, which can
+stall, Claude dispatches it as a subagent, then fixes anything it
+reports. This does not happen on every single edit to a file already
+checked this way — only once the file has grown enough since its last
+pass to be worth checking again.
+
 When a file write breaks a rule, Claude reads the printed report and
 fixes the file.
 

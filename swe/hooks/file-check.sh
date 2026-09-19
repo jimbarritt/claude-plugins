@@ -49,9 +49,16 @@ fi
 
 CWD_ARGS=()
 [ -n "$CWD" ] && [ -d "$CWD" ] && CWD_ARGS=(--cwd "$CWD")
-OUTPUT="$("$LINTER" "$FILE_PATH" --run-inference --quiet-vocab "${CWD_ARGS[@]}" 2>&1)"
+OUTPUT="$("$LINTER" "$FILE_PATH" --advise-inference --quiet-vocab "${CWD_ARGS[@]}" 2>&1)"
 STATUS=$?
+CLEAN_OUTPUT="$(strip_advise_marker "$OUTPUT")"
+ADVISED=$?
 
-report_and_maybe_block "$OUTPUT" "$STATUS" "file" \
+report_and_maybe_block "$CLEAN_OUTPUT" "$STATUS" "file" \
   "Violations found in $FILE_PATH. Fix them." "posttooluse"
+
+if [ "$STATUS" -eq 0 ] && [ "$ADVISED" -eq 0 ]; then
+  advise_inference "Software English: the deterministic check passed for $FILE_PATH, and it is due another inference-tier pass. Dispatch a subagent (Agent tool) to run: python3 \"$HERE/../scripts/software_english_lint.py\" \"$FILE_PATH\" --force-inference --quiet-vocab. It only reports findings, it does not fix anything. Read what it reports and fix $FILE_PATH yourself if it finds anything." \
+    "posttooluse"
+fi
 exit 0

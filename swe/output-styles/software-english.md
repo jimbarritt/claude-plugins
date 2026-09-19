@@ -1,6 +1,6 @@
 ---
 name: Software English
-description: Writes every reply in Software English from the first token, per the swe plugin.
+description: Writes every reply in Software English from the first token.
 keep-coding-instructions: true
 force-for-plugin: true
 ---

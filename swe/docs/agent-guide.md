@@ -113,33 +113,77 @@ artifact.
 
 ## When the inference tier runs
 
-All three conditions must hold, checked in this order:
+The four non-`Stop` hooks (`file`, `bash`, `artifact`, `mcp-send`) never
+run a model call themselves. Each calls the linter with
+`--advise-inference` instead of running inference in-process — this
+avoids a hook process ever stalling on `claude -p`, the failure mode
+that motivated this design. `--advise-inference` only decides whether a
+fresh pass is worth dispatching, and prints a single `INFERENCE_ADVISED`
+marker line when it is. The hook script (`strip_advise_marker()` and
+`advise_inference()` in [`../hooks/_lib.sh`](../hooks/_lib.sh)) reads
+that marker, strips it out of the deterministic-tier report, and — only
+when the deterministic tier itself found nothing to block — returns a
+non-blocking advisory hook response: the tool call proceeds (or, for
+`PostToolUse`, already had), and Claude is told to dispatch a subagent
+to run the actual check.
+
+A pass is worth dispatching when:
 
 1. The deterministic tier found no violation in this same invocation.
 2. `stop_hook_active` is false (`Stop` only; the other hooks have no
-   equivalent flag).
-3. The prose, after code and quote stripping, exceeds a size threshold:
-   [`../config.json`](../config.json)'s `threshold_words` (60) or
-   `threshold_sentences` (4), whichever comes first.
+   equivalent flag, and never call `--advise-inference` in the first
+   place — see below).
+3. The prose, after code and quote stripping, is eligible per
+   `inference_eligible()` in
+   [`../scripts/software_english_lint.py`](../scripts/software_english_lint.py):
+   - **A single named file** (the only source with a stable identity
+     across repeated edits): eligible once its word or sentence count
+     has grown by another
+     [`../config.json`](../config.json) `threshold_words` (60) /
+     `threshold_sentences` (4) since the file's last recorded
+     `--force-inference` pass — recorded in
+     `~/.claude/swe/inference-state.json`, keyed by the file's resolved
+     path. A file with no recorded pass yet uses the same numbers as a
+     plain absolute threshold (its first pass). This is what throttles a
+     file already carrying, say, 20 known inference findings: most
+     follow-up edits are fixes to those, not new prose, so they do not
+     re-cross the threshold and do not get advised again until the file
+     has genuinely grown.
+   - **Any other source** (piped text, an HTML file): no stable identity
+     across calls, so it always uses the plain absolute threshold,
+     exactly as before.
 
-When all three hold, the linter runs
+The advisory message the hook builds names the exact command to run: for
+a file, `--force-inference` directly against its path; for a text
+source (a commit/PR message, an outbound MCP message), the hook first
+writes the text to a scratch file under `~/.claude/swe/pending-inference/`
+and points the command at it with `--force-inference --text
+--source-label ... < <scratch-file>`, since the tool call that produced
+the text has already run by the time the subagent checks it (`bash-check.sh`
+and `mcp-send-check.sh` allow the underlying `Bash`/MCP-send tool call
+through unblocked, same as the hook doing nothing at all). The dispatched
+subagent's job is to check and report only — same as `/swe:lint-file` —
+not to fix anything; Claude reads its findings and fixes the source
+itself, same as before.
+
+`--force-inference` (used by `/swe:lint-file`, and by the subagent an
+advisory dispatches) is what actually runs inference: it shells out to
 `claude -p --safe-mode --model <config.json's fast_model>` with the
 prose and a prompt built from the inference-based rules, and folds the
 result into the same report. `--safe-mode` disables CLAUDE.md, hooks,
 skills, and plugins for that one call — required, since without it the
 subprocess loads the calling project's own CLAUDE.md and any mandatory
-session-start skill, which competes with the linting prompt.
+session-start skill, which competes with the linting prompt. It bypasses
+conditions 1 and 3 above entirely — it runs regardless of deterministic
+errors already found, and regardless of the prose threshold or growth
+throttle — but still skips on empty prose, and still records the pass
+(word/sentence count, for the throttle above) once it runs. Condition 2
+(`stop_hook_active`) does not apply outside the `Stop` hook, so it is
+moot here.
 
 If `claude` is not on `PATH`, or the call fails or times out, the
 inference tier is skipped. The deterministic tier's result stands
 either way.
-
-`--force-inference` (used by `/swe:lint-file`, not by any hook) bypasses
-conditions 1 and 3 above: it runs inference regardless of deterministic
-errors already found, and regardless of the prose length threshold. It
-still skips on empty prose. Condition 2 (`stop_hook_active`) does not
-apply outside the `Stop` hook, so it is moot here. `--run-inference`'s
-own gating, used by the four hooks in the table above, is unchanged.
 
 ## Where the rule data comes from
 
@@ -183,9 +227,10 @@ python3 scripts/software_english_lint.py --transcript /path/to/transcript.jsonl
 python3 scripts/software_english_lint.py --html-file page.html
 ```
 
-Add `--run-inference` to also run the inference tier, gated as above.
-Add `--force-inference` to run it unconditionally instead — this is
-what `/swe:lint-file` does. Add `--quiet-vocab` to omit
+Add `--advise-inference` to print `INFERENCE_ADVISED` when a fresh pass
+would be worth dispatching, gated as above, without running it. Add
+`--force-inference` to run the inference tier directly instead — this
+is what `/swe:lint-file` does. Add `--quiet-vocab` to omit
 `vocabulary-membership` lines; every hook does this by default.
 
 Run `scripts/fetch-software-english-data.sh` once by hand first, if
@@ -217,8 +262,23 @@ not.
 - The Slack matcher in `hooks.json` is unverified: no Slack send tool
   exists in this installation's tool registry to test against.
 - The inference tier's own model call adds real latency, seconds per
-  call, when it runs. The inference-tier prompt receives prose with
-  inline code, links, and URLs blanked out by character count (not
-  removed) — this can read as missing content to the model and produce
-  a spurious `no-unanchored-reference` finding pointing at a blanked
-  span. Not yet fixed; logged as feedback when found.
+  call, when it runs — moved out of the hook process by the subagent
+  dispatch above, but the subagent (and so Claude) still waits on it.
+  The inference-tier prompt receives prose with inline code, links, and
+  URLs blanked out by character count (not removed) — this can read as
+  missing content to the model and produce a spurious
+  `no-unanchored-reference` finding pointing at a blanked span. Not yet
+  fixed; logged as feedback when found.
+- `bash-check.sh` and `mcp-send-check.sh` advise inference only after
+  already letting the underlying tool call proceed unblocked: a commit
+  can be amended once a finding comes back, but a sent message cannot
+  be un-sent. This is the accepted cost of moving these two hooks off a
+  blocking in-process model call.
+- The growth-since-last-pass throttle (`inference_eligible()`) only
+  applies to a single named file. A commit/PR message or an outbound
+  MCP message has no identity across separate tool calls, so each one
+  is still judged solely against the plain absolute threshold, same as
+  before this rework.
+- `~/.claude/swe/inference-state.json` and
+  `~/.claude/swe/pending-inference/` are never pruned. Both hold small
+  text; neither is cleaned up automatically yet.

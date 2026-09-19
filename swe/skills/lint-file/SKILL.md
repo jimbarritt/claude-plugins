@@ -34,11 +34,14 @@ stop — there is nothing to check against.
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" <file-path> --force-inference --quiet-vocab
 ```
 
-`--force-inference` runs the inference tier unconditionally: it ignores
-the deterministic-clean gate and the length threshold that
-`--run-inference` (used by the hooks) applies. It still skips if the
-file has no prose to check (e.g. empty, or a code file with no
-comments).
+`--force-inference` runs the inference tier unconditionally, in this
+same process: it ignores the deterministic-clean gate, the length
+threshold, and the growth-since-last-pass throttle that
+`--advise-inference` (used by the hooks) applies instead of running
+inference itself. It still skips if the file has no prose to check
+(e.g. empty, or a code file with no comments). It records this pass in
+`~/.claude/swe/inference-state.json`, so a hook-advised subagent run on
+the same file counts too, for the throttle above.
 
 ## Step 4: Report
 

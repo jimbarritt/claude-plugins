@@ -43,9 +43,20 @@ if ! "$HERE/../scripts/fetch-software-english-data.sh" >&2; then
   exit 0
 fi
 
-OUTPUT="$(printf '%s' "$TEXT" | "$LINTER" --text --source-label commit-or-pr-text --run-inference --quiet-vocab 2>&1)"
+OUTPUT="$(printf '%s' "$TEXT" | "$LINTER" --text --source-label commit-or-pr-text --advise-inference --quiet-vocab 2>&1)"
 STATUS=$?
+CLEAN_OUTPUT="$(strip_advise_marker "$OUTPUT")"
+ADVISED=$?
 
-report_and_maybe_block "$OUTPUT" "$STATUS" "bash" \
+report_and_maybe_block "$CLEAN_OUTPUT" "$STATUS" "bash" \
   "Fix the text, then run the command again." "pretooluse"
+
+if [ "$STATUS" -eq 0 ] && [ "$ADVISED" -eq 0 ]; then
+  SCRATCH_DIR="$HOME/.claude/swe/pending-inference"
+  mkdir -p "$SCRATCH_DIR"
+  SCRATCH_FILE="$SCRATCH_DIR/bash-$(date +%s)-$$.txt"
+  printf '%s' "$TEXT" > "$SCRATCH_FILE"
+  advise_inference "Software English: the deterministic check passed for this commit/PR text, and it is due an inference-tier pass. Dispatch a subagent (Agent tool) to run: python3 \"$HERE/../scripts/software_english_lint.py\" --text --source-label commit-or-pr-text --force-inference --quiet-vocab < \"$SCRATCH_FILE\". It only reports findings, it does not fix anything. Read what it reports; if it finds anything, the command you just ran already used the original text, so fix it in a follow-up (an amended commit, or a PR edit). Delete $SCRATCH_FILE once you are done with it." \
+    "pretooluse"
+fi
 exit 0

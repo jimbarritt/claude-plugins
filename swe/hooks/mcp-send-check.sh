@@ -42,9 +42,20 @@ if ! "$HERE/../scripts/fetch-software-english-data.sh" >&2; then
   exit 0
 fi
 
-OUTPUT="$(printf '%s' "$TEXT" | "$LINTER" --text --source-label "$TOOL_NAME" --run-inference --quiet-vocab 2>&1)"
+OUTPUT="$(printf '%s' "$TEXT" | "$LINTER" --text --source-label "$TOOL_NAME" --advise-inference --quiet-vocab 2>&1)"
 STATUS=$?
+CLEAN_OUTPUT="$(strip_advise_marker "$OUTPUT")"
+ADVISED=$?
 
-report_and_maybe_block "$OUTPUT" "$STATUS" "mcp-send" \
+report_and_maybe_block "$CLEAN_OUTPUT" "$STATUS" "mcp-send" \
   "Fix the text, then send it again." "pretooluse"
+
+if [ "$STATUS" -eq 0 ] && [ "$ADVISED" -eq 0 ]; then
+  SCRATCH_DIR="$HOME/.claude/swe/pending-inference"
+  mkdir -p "$SCRATCH_DIR"
+  SCRATCH_FILE="$SCRATCH_DIR/mcp-send-$(date +%s)-$$.txt"
+  printf '%s' "$TEXT" > "$SCRATCH_FILE"
+  advise_inference "Software English: the deterministic check passed for this outbound $TOOL_NAME message, and it is due an inference-tier pass. Dispatch a subagent (Agent tool) to run: python3 \"$HERE/../scripts/software_english_lint.py\" --text --source-label \"$TOOL_NAME\" --force-inference --quiet-vocab < \"$SCRATCH_FILE\". It only reports findings, it does not fix anything. The message has already been sent by the time this runs, so it cannot be un-sent; read what it reports so you know for next time. Delete $SCRATCH_FILE once you are done with it." \
+    "pretooluse"
+fi
 exit 0
