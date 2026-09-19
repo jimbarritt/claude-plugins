@@ -1,6 +1,6 @@
 ---
 name: send-feedback
-description: Review the accumulated swe feedback log for real patterns, and file a GitHub issue for each one the user confirms
+description: Review the accumulated swe feedback log for real patterns, and file a confirmed GitHub issue for each one
 argument-hint: (no arguments)
 allowed-tools: Bash, Read
 disable-model-invocation: false
@@ -8,10 +8,9 @@ disable-model-invocation: false
 
 # send-feedback
 
-Read the feedback log at `~/.claude/swe/feedback.jsonl`
-(written by `/swe:feedback` and by the linter's inference tier). Find
-patterns worth a GitHub issue, discuss each one with the user, and file
-only the ones the user confirms.
+Read the feedback log at `~/.claude/swe/feedback.jsonl`, written by
+`/swe:feedback`. Find patterns worth a GitHub issue, discuss each one
+with the user, and file only the ones the user confirms.
 
 This command makes GitHub API calls (`gh issue create`) once a pattern
 is confirmed. Reading and clustering the log makes no network call.
@@ -23,28 +22,13 @@ cat ~/.claude/swe/feedback.jsonl 2>/dev/null
 ```
 
 If the file does not exist, or every line was already archived (see
-Step 5), say so and stop. Nothing to review is a normal outcome, not an
+Step 4), say so and stop. Nothing to review is a normal outcome, not an
 error.
 
-Parse each line as one JSON object. Two kinds of entry:
+Parse each line as one JSON object of type `finding_feedback`: a
+person's verdict on one lint finding.
 
-- `finding_feedback`: a person's verdict on one lint finding.
-- `inference_call_start` / `inference_call_end`: bracket one inference-
-  tier model call, matched by `call_id`.
-
-## Step 2: Find the stalled-call pattern
-
-Match every `inference_call_start` to an `inference_call_end` with the
-same `call_id`. A `start` with no matching `end` means the hook process
-was terminated mid-call. Claude Code gives no other signal when a hook
-times out.
-
-Count these. If one or more exist, this is itself a candidate pattern:
-"N inference-tier calls started but never finished." Treat it the same
-as a rule-based pattern in Step 4 (one point, on its own, discussed
-before moving to the next).
-
-## Step 3: Cluster the finding feedback
+## Step 2: Cluster the finding feedback
 
 Group `finding_feedback` entries by `rule_id` and `verdict`. A cluster
 of two or more entries sharing both is a candidate pattern. A single
@@ -58,9 +42,9 @@ This needs judgement: two "false-positive" reports on the same rule
 that flag unrelated kinds of text are not the same pattern, even though
 they share a `rule_id`.
 
-## Step 4: Discuss one pattern at a time
+## Step 3: Discuss one pattern at a time
 
-For each real candidate pattern found in Step 2 or Step 3, in turn:
+For each real candidate pattern found in Step 2, in turn:
 
 1. State the pattern: the rule ID, the verdict, how many entries, and
    one or two representative quotes.
@@ -71,7 +55,7 @@ For each real candidate pattern found in Step 2 or Step 3, in turn:
    every pattern up front. This project's own convention is one point
    at a time.
 
-## Step 5: File a confirmed issue, and archive its entries
+## Step 4: File a confirmed issue, and archive its entries
 
 When the user confirms a pattern:
 
@@ -83,8 +67,6 @@ When the user confirms a pattern:
      `swe/data/core-rules.toml` (or the working tree
      at `~/Code/github/jimbarritt/software-english/rules/core-rules.toml`),
      the target is `jimbarritt/software-english`.
-   - For the stalled-call pattern (Step 2), the target is
-     `jimbarritt/claude-plugins`: the hook mechanism, not the spec.
    - If `rule_id` is `unknown` or not found in either file, ask the
      user which repository to use.
 2. Draft a short issue title and body from the pattern's own detail (the
@@ -112,7 +94,7 @@ When the user declines a pattern, leave its entries in the live log.
 Do not archive a dismissed pattern, in case more evidence changes the
 call later.
 
-## Step 6: Summarise
+## Step 5: Summarise
 
 After every pattern is discussed, state in one or two lines: how many
 issues were filed, how many patterns were declined, and how many

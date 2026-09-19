@@ -100,35 +100,42 @@ report_and_maybe_block() {
   fi
 }
 
-# The linter prints one INFERENCE_ADVISED line, on its own, when called
-# with --advise-inference and a fresh pass is worth dispatching (see
-# software_english_lint.py's inference_eligible()). Prints $1 with that
-# line removed either way, so a caller does
-# CLEAN="$(strip_advise_marker "$OUTPUT")"; ADVISED=$? in one step: exit
-# 0 means the marker was present, 1 means it was not.
-strip_advise_marker() {
-  local output="$1"
-  if grep -q '^INFERENCE_ADVISED$' <<<"$output"; then
-    grep -v '^INFERENCE_ADVISED$' <<<"$output"
-    return 0
-  fi
-  printf '%s' "$output"
-  return 1
+# The linter prints a fenced ===INFERENCE_ADVISED===...===END_INFERENCE_ADVISED===
+# block when called with --advise-inference or --force-inference and a
+# fresh pass is worth doing (see software_english_lint.py's
+# inference_eligible()). It never judges the prose itself; the block
+# holds the applicable rules for whoever calls it to judge directly.
+#
+# Two separate extractions from $1, each a plain command substitution
+# (not a side-effect global: a bash function called inside $(...) runs
+# in a subshell, so an assignment inside it never arrives back at the
+# caller). A caller does CLEAN="$(strip_advise_block "$OUTPUT")" for
+# the deterministic-tier report with the block removed, and separately
+# ADVISE_RULES="$(extract_advise_rules "$OUTPUT")" for the rules text
+# alone (marker lines stripped): empty when no block was present.
+strip_advise_block() {
+  sed '/^===INFERENCE_ADVISED===$/,/^===END_INFERENCE_ADVISED===$/d' <<<"$1"
+}
+
+extract_advise_rules() {
+  sed -n '/^===INFERENCE_ADVISED===$/,/^===END_INFERENCE_ADVISED===$/p' <<<"$1" | sed '1d;$d'
 }
 
 # A non-blocking advisory: the tool call proceeds (or, for posttooluse,
-# already did) exactly as if this hook had produced no output. It only
-# tells Claude to dispatch a subagent to run the inference tier as a
-# followup, via $1's own instructions (built by the caller, which knows
-# the right file path or scratch file and command). Only pretooluse and
-# posttooluse call this; stop-check.sh never runs the inference tier at
-# all (see its own header comment on turn-latency cost).
+# already did) exactly as if this hook produced no output. It only
+# tells Claude to dispatch a subagent to read the source and judge it
+# against the rules in $1 (built by the caller from ADVISE_RULES above,
+# which also knows the right file path or the text itself): never to
+# re-run this script for the judging step, since it cannot do that.
+# Only pretooluse and posttooluse call this; stop-check.sh never runs
+# the inference tier at all (see its own header comment on turn-latency
+# cost).
 #
 # permissionDecision: "allow" plus a top-level systemMessage is the
 # confirmed advisory shape for Claude Code, both hook types. The Copilot
 # CLI branch mirrors report_and_maybe_block's own blocking shape
 # (permissionDecisionReason for pretooluse, additionalContext for
-# posttooluse) with an "allow" decision instead of "deny" — unverified
+# posttooluse) with an "allow" decision instead of "deny": unverified
 # against a real Copilot session, same caveat as is_claude_code() above.
 advise_inference() {
   local message="$1" hook_type="$2"

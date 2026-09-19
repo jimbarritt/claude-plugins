@@ -152,18 +152,21 @@ case "$OUT" in
   *) assert_eq "stop-check.sh under Copilot CLI: reply check still runs, blocks" "blocked" "$OUT" ;;
 esac
 
-# --- strip_advise_marker(): separates the linter's INFERENCE_ADVISED
-#     marker line from the rest of a hook's output ---
+# --- strip_advise_block()/extract_advise_rules(): separate the linter's
+#     fenced INFERENCE_ADVISED rules block from the rest of a hook's
+#     output ---
 
-OUT="$(strip_advise_marker "$(printf 'line one\nINFERENCE_ADVISED\nline two')")"
-ADVISED=$?
-assert_eq "strip_advise_marker: marker present, exit 0" "0" "$ADVISED"
-assert_eq "strip_advise_marker: marker line removed" "$(printf 'line one\nline two')" "$OUT"
+BLOCK_OUTPUT="$(printf 'line one\n===INFERENCE_ADVISED===\n- rule-a: desc a\n- rule-b: desc b\n===END_INFERENCE_ADVISED===\nline two')"
+CLEAN="$(strip_advise_block "$BLOCK_OUTPUT")"
+RULES="$(extract_advise_rules "$BLOCK_OUTPUT")"
+assert_eq "strip_advise_block: block present, removed from report" "$(printf 'line one\nline two')" "$CLEAN"
+assert_eq "extract_advise_rules: block present, rules extracted" "$(printf -- '- rule-a: desc a\n- rule-b: desc b')" "$RULES"
 
-OUT="$(strip_advise_marker "$(printf 'line one\nline two')")"
-ADVISED=$?
-assert_eq "strip_advise_marker: no marker, exit 1" "1" "$ADVISED"
-assert_eq "strip_advise_marker: output unchanged" "$(printf 'line one\nline two')" "$OUT"
+NO_BLOCK_OUTPUT="$(printf 'line one\nline two')"
+CLEAN="$(strip_advise_block "$NO_BLOCK_OUTPUT")"
+RULES="$(extract_advise_rules "$NO_BLOCK_OUTPUT")"
+assert_eq "strip_advise_block: no block, output unchanged" "$(printf 'line one\nline two')" "$CLEAN"
+assert_eq "extract_advise_rules: no block, empty" "" "$RULES"
 
 # --- advise_inference(): non-blocking shape, both harnesses, both hook types ---
 

@@ -11,45 +11,49 @@ Deterministic-tier rules (vocabulary, banned words, tense patterns,
 anthropomorphism, abstract-location) run on every source, every time, at
 no cost beyond one Python process.
 
-Inference-based rules (check == "model-judgement" in the catalogue) never
-run inside this process when it is invoked from a hook. A hook invocation
-passes --advise-inference instead: this only decides whether a fresh
-inference pass is worth dispatching (see inference_eligible() below) and,
-if so, prints a single INFERENCE_ADVISED marker line. The hook script
-reads that marker and tells Claude, via a non-blocking advisory hook
-response, to dispatch a subagent to run the actual check
-(--force-inference, below). This keeps a model call out of the hook
-process entirely, so a slow or stalled call can no longer make a hook
-time out.
+Inference-based rules (check == "model-judgement" in the catalogue) are
+never run by this script. It has no model access of its own and never
+spawns one: everything here runs inside a skill or a hook-dispatched
+subagent, which already has a model attached, so shelling out to a
+second one would only duplicate it. What this script does instead is
+decide whether a fresh inference pass is worth doing, and if so, print
+the applicable rules for the caller to judge the prose against
+directly — as itself, with its own context, not an isolated call.
 
---force-inference actually runs the inference tier: shells out to
-`claude -p --safe-mode` with a fast model, asking it to judge only the
-inference-based rules, and folds the result into the same report.
-`--safe-mode` disables CLAUDE.md, hooks, skills, and plugins for that
-one call — without it, the subprocess loads this project's own global
-CLAUDE.md and mandatory session-start skill, which competes with the
-prompt below and was found live to cause spurious timeouts. Used by
-`/swe:lint-file` directly, and by the subagent a hook's advisory
-dispatches.
+--advise-inference (used by the four non-Stop hooks) only decides:
+gated by inference_eligible() below, plus the deterministic tier being
+clean this same invocation and --stop-hook-active not being true. When
+eligible, it prints an INFERENCE_ADVISED block (see main()) holding the
+applicable rules. The hook script reads that block and turns it into a
+non-blocking advisory hook response telling Claude to dispatch a
+subagent to read the source and judge it against those rules itself,
+then fix anything it finds. Nothing in that path ever re-invokes this
+script for the judging step.
+
+--force-inference (used by /swe:lint-file) prints the same block
+unconditionally: no gate, no threshold, no throttle. It is the current
+session itself that then judges the file directly, right where the
+command was run, no subagent needed. It still skips on empty prose.
 
 inference_eligible() throttles --advise-inference for a single named
 file (the only source with a stable identity across repeated edits):
-after any --force-inference pass on that file, ~/.claude/swe/
-inference-state.json records its word and sentence count, and a later
---advise-inference call is eligible again only once the count has grown
-by another threshold_words/threshold_sentences (config.json) since that
-recorded pass — not on every single edit, whether the prior pass found
-issues or not. A non-file source (piped text, an HTML file) has no
-stable identity across calls, so it always uses the plain, one-off
-absolute threshold instead.
+after any pass that printed the block (--advise-inference or
+--force-inference alike), ~/.claude/swe/inference-state.json records
+its word and sentence count, and a later --advise-inference call is
+eligible again only once the count has grown by another
+threshold_words/threshold_sentences (config.json) since that recorded
+pass — not on every single edit, whether the prior pass found issues or
+not. A non-file source (piped text, an HTML file) has no stable
+identity across calls, so it always uses the plain, one-off absolute
+threshold instead.
 
 A second, plugin-owned rule set lives in ../rules/plugin-rules.toml,
 separate from the vendored catalogue: it governs interaction structure
 (for example, raising more than one decision point in one reply) rather
 than prose wording, so it is not part of the Software English spec. It
-is added to the inference-tier prompt only for a conversational source
-(--reply-file or --transcript), never for a file, a commit message, or
-an artifact.
+is added to the printed inference-rules block only for a conversational
+source (--reply-file or --transcript), never for a file, a commit
+message, or an artifact.
 
 A finding has a severity, read from the catalogue. An "error"-severity
 finding causes a non-zero exit, unless --stop-hook-active true was passed
@@ -67,12 +71,9 @@ import fnmatch
 import html.parser
 import json
 import re
-import shutil
 import subprocess
 import sys
-import time
 import tomllib
-import uuid
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -80,7 +81,6 @@ PLUGIN_ROOT = HERE.parent
 DATA = PLUGIN_ROOT / "data"
 CONFIG_PATH = PLUGIN_ROOT / "config.json"
 PLUGIN_RULES_PATH = PLUGIN_ROOT / "rules" / "plugin-rules.toml"
-FEEDBACK_LOG_PATH = Path.home() / ".claude" / "swe" / "feedback.jsonl"
 INFERENCE_STATE_PATH = Path.home() / ".claude" / "swe" / "inference-state.json"
 
 
@@ -124,18 +124,6 @@ def inference_eligible(key, words, sentences, cfg):
             delta_sentences = sentences - entry.get("sentences", 0)
             return delta_words > cfg["threshold_words"] or delta_sentences > cfg["threshold_sentences"]
     return words > cfg["threshold_words"] or sentences > cfg["threshold_sentences"]
-
-
-def log_feedback_event(entry):
-    """Append one JSON line to the feedback log. Read by /swe:send-feedback.
-
-    Fails silently: a logging problem must never affect linting itself."""
-    try:
-        FEEDBACK_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with FEEDBACK_LOG_PATH.open("a") as f:
-            f.write(json.dumps(entry) + "\n")
-    except OSError:
-        pass
 
 
 def load_ignore_patterns(cwd):
@@ -516,96 +504,11 @@ def count_words_sentences(text):
     return words, sentences
 
 
-def build_inference_prompt(prose, inference_rules):
-    rule_lines = []
-    for rule_id, rule in inference_rules.items():
-        rule_lines.append(f"- {rule_id}: {rule['description']}")
-    rules_block = "\n".join(rule_lines)
-    return f"""You check prose against Software English's inference-based rules —
-the ones needing judgement, not a fixed pattern. Here are the rules:
-
-{rules_block}
-
-Check ONLY these rules. Do not report vocabulary, banned words, tense
-patterns, or the fixed anthropomorphism/abstract-location word lists —
-those are checked separately, by a different mechanism.
-
-Prose to check:
----
-{prose}
----
-
-Reply with ONLY a JSON object, no other text, in this exact shape:
-{{"findings": [{{"rule_id": "...", "quote": "...", "fix": "..."}}]}}
-
-An empty findings array means no fault found. "quote" is the exact
-offending text, kept short. "fix" is a short instruction, not a full
-rewrite."""
-
-
-def run_inference(prose, inference_rules, cfg, source_label="unknown"):
-    call_id = uuid.uuid4().hex
-    log_feedback_event({
-        "type": "inference_call_start",
-        "call_id": call_id,
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "source": source_label,
-        "rule_ids": sorted(inference_rules),
-    })
-    start_time = time.monotonic()
-
-    def log_end(outcome):
-        log_feedback_event({
-            "type": "inference_call_end",
-            "call_id": call_id,
-            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "outcome": outcome,
-            "duration_ms": round((time.monotonic() - start_time) * 1000),
-        })
-
-    if not shutil.which("claude"):
-        print("swe: 'claude' not on PATH, skipping inference tier", file=sys.stderr)
-        log_end("no-claude-on-path")
-        return []
-    prompt = build_inference_prompt(prose, inference_rules)
-    try:
-        result = subprocess.run(
-            ["claude", "-p", "--safe-mode", "--model", cfg["fast_model"]],
-            input=prompt, text=True, capture_output=True,
-            timeout=cfg["model_call_timeout_seconds"], check=False,
-        )
-    except subprocess.TimeoutExpired:
-        print("swe: inference-tier model call timed out, skipping", file=sys.stderr)
-        log_end("timeout")
-        return []
-    if result.returncode != 0:
-        print(f"swe: inference-tier model call failed: {result.stderr.strip()[:200]}", file=sys.stderr)
-        log_end("call-failed")
-        return []
-    raw = result.stdout.strip()
-    start = raw.find("{")
-    end = raw.rfind("}")
-    if start == -1 or end == -1:
-        print("swe: inference-tier response had no JSON, skipping", file=sys.stderr)
-        log_end("no-json")
-        return []
-    try:
-        parsed = json.loads(raw[start:end + 1])
-    except json.JSONDecodeError:
-        print("swe: inference-tier response was not valid JSON, skipping", file=sys.stderr)
-        log_end("bad-json")
-        return []
-    out = []
-    for item in parsed.get("findings", []):
-        rule_id = item.get("rule_id", "")
-        if rule_id not in inference_rules:
-            continue
-        quote = item.get("quote", "")
-        fix = item.get("fix", "")
-        severity = inference_rules[rule_id]["severity"]
-        out.append((rule_id, severity, quote, fix))
-    log_end("ok")
-    return out
+def format_inference_rules(inference_rules):
+    """The applicable inference-based rules, one per line, for the caller
+    to judge the prose against directly. This script never judges them
+    itself."""
+    return "\n".join(f"- {rule_id}: {rule['description']}" for rule_id, rule in inference_rules.items())
 
 
 def main():
@@ -619,8 +522,8 @@ def main():
     parser.add_argument("--transcript", help="path to the Stop hook transcript JSONL")
     parser.add_argument("--html-file", help="path to an HTML file; text nodes are extracted as prose")
     parser.add_argument("--source-label", default=None, help="label for --text's source in the report")
-    parser.add_argument("--advise-inference", action="store_true", help="does not run the inference tier; prints INFERENCE_ADVISED when a fresh pass would be worth dispatching as a subagent (deterministic tier clean, not already stop_hook_active, and eligible per inference_eligible())")
-    parser.add_argument("--force-inference", action="store_true", help="run the inference tier unconditionally: ignores the deterministic-clean gate and the length threshold (still skips on empty prose)")
+    parser.add_argument("--advise-inference", action="store_true", help="prints an INFERENCE_ADVISED rules block, gated: only when the deterministic tier is clean this invocation, not already stop_hook_active, and eligible per inference_eligible(); never judges the prose itself")
+    parser.add_argument("--force-inference", action="store_true", help="prints the same block unconditionally: ignores the deterministic-clean gate, stop_hook_active, and the eligibility throttle (still skips on empty prose); never judges the prose itself")
     parser.add_argument("--stop-hook-active", default="false", choices=["true", "false"])
     parser.add_argument("--quiet-vocab", action="store_true", help="omit vocabulary-membership lines from the printed report (they never block; this only reduces noise)")
     parser.add_argument("--cwd", default=None, help="project root .swe-ignore is read from (defaults to the current directory)")
@@ -727,34 +630,25 @@ def main():
 
     # A single named file is the only source with a stable identity across
     # repeated edits, so it is the only one inference_eligible() throttles
-    # by growth since the last --force-inference pass.
+    # by growth since the last time the block below was printed for it.
     inference_key = None
     if len(args.files) == 1 and not (args.text or args.reply_file or args.transcript or args.html_file):
         inference_key = str(Path(args.files[0]).resolve())
 
-    if args.force_inference:
-        combined_prose = "\n".join(prose for _, _, prose in sources if prose.strip())
-        if combined_prose.strip():
-            inference_rules = {rid: r for rid, r in rules.items() if r.get("check") == "model-judgement"}
-            is_conversational = bool(args.reply_file or args.transcript)
-            if is_conversational:
-                inference_rules.update(plugin_rules)
-            source_label = ",".join(label for label, _, _ in sources)
-            i_findings = run_inference(combined_prose, inference_rules, cfg, source_label)
-            for rule_id, severity, quote, fix in i_findings:
-                print(f'{rule_id}: inference: "{quote}" — {fix}')
-                if severity == "error":
-                    error_total += 1
-                else:
-                    warning_total += 1
-            words, sentences = count_words_sentences(combined_prose)
-            save_inference_state(inference_key, words, sentences)
-    elif args.advise_inference and error_total == 0 and not stop_hook_active:
+    due_for_inference = args.force_inference or (args.advise_inference and error_total == 0 and not stop_hook_active)
+    if due_for_inference:
         combined_prose = "\n".join(prose for _, _, prose in sources if prose.strip())
         if combined_prose.strip():
             words, sentences = count_words_sentences(combined_prose)
-            if inference_eligible(inference_key, words, sentences, cfg):
-                print("INFERENCE_ADVISED")
+            if args.force_inference or inference_eligible(inference_key, words, sentences, cfg):
+                inference_rules = {rid: r for rid, r in rules.items() if r.get("check") == "model-judgement"}
+                is_conversational = bool(args.reply_file or args.transcript)
+                if is_conversational:
+                    inference_rules.update(plugin_rules)
+                print("===INFERENCE_ADVISED===")
+                print(format_inference_rules(inference_rules))
+                print("===END_INFERENCE_ADVISED===")
+                save_inference_state(inference_key, words, sentences)
 
     if error_total and stop_hook_active:
         # Already re-running after a prior block this turn. Report, don't block again.

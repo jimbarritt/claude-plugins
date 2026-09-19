@@ -20,11 +20,10 @@ not for a person.
 
 No further setup is needed.
 
-Have `jq` on `PATH` first: every hook parses its JSON input with it.
-For the inference tier, a subagent Claude dispatches, or
-`/swe:lint-file` run directly, have `claude` on `PATH` too. For
-`/swe:send-feedback`, have `gh` on `PATH`, authenticated against
-GitHub.
+Have `jq` on `PATH` first: every hook parses its JSON input with it. No
+extra tool is needed for the inference tier: it is Claude itself,
+reasoning directly, not a separate process. For `/swe:send-feedback`,
+have `gh` on `PATH`, authenticated against GitHub.
 
 ## What happens once it is installed
 

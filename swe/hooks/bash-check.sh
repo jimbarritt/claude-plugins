@@ -45,18 +45,23 @@ fi
 
 OUTPUT="$(printf '%s' "$TEXT" | "$LINTER" --text --source-label commit-or-pr-text --advise-inference --quiet-vocab 2>&1)"
 STATUS=$?
-CLEAN_OUTPUT="$(strip_advise_marker "$OUTPUT")"
-ADVISED=$?
+CLEAN_OUTPUT="$(strip_advise_block "$OUTPUT")"
+ADVISE_RULES="$(extract_advise_rules "$OUTPUT")"
 
 report_and_maybe_block "$CLEAN_OUTPUT" "$STATUS" "bash" \
   "Fix the text, then run the command again." "pretooluse"
 
-if [ "$STATUS" -eq 0 ] && [ "$ADVISED" -eq 0 ]; then
-  SCRATCH_DIR="$HOME/.claude/swe/pending-inference"
-  mkdir -p "$SCRATCH_DIR"
-  SCRATCH_FILE="$SCRATCH_DIR/bash-$(date +%s)-$$.txt"
-  printf '%s' "$TEXT" > "$SCRATCH_FILE"
-  advise_inference "Software English: the deterministic check passed for this commit/PR text, and it is due an inference-tier pass. Dispatch a subagent (Agent tool) to run: python3 \"$HERE/../scripts/software_english_lint.py\" --text --source-label commit-or-pr-text --force-inference --quiet-vocab < \"$SCRATCH_FILE\". It only reports findings, it does not fix anything. Read what it reports; if it finds anything, the command you just ran already used the original text, so fix it in a follow-up (an amended commit, or a PR edit). Delete $SCRATCH_FILE once you are done with it." \
+if [ "$STATUS" -eq 0 ] && [ -n "$ADVISE_RULES" ]; then
+  advise_inference "Software English: the deterministic check passed for this commit/PR text, and it is due an inference-tier pass. Dispatch a subagent (Agent tool) to judge the text below directly against these rules, no script call needed for this part:
+
+$ADVISE_RULES
+
+Text:
+---
+$TEXT
+---
+
+Report any violation the same way the deterministic tier does: commit-or-pr-text:1: [severity] [rule-id] detail. The command you just ran already used this text, so if it finds anything, fix it in a follow-up (an amended commit, or a PR edit)." \
     "pretooluse"
 fi
 exit 0
