@@ -192,9 +192,8 @@ weaker one.
    it per key.
 2. ~~**File name and path.**~~ Decided: `.claude/swe-lint.json`.
 3. ~~**Key names.**~~ Decided: nested — `stop: { reply, docs }`, others flat.
-4. **`stop.docs` off.** Should `file-check.sh` take over tracked markdown
-   per edit (proposed), or should tracked markdown go unchecked in that
-   case?
+4. ~~**`stop.docs` off.**~~ Decided: yes, `file-check.sh` takes over tracked
+   markdown per edit.
 5. **Reply and transcript.** One switch for both conversational sources
    (proposed), or two?
 6. **Version.** 0.2.0 (proposed) or 0.1.6?
@@ -220,28 +219,14 @@ weaker one.
   flat booleans, each free to nest later if it grows a sub-check. Each
   hook script now passes its own `jq` path to `hook_enabled` rather than a
   flat key.
+- **Q4 (`stop.docs` off): `file-check.sh` takes over.** Confirmed.
 
-## New idea raised mid-Q4 (not yet scoped)
+## Future work spun out of this task
 
-Jim, verbatim: the plugin should never run the inference tier itself. When
-the deterministic tier passes on a file, the hook should report back to
-the main session — "you now need to run a sub agent to do the inference
-check on this file `<path>`" — rather than calling `claude -p --safe-mode`
-in-process. This runs the inference tier as a subagent the main session
-dispatches, not a blocking call inside the hook. Motivation: this plugin's
-in-hook inference calls have timed out before; moving the call out of the
-hook removes that failure mode and makes the check's background work
-visible instead of hidden inside a hook process.
-
-Today only `file-check.sh`, `bash-check.sh`, `artifact-check.sh`, and
-`mcp-send-check.sh` run inference synchronously (`stop-check.sh` already
-skips it — see its own header comment on turn-latency cost). So this
-touches all four of those hooks, not just the `file`/`stop.docs` coupling
-Q4 was about.
-
-**Decided: separate task.** Not scoped further yet — issue #2's config
-work finishes first. A new task file gets created for this once #2 is
-done.
+Two ideas raised while discussing Q4, both about when/how the inference
+tier runs rather than the enable/disable surface this task covers. Split
+out to a separate task so they do not block finishing this one: see
+[future-inference-tier-rework.md](future-inference-tier-rework.md).
 
 ## Next step
 

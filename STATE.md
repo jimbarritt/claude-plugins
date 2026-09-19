@@ -10,15 +10,14 @@ Last updated: 2026-09-19
 
 ## Next
 
-- Jim reviews the issue #2 proposal and answers its remaining questions.
-  Then implement on `main`.
-- After issue #2 lands: a new task, not yet filed as an issue, to move the
-  inference tier out of the hooks entirely. A hook that passes the
-  deterministic tier reports back to the main session to run a subagent
-  for the inference check, instead of calling `claude -p --safe-mode`
-  in-process. See the "New idea" section in
-  [tasks/issue-2-per-hook-toggle.md](tasks/issue-2-per-hook-toggle.md)
-  for the detail captured so far.
+- Jim reviews the issue #2 proposal and answers its remaining questions
+  (5-8). Then implement on `main`.
+- After issue #2 lands:
+  [tasks/future-inference-tier-rework.md](tasks/future-inference-tier-rework.md),
+  not yet filed as an issue. Two ideas: hand inference off to a subagent
+  instead of running it in-hook, and reconsider when the inference tier
+  triggers at all (not every edit, not requiring a manual reminder
+  either).
 
 See [tasks/index.md](tasks/index.md) for the full task list.
 
