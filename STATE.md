@@ -4,37 +4,49 @@ Last updated: 2026-09-19
 
 ## In progress
 
-- Inference-tier mechanics discussion with Jim, still open. He does
-  not yet follow how the inference tier actually runs post-rework
-  (`future-inference-tier-rework.md`): specifically, why running
-  `--force-inference` inside a dispatched subagent is different from
-  running it directly in the main session's own Bash tool, when both
-  ultimately shell out to `claude -p --safe-mode` from inside
-  `software_english_lint.py` either way. Jim asked to look at
-  `skills/lint-file/SKILL.md` together next, before returning to this.
-  Paused mid-discussion to capture the idea below first, per his
-  instruction.
+None.
 
 ## Next
 
 In priority order (Jim's pick):
 
-1. Return to the inference-tier mechanics discussion above (paused, not
-   this task list's normal kind of item).
-2. [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md):
+1. [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md):
    idea only, not scoped. The full-lint command should take a
    document-type argument from a fixed list (a profile, e.g. `rfc`),
    which can specialise which deterministic/inference rules apply.
    Needs a follow-up conversation before design: what the doc-type
    list is, what "layered"/"filtered" means here, whether a profile is
    plugin-owned or spec-owned.
-3. [tasks/future-stop-reply-check.md](tasks/future-stop-reply-check.md):
+2. [tasks/future-stop-reply-check.md](tasks/future-stop-reply-check.md):
    resolved for Claude Code by the output-style task (the reply check
    no longer runs there, so the block-and-retry loop does not fire).
    Still open for Copilot CLI, which keeps the reply check unchanged.
 
 ## Recently done
 
+- The inference-tier mechanics discussion resolved by removing the
+  subprocess entirely, at Jim's direction, once he pointed out
+  `software_english_lint.py` should never spawn a process at all
+  (everything here already runs inside a skill or a hook-dispatched
+  subagent, which already has a model attached). `run_inference()`,
+  `build_inference_prompt()`, and the `claude -p --safe-mode` call are
+  gone; `--advise-inference`/`--force-inference` now both print a
+  fenced `===INFERENCE_ADVISED===` rules block instead of running
+  anything, gated for the former, unconditional for the latter. Every
+  caller (the four hooks' dispatched subagent, `/swe:lint-file`'s own
+  session) judges the prose against those rules directly, in its own
+  context, deliberately not isolated from it the way `--safe-mode` used
+  to be. `bash-check.sh`/`mcp-send-check.sh` no longer need a scratch
+  file, since the checked text goes straight into the advisory message.
+  `config.json`'s `fast_model`/`model_call_timeout_seconds` are gone
+  too, dead once there was no subprocess to configure.
+  `send-feedback/SKILL.md`'s stalled-call pattern detection is gone,
+  since there is no longer a call to stall. Caught and fixed several
+  deterministic-tier findings (em dashes, a banned word, two overlong
+  frontmatter descriptions) in files this touched, by actually running
+  the full lint over them rather than assuming they were clean. Version
+  bumped to 0.7.0. Shipped on `main` at
+  [`bd9edac`](https://github.com/jimbarritt/claude-plugins/commit/bd9edac).
 - Small follow-ups after the inference-tier rework shipped: the output
   style's picker description revised twice more at Jim's direction
   (added the spec URL, then made it a real clickable `https://` link);

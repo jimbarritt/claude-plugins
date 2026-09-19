@@ -124,3 +124,35 @@ catalogue needed).
   `--force-inference` run, hook-dispatched or manual, updates the one
   state entry a later `--advise-inference` call reads. No per-call
   state lives inside the subagent itself.
+
+## Addendum: the subprocess itself came out too
+
+The design above still called `claude -p --safe-mode` from inside
+`software_english_lint.py`, whether the caller was the hook's
+dispatched subagent or `/swe:lint-file`'s own session. Jim asked, in a
+follow-up session, why: shelling out to a second `claude` process for
+the inference tier duplicated a model that was already available,
+right there, in whatever was calling the script. His read: the only
+real reason to keep that capability would be a standalone, outside-
+the-harness use of the linter, which none of these scripts are built
+for (a genuinely headless use case should be its own separate script);
+every real call site here already runs inside a skill or a session.
+
+Removed entirely: `run_inference()`, `build_inference_prompt()`, the
+`claude`/`shutil`/`uuid`/`time` machinery behind that call, and
+`config.json`'s `fast_model`/`model_call_timeout_seconds`.
+`--advise-inference`/`--force-inference` now both print a fenced
+`===INFERENCE_ADVISED===` block (the applicable rules), gated for the
+former, unconditional for the latter, and never judge the prose
+themselves. Whoever calls the script, a hook-dispatched subagent or
+the current session running `/swe:lint-file`, judges the prose against
+those rules directly, in its own context. Isolation from the project's
+own CLAUDE.md (what `--safe-mode` used to provide) turned out not to
+be wanted at all: Jim called inheriting that context a bonus, not a
+risk, since the point was never to isolate the judgement from the
+project, only to avoid a second model call duplicating one already
+available.
+
+Shipped on `main` at
+[`bd9edac`](https://github.com/jimbarritt/claude-plugins/commit/bd9edac).
+Full account in `STATE.md`'s "Recently done".
