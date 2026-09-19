@@ -4,11 +4,7 @@ Last updated: 2026-09-19
 
 ## In progress
 
-- [tasks/future-plugin-rename.md](tasks/future-plugin-rename.md): rename
-  the plugin `software-english-lint` -> `swe` and drop the `swe-`
-  prefix from each command, so the picker shows `swe:feedback` instead
-  of `software-english-lint:swe-feedback`. Jim's pick, ahead of the
-  inference-tier rework below.
+None. Next task below is about to start.
 
 ## Next
 
@@ -26,6 +22,15 @@ In priority order (Jim's pick):
 
 ## Recently done
 
+- [tasks/future-plugin-rename.md](tasks/future-plugin-rename.md): renamed
+  the plugin `software-english-lint` -> `swe` and dropped the `swe-`
+  prefix from each command, so the picker shows `swe:feedback` instead
+  of `software-english-lint:swe-feedback`. Full scope from the task
+  file applied, including the directory rename, the three skill
+  directory renames, the local state paths under `~/.claude/`, and
+  every cross-reference in the docs. Both test suites pass. Shipped on
+  `main` at
+  [`b27f7e5`](https://github.com/jimbarritt/claude-plugins/commit/b27f7e5).
 - [tasks/future-lint-command.md](tasks/future-lint-command.md): a new
   `/swe-lint-file` command runs a full lint (deterministic tier plus a
   forced, ungated inference tier) on a named file, on demand. Added

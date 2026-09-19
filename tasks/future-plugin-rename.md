@@ -66,6 +66,37 @@ instead.
 
 ## Status
 
-Next up — Jim has picked this to go first, ahead of
-`future-inference-tier-rework.md`. Not started yet: about to begin in a
-fresh session after this one clears.
+Done — shipped on `main` at
+[`b27f7e5`](https://github.com/jimbarritt/claude-plugins/commit/b27f7e5).
+
+Applied the full scope above, not just the minimum needed for the
+prefix change (Jim's call, after being told the directory rename and
+the `marketplace.json` entry name were cosmetic-only):
+
+- `swe/.claude-plugin/plugin.json`: `"name"` -> `"swe"`, version bumped
+  0.4.0 -> 0.5.0.
+- `.claude-plugin/marketplace.json`: entry `"name"` -> `"swe"`,
+  `"source"` -> `./swe`.
+- Directory rename `software-english-lint/` -> `swe/`.
+- Each `skills/swe-*/` directory renamed, dropping the prefix
+  (`feedback`, `lint-file`, `send-feedback`), and each `SKILL.md`'s
+  `name:` frontmatter updated to match.
+- Every cross-reference updated: `README.md` (top-level and the
+  plugin's own), `docs/agent-guide.md`, the three `SKILL.md` files,
+  `output-styles/software-english.md`, `rules/plugin-rules.toml`'s
+  path comment, both test files' path comments, `.gitignore`,
+  `.swe-ignore`.
+- Also updated, beyond the task file's original scope: the local state
+  paths under `~/.claude/software-english-lint/` -> `~/.claude/swe/`
+  (reports, feedback log, feedback archive) in `hooks/_lib.sh`,
+  `scripts/software_english_lint.py`, and the `SKILL.md` files; the
+  `software-english-lint:` log-message prefixes in
+  `software_english_lint.py` and `fetch-software-english-data.sh`,
+  changed to `swe:`.
+- Both `tests/hooks_test.sh` (20 passed) and
+  `tests/lint_fail_open_test.sh` (3 passed) pass under the new layout.
+
+Not touched: `data/core-rules.toml` still has one stale path comment
+inherited from the upstream `software-english` repo. It is gitignored,
+local cache content, regenerated on the next fetch — not this repo's
+content to edit.
