@@ -239,10 +239,9 @@ skips it — see its own header comment on turn-latency cost). So this
 touches all four of those hooks, not just the `file`/`stop.docs` coupling
 Q4 was about.
 
-Open question before scoping this further: does it become a separate
-issue/task (it is a distinct architectural change: how inference runs,
-across four hooks, not just the enable/disable surface issue #2 asks
-for), or does it fold into the issue #2 work here? Asked in chat.
+**Decided: separate task.** Not scoped further yet — issue #2's config
+work finishes first. A new task file gets created for this once #2 is
+done.
 
 ## Next step
 

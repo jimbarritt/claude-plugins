@@ -10,8 +10,15 @@ Last updated: 2026-09-19
 
 ## Next
 
-- Jim reviews the issue #2 proposal and answers its eight questions. Then
-  implement on `main`.
+- Jim reviews the issue #2 proposal and answers its remaining questions.
+  Then implement on `main`.
+- After issue #2 lands: a new task, not yet filed as an issue, to move the
+  inference tier out of the hooks entirely. A hook that passes the
+  deterministic tier reports back to the main session to run a subagent
+  for the inference check, instead of calling `claude -p --safe-mode`
+  in-process. See the "New idea" section in
+  [tasks/issue-2-per-hook-toggle.md](tasks/issue-2-per-hook-toggle.md)
+  for the detail captured so far.
 
 See [tasks/index.md](tasks/index.md) for the full task list.
 
