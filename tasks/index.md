@@ -9,3 +9,4 @@
 | [future-inference-tier-rework.md](future-inference-tier-rework.md) | none filed yet | Done — shipped on `main` |
 | [future-lint-command.md](future-lint-command.md) | none filed yet | Done — shipped on `main` |
 | [future-plugin-rename.md](future-plugin-rename.md) | none filed yet | Done — shipped on `main` |
+| [future-lint-document-profiles.md](future-lint-document-profiles.md) | none filed yet | Idea captured only, not scoped |
