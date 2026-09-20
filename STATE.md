@@ -4,7 +4,10 @@ Last updated: 2026-09-20
 
 ## In progress
 
-None.
+[tasks/future-precommit-lint-gate.md](tasks/future-precommit-lint-gate.md):
+a pre-commit git hook that blocks a commit unless every staged markdown
+file has a recorded, hash-matched, `clean` inference-lint pass. Design
+handed to an opus-model agent; implementation and a release follow.
 
 ## Next
 
