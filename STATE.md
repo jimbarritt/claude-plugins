@@ -1,26 +1,28 @@
 # State
 
-Last updated: 2026-09-19
+Last updated: 2026-09-20
 
 ## In progress
 
-None.
+None. Jim is starting a fresh session dedicated to the next item below
+(#5), rather than continuing in the session that did #4 and the hook
+removals. Pick this up there.
 
 ## Next
 
-One open-issue task remains, scoped and ready, awaiting Jim's
-go-ahead to execute:
+Start here: [tasks/issue-5-gh-session-scope-friction.md](tasks/issue-5-gh-session-scope-friction.md).
+Scoped, ready, this is the one Jim wants worked next, in its own
+session.
 
-1. [tasks/issue-5-gh-session-scope-friction.md](tasks/issue-5-gh-session-scope-friction.md):
-   `gh issue create` is refused until the target repo is attached to
-   the session's GitHub scope. Not a claude-plugins code fix (harness
-   behaviour, flagged for escalation elsewhere per the issue itself);
-   the only actionable scope here is a one-line note in
-   `send-feedback/SKILL.md` near the `gh issue create` call, so a
-   future run recognises the denial and knows the fix (`add_repo`,
-   then retry). Not labelled `auto-fix-candidate` (checked earlier;
-   that label is read by a separate harness elsewhere, not wired in
-   here).
+`gh issue create` is refused until the target repo is attached to
+the session's GitHub scope. Not a claude-plugins code fix (harness
+behaviour, flagged for escalation elsewhere per the issue itself);
+the only actionable scope here is a one-line note in
+`send-feedback/SKILL.md` near the `gh issue create` call, so a
+future run recognises the denial and knows the fix (`add_repo`,
+then retry). Not labelled `auto-fix-candidate` (checked earlier;
+that label is read by a separate harness elsewhere, not wired in
+here).
 
 After this: [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
