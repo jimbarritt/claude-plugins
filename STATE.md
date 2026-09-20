@@ -4,10 +4,7 @@ Last updated: 2026-09-20
 
 ## In progress
 
-[tasks/future-precommit-lint-gate.md](tasks/future-precommit-lint-gate.md):
-a pre-commit git hook that blocks a commit unless every staged markdown
-file has a recorded, hash-matched, `clean` inference-lint pass. Design
-handed to an opus-model agent; implementation and a release follow.
+None.
 
 ## Next
 
@@ -21,6 +18,26 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/future-precommit-lint-gate.md](tasks/future-precommit-lint-gate.md):
+  a git pre-commit check (`/swe:install-commit-hook`) that blocks a
+  commit staging a markdown file unless `/swe:lint-file` already
+  recorded a `clean` verdict for that file's exact staged content (git
+  blob id, not a path or mtime), via a new repository-local NDJSON
+  ledger under `.git/` and a new `--record-lint-result` flag on the
+  linter. Deliberately not merged into the existing, global
+  `~/.claude/swe/inference-state.json` throttle: different scope,
+  different question answered. Designed by an opus-model agent against
+  the real code, then implemented with two corrections found only
+  during implementation: the design's own "commit gate" terminology
+  violated Software English's own banned-word list (renamed to "commit
+  check" throughout), and the installed hook's extensionless filename
+  (`git` requires the literal name `pre-commit`) meant the linter's own
+  extension-based dispatch was linting the whole script as prose, not
+  bash comments, fixed by naming the plugin's own source copy
+  `pre-commit.sh`. New 34-assertion test suite; all three prior suites
+  still pass. Version bumped to 0.10.0, released as `swe-v0.10.0`.
+  Shipped on `main` at
+  [`af7dfdc`](https://github.com/jimbarritt/claude-plugins/commit/af7dfdc).
 - Release tooling, plus a first real release of each repo. Added
   `workflow_dispatch`-only GitHub Actions workflows (triggered from
   here, on demand, never on push) that tag and release:

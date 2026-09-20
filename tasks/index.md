@@ -15,4 +15,4 @@
 | [issue-6-stop-hook-delay.md](issue-6-stop-hook-delay.md) | [claude-plugins#6](https://github.com/jimbarritt/claude-plugins/issues/6) | Done — shipped on `main`, issue closed (resolved by removing the hook, not the proposed fix) |
 | [future-remove-force-for-plugin.md](future-remove-force-for-plugin.md) | none filed yet | Done — shipped on `main` |
 | [future-remove-file-check-hook.md](future-remove-file-check-hook.md) | none filed yet | Done — shipped on `main` |
-| [future-precommit-lint-gate.md](future-precommit-lint-gate.md) | none filed yet | Design in progress (opus agent) |
+| [future-precommit-lint-gate.md](future-precommit-lint-gate.md) | none filed yet | Done — shipped on `main`, released as `swe-v0.10.0` |
