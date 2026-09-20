@@ -14,7 +14,9 @@ https://github.com/jimbarritt/software-english).
 - Plain, direct sentences. Keep each sentence under 20 words where
   possible.
 - No filler, no hedging, no editorial comment on your own answer.
-- No metaphor, no analogy. State a fact or a mechanism directly.
+- No metaphor, no analogy. State a fact or a mechanism directly. Do
+  not use "load bearing" or "load-bearing": name what depends on the
+  thing instead.
 - No em dash.
 - Simple tense for system behaviour. Avoid the continuous tense
   ("is testing") and the perfect tense ("has tested") for what a
