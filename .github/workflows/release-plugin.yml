@@ -67,16 +67,38 @@ jobs:
           git tag "${{ steps.version.outputs.tag }}"
           git push origin "${{ steps.version.outputs.tag }}"
 
+      - name: Build release notes from the commit log
+        # --generate-notes summarises merged PRs; this repo ships by
+        # pushing straight to main, so that always comes back empty.
+        # Build notes from git log instead, scoped to this plugin's own
+        # directory so another plugin's commits don't show up here.
+        id: notes
+        run: |
+          set -euo pipefail
+          plugin="${{ inputs.plugin }}"
+          prev="${{ steps.prev_tag.outputs.prev }}"
+          notes_file="$(mktemp)"
+          if [ -n "$prev" ]; then
+            range="${prev}..HEAD"
+            echo "## Changes in $plugin since $prev" >> "$notes_file"
+          else
+            range="HEAD"
+            echo "## Changes in $plugin" >> "$notes_file"
+          fi
+          echo >> "$notes_file"
+          git log "$range" --no-merges --pretty=format:'- %s (%h)' -- "$plugin/" >> "$notes_file"
+          echo >> "$notes_file"
+          if [ -n "$prev" ]; then
+            echo >> "$notes_file"
+            echo "**Full diff**: https://github.com/${{ github.repository }}/compare/${prev}...${{ steps.version.outputs.tag }}" >> "$notes_file"
+          fi
+          echo "notes_file=$notes_file" >> "$GITHUB_OUTPUT"
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          notes_args=(--generate-notes)
-          prev="${{ steps.prev_tag.outputs.prev }}"
-          if [ -n "$prev" ]; then
-            notes_args+=(--notes-start-tag "$prev")
-          fi
           gh release create "${{ steps.version.outputs.tag }}" \
             --title "${{ inputs.plugin }} v${{ steps.version.outputs.version }}" \
-            "${notes_args[@]}"
+            --notes-file "${{ steps.notes.outputs.notes_file }}"
