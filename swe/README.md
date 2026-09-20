@@ -59,6 +59,33 @@ file repeatedly does not trigger a fresh deep pass on every single
 publish, only once it has grown enough since its last pass to be worth
 checking again.
 
+## What the output style costs
+
+Selecting the output style costs roughly 6% to 11% more input tokens
+per turn than leaving it unselected. The style's own text goes into the
+system prompt on every request, which is where the cost falls.
+
+| Prompt length | Extra input tokens |
+|---|---|
+| Short | 10.8% |
+| Medium | 9.5% |
+| Long | 6.0% |
+
+The figure shrinks as a share of the total as the prompt grows, because
+the style's text is a fixed size. The styled condition also writes
+fewer output tokens throughout, so the extra cost is input-side, not
+longer replies.
+
+No latency cost is established. A one-repeat pilot suggested about a
+second of extra time to first token, and a 45-run measurement did not
+reproduce it: the gap ran in both directions across prompt lengths, and
+stayed smaller than the spread within a single condition.
+
+Measured against `swe` 0.9.1 on `sonnet`, 45 runs, 5 repeats across 3
+prompt lengths, 0 errors, using the headless latency harness in
+`jimbarritt/tsk` (`ops/local/run-latency-harness.py`). The hooks
+themselves cost nothing measurable per turn at that version.
+
 ## Check one file on demand
 
 ```text
@@ -154,7 +181,7 @@ Keys, all `true` by default:
 |---|---|
 | `bash` | The check on a `git commit`, `gh pr`, or `gh issue` message |
 | `artifact` | The check on a file about to publish as an Artifact |
-| `mcp-send` | The check on an outbound Slack/Gmail/Drive message |
+| `mcp-send` | The check on an outbound Slack/Gmail/Drive message | <!-- swe: ignore -->
 
 A missing file, a missing key, or a value other than `false` leaves that
 check on. The same defaults live in the plugin's own `config.json`, so a
