@@ -10,7 +10,7 @@
 | [future-lint-command.md](future-lint-command.md) | none filed yet | Done — shipped on `main` |
 | [future-plugin-rename.md](future-plugin-rename.md) | none filed yet | Done — shipped on `main` |
 | [future-lint-document-profiles.md](future-lint-document-profiles.md) | none filed yet | Idea captured only, not scoped |
-| [issue-4-feedback-tooling-gaps.md](issue-4-feedback-tooling-gaps.md) | [claude-plugins#4](https://github.com/jimbarritt/claude-plugins/issues/4) | Scoped, not started |
+| [issue-4-feedback-tooling-gaps.md](issue-4-feedback-tooling-gaps.md) | [claude-plugins#4](https://github.com/jimbarritt/claude-plugins/issues/4) | Done — shipped on `main`, issue closed |
 | [issue-5-gh-session-scope-friction.md](issue-5-gh-session-scope-friction.md) | [claude-plugins#5](https://github.com/jimbarritt/claude-plugins/issues/5) | Scoped, not started |
 | [issue-6-stop-hook-delay.md](issue-6-stop-hook-delay.md) | [claude-plugins#6](https://github.com/jimbarritt/claude-plugins/issues/6) | Done — shipped on `main`, issue closed (resolved by removing the hook, not the proposed fix) |
 | [future-remove-force-for-plugin.md](future-remove-force-for-plugin.md) | none filed yet | Done — shipped on `main` |

@@ -84,11 +84,45 @@ cheap, but worth confirming before writing it into the skill.
 
 ## Status
 
-Not started. Task file only; no code changed yet.
+Done. Took the "always individually" default from the open question
+above rather than stopping to ask: Jim's instruction when starting this
+("do the feedback gaps, this is important") read as wanting execution,
+not another round of design questions on an already-reasoned-through
+point.
+
+Implemented per the proposed fix direction, exactly:
+`skills/feedback/SKILL.md` gained `feature-request` as a fourth verdict
+(Step 1), with its own no-finding path in Step 2 (`rule_id: null`,
+`source: "user-reported"`, empty `location`/`quote`, the ask in
+`note`), and Step 3's script updated to make `rule_id` a Python
+expression (quoted string, or bare `None`) rather than always a quoted
+string, since `None` must serialise to JSON `null`, not the string
+`"null"`.
+
+`skills/send-feedback/SKILL.md` Step 2 rewritten: only a real `rule_id`
+(found in `plugin-rules.toml` or `core-rules.toml`) is clustered by
+`(rule_id, verdict)`; a placeholder `rule_id` (`"unknown"` or `null`)
+always surfaces its entries individually, never auto-grouped by
+matching the placeholder alone, closing the false-clustering bug
+directly. A singleton with a real `rule_id` also now reaches Step 3, on
+its own, instead of waiting for a sibling that might never come. Step
+4's repo-decision logic treats `null` the same as `unknown`; a
+`feature-request` is never offered the `auto-fix-candidate` label, no
+need to ask each time (it is definitionally not a fix-harness
+candidate).
+
+Verified against a scratch fixture (a real-rule_id singleton, two
+unrelated `"unknown"`/`wrong-fix` entries about different topics, one
+`feature-request`), dry-run through Steps 1-3 only, no real `gh` calls:
+came back as four separate items, not the two-entries-collapse bug the
+issue reported. Full lint run over both edited skill files plus
+README.md/`docs/agent-guide.md`'s own references to the verdict list;
+fixed what it found (em dashes, a banned word, an unanchored reference
+with no antecedent in the document). All three test suites still pass.
+Version bumped to 0.9.0. Shipped on `main` at
+[`233ee3d`](https://github.com/jimbarritt/claude-plugins/commit/233ee3d),
+which closed the issue automatically.
 
 ## Next step
 
-Resolve the open question above (or take the "always individually"
-default if none is given), then edit both SKILL.md files, then
-exercise the flow by hand: log a `feature-request` entry, run
-`/swe:send-feedback`, confirm it surfaces on its own.
+None — closed.

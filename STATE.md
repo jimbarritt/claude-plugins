@@ -8,37 +8,21 @@ None.
 
 ## Next
 
-Two open-issue tasks remain, scoped and ready, awaiting Jim's
-go-ahead to execute (he asked to review before executing, and
-separately wants these run autonomously once approved, not
-one-by-one with a check-in between each). Issue #6 (originally third
-in this list) is done — see "Recently done":
+One open-issue task remains, scoped and ready, awaiting Jim's
+go-ahead to execute:
 
-1. [tasks/issue-4-feedback-tooling-gaps.md](tasks/issue-4-feedback-tooling-gaps.md):
-   `/swe:send-feedback`'s 2+-entry clustering threshold, and
-   `/swe:feedback` having no verdict for feedback about the tooling
-   itself (forced into `wrong-fix`/`rule_id: unknown`, which then
-   false-clusters with unrelated `unknown` entries). Proposed: a new
-   `feature-request` verdict with its own `rule_id: null` (not
-   `"unknown"`, so it cannot collide), and any entry with no real
-   cluster surfaces individually instead of waiting for a sibling. One
-   open question left in the task file: whether same-topic
-   `feature-request` entries should ever cluster with each other.
-2. [tasks/issue-5-gh-session-scope-friction.md](tasks/issue-5-gh-session-scope-friction.md):
+1. [tasks/issue-5-gh-session-scope-friction.md](tasks/issue-5-gh-session-scope-friction.md):
    `gh issue create` is refused until the target repo is attached to
    the session's GitHub scope. Not a claude-plugins code fix (harness
    behaviour, flagged for escalation elsewhere per the issue itself);
    the only actionable scope here is a one-line note in
    `send-feedback/SKILL.md` near the `gh issue create` call, so a
    future run recognises the denial and knows the fix (`add_repo`,
-   then retry).
+   then retry). Not labelled `auto-fix-candidate` (checked earlier;
+   that label is read by a separate harness elsewhere, not wired in
+   here).
 
-Checked earlier: neither carries the `auto-fix-candidate` label the
-`send-feedback/SKILL.md` mentions (a separate harness elsewhere reads
-issues by that label) — plain, unlabelled issues, not already wired
-into that other mechanism.
-
-After these: [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
+After this: [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
 list and what "layered"/"filtered" rules means), then
 [tasks/future-stop-reply-check.md](tasks/future-stop-reply-check.md)
@@ -47,6 +31,27 @@ worth re-reading with fresh eyes given how much changed in the pass
 below; may already be moot or need restating).
 
 ## Recently done
+
+- [tasks/issue-4-feedback-tooling-gaps.md](tasks/issue-4-feedback-tooling-gaps.md):
+  `/swe:feedback` gained a fourth verdict, `feature-request`, for
+  feedback about the tooling itself, logged with `rule_id: null` (not
+  the string `"unknown"`, which already means something else).
+  `/swe:send-feedback`'s Step 2 now only clusters by a real `rule_id`;
+  a placeholder (`null` or `"unknown"`) always surfaces its entries
+  individually, closing the false-clustering bug the issue reported
+  directly, and a singleton with a real `rule_id` is raised too,
+  instead of waiting for a sibling. Took the task file's own "always
+  individually" default for the one open question left in it, rather
+  than stopping to ask again, since Jim's instruction ("do the
+  feedback gaps, this is important") read as wanting execution.
+  Verified against a scratch fixture, dry-run through the skill's own
+  Steps 1-3 with no real GitHub calls: four distinct items came out,
+  not the false-cluster bug. Full lint run over both edited skill
+  files and the two docs referencing the verdict list; fixed what it
+  found. All three test suites pass. Version bumped to 0.9.0. Shipped
+  on `main` at
+  [`233ee3d`](https://github.com/jimbarritt/claude-plugins/commit/233ee3d),
+  which closed the issue automatically.
 
 - Three-part removal, decided in one conversation and shipped in one
   commit: the `Stop` hook, the `PostToolUse` (`file-check.sh`) hook,
