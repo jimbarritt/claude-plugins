@@ -1,0 +1,30 @@
+name: Check for unreleased plugin work
+
+# A plugin that declares a version in plugin.json is pinned to that
+# string: an installed copy takes a new version only when the string
+# changes. A commit that changes a plugin but leaves its version alone
+# reaches nobody until some later commit bumps it.
+#
+# This runs on every push to main, and on a pull request that touches a
+# plugin, so that state is visible where it happens rather than at the
+# next install. scripts/check-unshipped.sh holds the rule.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history and tags: the check compares HEAD against the
+          # newest release tag for each plugin.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Check every plugin against its newest release tag
+        run: scripts/check-unshipped.sh

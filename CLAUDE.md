@@ -40,6 +40,28 @@ claude-plugins/
    { "name": "<plugin-name>", "source": "./<plugin-name>" }
    ```
 
+## Releasing a change
+
+Pushing to `main` does not deliver anything. A plugin that declares a
+`version` in its `plugin.json` is pinned to that string, and an
+installed copy takes a new version only when the string changes. A
+change merged without a bump is installed by nobody.
+
+So a change to a plugin's own directory is finished only when:
+
+1. `version` in `<plugin>/.claude-plugin/plugin.json` is bumped.
+2. The release workflow has run:
+   `gh workflow run release-plugin.yml -f plugin=<plugin>`.
+
+`scripts/check-unshipped.sh` holds this rule, and CI runs it on every
+push to `main`. Run it yourself before calling a task done. A change to
+repo tooling alone (this file, `scripts/`, `.github/`) needs no bump,
+and the check does not require one.
+
+Set `version` in `plugin.json` only, never also in `marketplace.json`:
+where both exist, `plugin.json` is the value used, with no warning, so
+a stale marketplace value can hide the version you meant to ship.
+
 ## Related repo
 
 Work in this repo sometimes needs a change in
