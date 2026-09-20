@@ -1,0 +1,82 @@
+name: Release a plugin
+
+# Manual only: run from the Actions tab, `gh workflow run`, or the
+# GitHub API (`workflow_dispatch`). Reads the version straight out of
+# the named plugin's own manifest, so there is nothing to type by hand
+# beyond which plugin: bump the version in plugin.json first, then run
+# this to tag and release that exact version.
+
+on:
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: "Plugin directory name (e.g. swe)"
+        required: true
+        default: "swe"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read the plugin's version
+        id: version
+        run: |
+          set -euo pipefail
+          plugin="${{ inputs.plugin }}"
+          manifest="$plugin/.claude-plugin/plugin.json"
+          if [ ! -f "$manifest" ]; then
+            echo "::error::$manifest not found. Check the plugin name."
+            exit 1
+          fi
+          version="$(jq -r '.version // empty' "$manifest")"
+          if [ -z "$version" ]; then
+            echo "::error::No .version field in $manifest"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=${plugin}-v${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to re-release an existing tag
+        run: |
+          set -euo pipefail
+          tag="${{ steps.version.outputs.tag }}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "::error::$tag already exists. Bump the version in ${{ inputs.plugin }}/.claude-plugin/plugin.json first."
+            exit 1
+          fi
+
+      - name: Find this plugin's previous release tag
+        id: prev_tag
+        run: |
+          set -euo pipefail
+          prev="$(git tag -l '${{ inputs.plugin }}-v*' --sort=-v:refname | head -1)"
+          echo "prev=$prev" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push the tag
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          notes_args=(--generate-notes)
+          prev="${{ steps.prev_tag.outputs.prev }}"
+          if [ -n "$prev" ]; then
+            notes_args+=(--notes-start-tag "$prev")
+          fi
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "${{ inputs.plugin }} v${{ steps.version.outputs.version }}" \
+            "${notes_args[@]}"
