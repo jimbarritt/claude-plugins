@@ -1,5 +1,5 @@
 {
   "name": "swe",
-  "description": "Checks agent prose against Software English via three hooks, a selectable output style, and on-demand check commands.",
-  "version": "0.9.1"
+  "description": "Checks agent prose against Software English via three hooks, a selectable output style, on-demand check commands, and a git commit gate.",
+  "version": "0.10.0"
 }

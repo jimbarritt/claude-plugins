@@ -70,6 +70,27 @@ and the inference tier as well, regardless of whether the file already
 has deterministic errors or is short enough to normally skip it. Use
 this when you want the full check without editing the file first.
 
+## Check commits against a clean lint
+
+```text
+/swe:install-commit-hook
+```
+
+Installs a git `pre-commit` hook in the current repository. Once
+installed, a commit staging a markdown file is blocked unless
+`/swe:lint-file` has already recorded a `clean` verdict for that file's
+exact staged content. An edit after the last lint pass invalidates the
+record, so re-run `/swe:lint-file` after any change.
+
+A blocked commit prints which files need a fresh lint pass and the
+exact command to run. `git commit --no-verify` bypasses the check for
+one commit. An existing `pre-commit` hook in the repository is kept and
+chained, not replaced: it still runs, first, unchanged.
+
+`.git/` is never cloned, so run `/swe:install-commit-hook` again in
+each clone of the repository. Run `/swe:install-commit-hook uninstall`
+to remove it.
+
 ## Report a wrong finding, or feedback about the tooling itself
 
 If you see a finding that looks wrong, or want to report something
@@ -138,6 +159,16 @@ Keys, all `true` by default:
 A missing file, a missing key, or a value other than `false` leaves that
 check on. The same defaults live in the plugin's own `config.json`, so a
 project file only needs to list what it changes.
+
+The commit check reads its own settings from the same file, under
+`commit-check`, since the installed git hook runs outside the plugin and
+has no access to `config.json`:
+
+| Key | Default | Meaning |
+|---|---|---|
+| `commit-check.enabled` | `true` | Set `false` to skip the check entirely. |
+| `commit-check.block_on_deterministic` | `false` | Set `true` to also block on a deterministic-tier finding, not just a missing or failed lint record. |
+| `commit-check.paths` | `["*.md"]` | Glob patterns for which staged files this covers. |
 
 ## Pick up a newer version of the Software English spec
 

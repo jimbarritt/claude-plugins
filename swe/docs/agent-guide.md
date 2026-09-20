@@ -181,6 +181,82 @@ throttle above) whenever it prints the block. It is the current session
 itself, right where `/swe:lint-file` was run, that then judges the file
 directly; no subagent is dispatched for that command.
 
+## The commit check
+
+`/swe:install-commit-hook` installs a git `pre-commit` hook
+([`../git-hooks/pre-commit.sh`](../git-hooks/pre-commit.sh), copied
+verbatim as `pre-commit` by
+[`../scripts/install-commit-hook.sh`](../scripts/install-commit-hook.sh))
+in one repository's `.git/hooks/` (or wherever `core.hooksPath` points).
+It runs outside any Claude Code session — no model, no plugin runtime —
+so it can only run the deterministic tier itself and check a ledger; it
+never judges the inference tier.
+
+**The ledger.** `<git-common-dir>/swe/lint-log.ndjson`
+(`git rev-parse --git-common-dir`, so one ledger per repository, shared
+by every linked worktree). Append-only NDJSON, one row per
+`--record-lint-result` call: `ts`, `path` (repo-relative), `blob` (git's
+own blob object id for the exact content judged, via `git hash-object`,
+not a `sha256` of the working-tree file), `algo` (`sha1`/`sha256`),
+`status` (`clean`/`failed`), `tier` (`"both"`), `findings`, `rules_tag`,
+`plugin_version`, `recorded_by`. A row is a candidate for a staged file
+when `path` and `blob` both match that file's exact staged git blob (not
+the working-tree copy, which can differ from what a partial `git add -p`
+staged); among candidates for the same `(path, blob)`, the last row in
+file order wins. `clean` means zero `error`-severity findings across
+both tiers together; a warning never blocks anything here either,
+matching every other check in this plugin.
+
+**Recording a verdict.** Only `/swe:lint-file`'s own Step 5 does this
+today, right after it judges a file's inference-tier findings itself
+(see [`../skills/lint-file/SKILL.md`](../skills/lint-file/SKILL.md)):
+
+```
+python3 scripts/software_english_lint.py --record-lint-result {clean|failed} --findings N <file-path>
+```
+
+A standalone mode: no rule catalogue read, no report printed, no other
+flag honoured alongside it. Exit 0 means recorded (including a
+one-line note for a file outside a git repository, which needs no
+ledger); exit 2 means the call itself was malformed; exit 3 means the
+ledger could not be written — reported, not silent, unlike
+`save_inference_state()` above, because a lost row here becomes a
+commit blocked with no visible cause.
+
+**Two state files, and why they are separate.**
+`~/.claude/swe/inference-state.json` (above) is global, per-user, keyed
+by resolved path, and answers "is a fresh advisory pass worth
+dispatching" — a cost heuristic written before any judgement exists.
+The ledger is per-repository, keyed by `(path, blob)`, and answers "was
+this exact content judged, and what was the verdict" — written after
+judgement. Merging them would let a `failed` verdict in one clone
+suppress advisories for the same path in every other clone sharing that
+global file, and would force the throttle file to grow without bound.
+`/swe:lint-file` writes to both, at different steps; that is their only
+coupling.
+
+**Fail-open boundary.** The check fails open only when it cannot
+evaluate the ledger at all: no `python3` on `PATH`, or the ledger file
+present but unreadable. It fails closed on every answer it does
+evaluate that is not `clean`, including an absent ledger file, which is
+a fresh clone with nothing yet recorded: exactly the case this check
+exists for. `git commit --no-verify` is the standing bypass; the block message
+repeats it.
+
+**Deterministic tier at commit time.** Advisory by default: findings
+print but do not block, run against each staged file's exact staged
+content (`git show :<path>`, not the working tree). Set
+`commit-check.block_on_deterministic: true` in the project's
+`.claude/swe-lint.json` to make it blocking too.
+
+**Project configuration**, read from `<repo>/.claude/swe-lint.json`
+only, under `commit-check` — the plugin's own `config.json` has no
+equivalent key, because the git hook cannot reach it:
+
+```json
+{ "commit-check": { "enabled": true, "block_on_deterministic": false, "paths": ["*.md"] } }
+```
+
 ## Where the rule data comes from
 
 [`../software-english.json`](../software-english.json) pins a tag of
@@ -233,6 +309,14 @@ Run `scripts/fetch-software-english-data.sh` once by hand first, if
 `data/` is empty — the hooks do this automatically, a manual run does
 not.
 
+```bash
+python3 scripts/software_english_lint.py FILE.md --record-lint-result clean --findings 0
+```
+
+Records a both-tier verdict for one named file in the commit check's
+ledger; see "The commit check" above. Standalone: lints nothing itself,
+needs no `data/` fetch, exits 0/2/3.
+
 ## Known limits
 
 - Vocabulary is a seed set. An unlisted but correct word gets a
@@ -275,3 +359,22 @@ not.
 - `~/.claude/swe/inference-state.json` is never pruned. It holds a
   small amount of text per file ever checked; it is not cleaned up
   automatically yet.
+- The commit check's ledger is never pruned either, and `.git/` is never
+  cloned, so each clone of a repository starts with an empty ledger and
+  needs its own `/swe:install-commit-hook` run.
+- `git diff --cached --diff-filter=ACM` skips a pure rename (`R`), which
+  is correct (the content was already judged), but a rename with edits
+  is also reported as `R` and so slips through unchecked.
+- A partial stage (`git add -p`) can leave the staged blob different
+  from any content that was ever judged, blocking the commit until the
+  staged content itself is judged, not just the file on disk.
+- `git commit --amend` re-runs `pre-commit`; a rebase or a merge commit
+  (`pre-merge-commit`) does not, since this hook is installed under that
+  name alone.
+- A `clean` row proves a judgement happened, not that it was correct:
+  the check trusts whatever `/swe:lint-file`'s Step 5 recorded.
+- The `pre-commit` hook duplicates `is_path_ignored()`/
+  `load_ignore_patterns()` from `scripts/software_english_lint.py`
+  rather than importing them, since it must behave the same whether or
+  not the plugin that installed it is still present. The two
+  implementations can drift.

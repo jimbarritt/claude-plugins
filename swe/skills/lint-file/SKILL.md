@@ -57,7 +57,44 @@ wait on for this step. Note any violation as `<file-path>:<line>:
 format. Severity comes from the rule's own catalogue entry
 (`data/core-rules.toml`).
 
-## Step 5: Report
+## Step 5: Record the verdict
+
+The commit check (`/swe:install-commit-hook`) reads a repository-local
+ledger of judged files, separate from `~/.claude/swe/inference-state.json`
+(that file only throttles the automatic hooks' advisories). Record this
+pass there, so a commit staging this file is not blocked for content
+already checked here.
+
+Count the `error`-severity findings: the deterministic tier's own count
+from Step 3, plus any you found judging the inference rules in Step 4
+(0 if Step 4 was skipped for lack of prose). Warnings do not count.
+
+Zero errors:
+
+```
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" \
+  --record-lint-result clean --findings 0 <file-path>
+```
+
+One or more errors:
+
+```
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" \
+  --record-lint-result failed --findings <count> <file-path>
+```
+
+The row is keyed to the file's exact content at this moment, via its
+git blob id. Any later edit invalidates it, so run this after judging,
+not before, and re-run `/swe:lint-file` after a fix.
+
+Exit 0 means recorded (including a one-line note when the file is
+outside a git repository, which needs no further action). Exit 2 means
+the command itself was malformed; fix the arguments and run it again.
+Exit 3 means the ledger could not be written: report that line as-is,
+because a commit staging this file will then be blocked with no other
+explanation.
+
+## Step 6: Report
 
 Print every finding, deterministic and inference-tier alike, one line
 each with severity. If there are none, say the file is clean, both
