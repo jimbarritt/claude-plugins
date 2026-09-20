@@ -18,6 +18,23 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-7-8-design-type-and-style-cost.md](tasks/issue-7-8-design-type-and-style-cost.md)
+  ([#7](https://github.com/jimbarritt/claude-plugins/issues/7),
+  [#8](https://github.com/jimbarritt/claude-plugins/issues/8)): two
+  issues shipped together as `swe` v0.11.0. #7 put the output style's
+  measured cost in the README (6% to 11% more input tokens per turn,
+  no latency cost established). #8 added a Design document type to
+  `software-english` (v0.0.4), by reference to IEEE Std 1016-2009 and
+  Ubl's "Design Docs at Google", so a design document's open-questions
+  and future-extension sections stop drawing a
+  `no-planning-content-in-reference` finding on every entry. The part
+  that changes behaviour is in the two rule descriptions, since
+  `rules/core-rules.toml` and the vocabulary are the only files the
+  plugin fetches: the judging agent never reads `templates/` or
+  `SPEC.md`. Left open deliberately: `core-rules.yaml` is stale, at 10
+  of 20 rules with a wrong section reference, and whether to delete or
+  generate it is Jim's call.
+
 - [tasks/issue-lint-file-invisible-copilot.md](tasks/issue-lint-file-invisible-copilot.md):
   `/swe:lint-file` was invisible to GitHub Copilot CLI from v0.7.0 to
   v0.10.0, while every other skill in the same plugin loaded. Its
