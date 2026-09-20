@@ -64,6 +64,7 @@ for plugin in "${PLUGINS[@]}"; do
   tag_version="${tag#"$plugin"-v}"
   if [ "$version" != "$tag_version" ]; then
     echo "$plugin: version $version is ahead of the newest tag $tag. A release is pending; run the release workflow."
+    echo "  (Local tags can lag a release run. Run git fetch --tags first if the release already happened.)"
     continue
   fi
 
