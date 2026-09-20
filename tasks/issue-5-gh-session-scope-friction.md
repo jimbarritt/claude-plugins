@@ -33,12 +33,18 @@ an unexplained failure.
 
 ## Status
 
-Not started. Task file only.
+Done. The note is on `main` at
+[`7e7abdd`](https://github.com/jimbarritt/claude-plugins/commit/7e7abdd),
+which closed the issue automatically. Lint run on the edited file: one
+real finding (`banned-word` on "refuses"), fixed; the file's ~344
+`vocabulary-membership` warnings are pre-existing across the whole
+document, not from this change, confirmed by linting the pre-edit
+version separately. All three test suites pass.
 
 ## Next step
 
-1. Add the one-line note to `skills/send-feedback/SKILL.md` Step 4,
-   near the `gh issue create` call.
+1. ~~Add the one-line note to `skills/send-feedback/SKILL.md` Step 4,
+   near the `gh issue create` call.~~ Done.
 2. Separately (not tracked as a claude-plugins task): raise the
    underlying harness question with whoever owns Claude Code Remote's
    session-scoping, per the issue's own suggestion. Out of scope for

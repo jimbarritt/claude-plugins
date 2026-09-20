@@ -4,27 +4,11 @@ Last updated: 2026-09-20
 
 ## In progress
 
-None. Jim is starting a fresh session dedicated to the next item below
-(#5), rather than continuing in the session that did #4 and the hook
-removals. Pick this up there.
+None.
 
 ## Next
 
-Start here: [tasks/issue-5-gh-session-scope-friction.md](tasks/issue-5-gh-session-scope-friction.md).
-Scoped, ready, this is the one Jim wants worked next, in its own
-session.
-
-`gh issue create` is refused until the target repo is attached to
-the session's GitHub scope. Not a claude-plugins code fix (harness
-behaviour, flagged for escalation elsewhere per the issue itself);
-the only actionable scope here is a one-line note in
-`send-feedback/SKILL.md` near the `gh issue create` call, so a
-future run recognises the denial and knows the fix (`add_repo`,
-then retry). Not labelled `auto-fix-candidate` (checked earlier;
-that label is read by a separate harness elsewhere, not wired in
-here).
-
-After this: [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
+[tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
 list and what "layered"/"filtered" rules means), then
 [tasks/future-stop-reply-check.md](tasks/future-stop-reply-check.md)
@@ -34,6 +18,22 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-5-gh-session-scope-friction.md](tasks/issue-5-gh-session-scope-friction.md)
+  ([issue #5](https://github.com/jimbarritt/claude-plugins/issues/5)):
+  `gh issue create` is refused until the target repo is attached to
+  the session's GitHub scope. Not a claude-plugins code fix (harness
+  behaviour, flagged for escalation elsewhere per the issue itself);
+  the actionable scope was a one-line note in
+  `send-feedback/SKILL.md` Step 4, near the `gh issue create` call,
+  so a future run recognises the denial and knows the fix
+  (`add_repo`, then retry). Lint run on the edited file caught one
+  real finding (`banned-word` on "refuses"), fixed; the file's
+  pre-existing `vocabulary-membership` warnings (~344, spread
+  through the whole document) are unrelated to this change,
+  confirmed by linting the pre-edit version separately. All three
+  test suites pass. Shipped on `main` at
+  [`7e7abdd`](https://github.com/jimbarritt/claude-plugins/commit/7e7abdd),
+  which closed the issue automatically.
 - [tasks/issue-4-feedback-tooling-gaps.md](tasks/issue-4-feedback-tooling-gaps.md):
   `/swe:feedback` gained a fourth verdict, `feature-request`, for
   feedback about the tooling itself, logged with `rule_id: null` (not
