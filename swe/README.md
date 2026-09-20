@@ -70,13 +70,13 @@ and the inference tier as well, regardless of whether the file already
 has deterministic errors or is short enough to normally skip it. Use
 this when you want the full check without editing the file first.
 
-## Report a wrong finding
+## Report a wrong finding, or feedback about the tooling itself
 
-If you see a finding that looks wrong, run this as soon as you notice
-it:
+If you see a finding that looks wrong, or want to report something
+about the plugin's own tooling, run this as soon as you notice it:
 
 ```text
-/swe:feedback <false-positive|false-negative|wrong-fix> [note]
+/swe:feedback <false-positive|false-negative|wrong-fix|feature-request> [note]
 ```
 
 This takes a few seconds and makes no network call. It logs the rule

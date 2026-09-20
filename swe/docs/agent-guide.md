@@ -17,8 +17,13 @@ fix the flagged text as described, then retry the tool call.
 
 If you believe a finding is wrong — a false positive, a false negative,
 or a correct finding with a bad suggested fix — do not just work around
-it. Run `/swe:feedback <false-positive|false-negative|wrong-fix> [note]`
+it. Run
+`/swe:feedback <false-positive|false-negative|wrong-fix|feature-request> [note]`
 so the pattern gets tracked, then proceed with your own best correction.
+The fourth verdict, `feature-request`, is for feedback about the
+tooling itself (a skill, a hook, the feedback loop), not tied to one
+specific finding — see
+[`../skills/feedback/SKILL.md`](../skills/feedback/SKILL.md).
 
 No hook checks a file write or a chat reply automatically. Run
 `/swe:lint-file <file-path>` yourself when you want a file checked; see
