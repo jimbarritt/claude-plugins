@@ -18,6 +18,37 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- Release tooling, plus a first real release of each repo. Added
+  `workflow_dispatch`-only GitHub Actions workflows (triggered from
+  here, on demand, never on push) that tag and release:
+  - `claude-plugins/.github/workflows/release-plugin.yml`: takes a
+    `plugin` input (default `swe`), reads that plugin's version
+    straight out of its own `.claude-plugin/plugin.json`, tags
+    `<plugin>-v<version>`, refuses to re-tag an existing version,
+    creates a GitHub Release with notes scoped to that plugin's own
+    previous tag (not the repo's last tag generally, so a second
+    plugin's tags don't pollute each other's changelogs later).
+  - `software-english/.github/workflows/release.yml`: that repo has
+    no version-bearing manifest, so version is a typed input instead;
+    same tag/refuse/scoped-notes shape otherwise, plain `v<version>`
+    (single-product repo, no plugin prefix needed).
+  Used them for real: `swe-v0.9.0` (first-ever release, plugin
+  already at that version, never previously tagged), then
+  `software-english`'s `v0.0.3` (the load-bearing ban commit that
+  was sitting on `main` unreleased, plus an already-existing but
+  never-pushed local `v0.0.3` tag from an earlier session, discarded
+  in favour of letting the new workflow create the authoritative one).
+  `swe/software-english.json`'s pin bumped to that tag, fetched and
+  verified locally (the deterministic tier now catches "load-bearing"
+  directly), then `swe-v0.9.1` released to carry the update. All on
+  `main` at
+  [`4b8cd38`](https://github.com/jimbarritt/claude-plugins/commit/4b8cd38)
+  (workflow),
+  [`1e0acf6`](https://github.com/jimbarritt/claude-plugins/commit/1e0acf6)
+  (pin bump + version), and `software-english`'s
+  [`20ec1e3`](https://github.com/jimbarritt/software-english/commit/20ec1e3)
+  (workflow). No task file: infrastructure work raised and done
+  directly in conversation, not from an issue.
 - [tasks/issue-5-gh-session-scope-friction.md](tasks/issue-5-gh-session-scope-friction.md)
   ([issue #5](https://github.com/jimbarritt/claude-plugins/issues/5)):
   `gh issue create` is refused until the target repo is attached to
