@@ -8,20 +8,13 @@ None.
 
 ## Next
 
-Three open-issue tasks, scoped and ready, awaiting Jim's go-ahead to
-execute (he asked to review before executing, and separately wants
-these run autonomously once approved, not one-by-one with a check-in
-between each):
+Two open-issue tasks remain, scoped and ready, awaiting Jim's
+go-ahead to execute (he asked to review before executing, and
+separately wants these run autonomously once approved, not
+one-by-one with a check-in between each). Issue #6 (originally third
+in this list) is done — see "Recently done":
 
-1. [tasks/issue-6-stop-hook-delay.md](tasks/issue-6-stop-hook-delay.md):
-   `stop-check.sh` costs ~2s on every turn under Claude Code. Strong,
-   code-read (not yet instrumented) hypothesis: the trailing `wait
-   "$WATCHER"` blocks on the 2-second watchdog subshell's own `sleep 2`
-   even after the real check finishes in under 100ms, since `kill`
-   sent to a subshell blocked in a child syscall does not preempt it.
-   Proposed fix: drop that final `wait`. Verify by instrumenting/
-   remeasuring before and after, per the issue's own suggestion.
-2. [tasks/issue-4-feedback-tooling-gaps.md](tasks/issue-4-feedback-tooling-gaps.md):
+1. [tasks/issue-4-feedback-tooling-gaps.md](tasks/issue-4-feedback-tooling-gaps.md):
    `/swe:send-feedback`'s 2+-entry clustering threshold, and
    `/swe:feedback` having no verdict for feedback about the tooling
    itself (forced into `wrong-fix`/`rule_id: unknown`, which then
@@ -31,7 +24,7 @@ between each):
    cluster surfaces individually instead of waiting for a sibling. One
    open question left in the task file: whether same-topic
    `feature-request` entries should ever cluster with each other.
-3. [tasks/issue-5-gh-session-scope-friction.md](tasks/issue-5-gh-session-scope-friction.md):
+2. [tasks/issue-5-gh-session-scope-friction.md](tasks/issue-5-gh-session-scope-friction.md):
    `gh issue create` is refused until the target repo is attached to
    the session's GitHub scope. Not a claude-plugins code fix (harness
    behaviour, flagged for escalation elsewhere per the issue itself);
@@ -40,32 +33,53 @@ between each):
    future run recognises the denial and knows the fix (`add_repo`,
    then retry).
 
-Checked: none of #4/#5/#6 carry the `auto-fix-candidate` label the
+Checked earlier: neither carries the `auto-fix-candidate` label the
 `send-feedback/SKILL.md` mentions (a separate harness elsewhere reads
-issues by that label) — these three are plain, unlabelled issues, not
-already wired into that other mechanism.
-
-4. [tasks/future-remove-force-for-plugin.md](tasks/future-remove-force-for-plugin.md):
-   drop `force-for-plugin: true` from the output style, so a user
-   selects it manually instead of the plugin forcing it on. Blocked on
-   one open question before this can be scoped further: `stop-check.sh`
-   unconditionally skips its reactive reply check under Claude Code
-   today, on the assumption the forced style always covers the reply
-   instead. Once forcing stops, does that reactive check come back as
-   the default under Claude Code too (matching Copilot CLI's own
-   behaviour), or is an unchecked reply for anyone who doesn't select
-   the style an acceptable gap? Claude Code hooks cannot see which
-   output style is active, so this is a binary choice, not something
-   the hook can detect and branch on itself.
+issues by that label) — plain, unlabelled issues, not already wired
+into that other mechanism.
 
 After these: [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
 list and what "layered"/"filtered" rules means), then
 [tasks/future-stop-reply-check.md](tasks/future-stop-reply-check.md)
-(resolved for Claude Code already; still open for Copilot CLI).
+(resolved for Claude Code already; still open for Copilot CLI — though
+worth re-reading with fresh eyes given how much changed in the pass
+below; may already be moot or need restating).
 
 ## Recently done
 
+- Three-part removal, decided in one conversation and shipped in one
+  commit: the `Stop` hook, the `PostToolUse` (`file-check.sh`) hook,
+  and `force-for-plugin` on the output style. Jim asked to review the
+  Stop hook's actual purpose before fixing issue #6's ~2s delay;
+  found its reply check was already unconditionally dead under Claude
+  Code (the output style was assumed to cover it), leaving only a
+  once-per-turn markdown diff for that cost. Verdict: overbuilt from
+  before the output style existed, remove rather than fix. Once that
+  landed, `file-check.sh` (which deferred to the Stop hook for tracked
+  markdown) went the same way — "output style is already doing
+  something like this," `/swe:lint-file` covers on-demand checking —
+  and `force-for-plugin` came off in the same pass, since its own
+  justification (the Stop hook's reactive fallback) no longer existed.
+  This also resolved `future-remove-force-for-plugin.md`'s open
+  question, which depended on that same fallback.
+  Net effect: no automatic checking of a file edit or a chat reply
+  anymore, on either harness. `bash-check.sh`, `artifact-check.sh`,
+  `mcp-send-check.sh` unaffected. Every doc/test reference to the
+  removed hooks and flag updated in the same commit; full lint run
+  over every touched file with real prose (README.md, the feedback
+  skill), two findings fixed (a contrastive-framing warning, an
+  overlong frontmatter description). All three test suites pass.
+  Version bumped to 0.8.0. Shipped on `main` at
+  [`cec8f1a`](https://github.com/jimbarritt/claude-plugins/commit/cec8f1a).
+  Issue #6 closed with a comment explaining the actual resolution
+  (the commit itself carried no `closes #6` trailer, since the fix
+  ended up different from what was planned when the message was
+  written). Full record split across
+  [`issue-6-stop-hook-delay.md`](tasks/issue-6-stop-hook-delay.md),
+  [`future-remove-force-for-plugin.md`](tasks/future-remove-force-for-plugin.md),
+  and the new
+  [`future-remove-file-check-hook.md`](tasks/future-remove-file-check-hook.md).
 - The inference-tier mechanics discussion resolved by removing the
   subprocess entirely, at Jim's direction, once he pointed out
   `software_english_lint.py` should never spawn a process at all

@@ -37,22 +37,31 @@ commits, artefacts, and outbound messages stay checked regardless
 (those hooks do not depend on the output style at all) — only the chat
 reply itself is affected.
 
-## Open question, not yet answered
+## Open question, resolved by a different decision
 
-Raised to Jim, not yet resolved: once the style stops being forced,
-should `stop-check.sh`'s reactive reply check come back as the default
-behaviour for Claude Code (i.e. `REPLY_ENABLED` follows
-`hooks.stop.reply` under Claude Code too, the same way it already does
-under Copilot CLI), or is the resulting gap acceptable, since a user
-who wants the reply checked can just select the style themselves?
+The question below became moot, not answered on its own terms: while
+discussing [issue #6](issue-6-stop-hook-delay.md) (the Stop hook's ~2s
+cost), Jim asked to review the hook's whole purpose, decided it was
+overbuilt, and removed it entirely — the same hook this question's own
+"reactive check" fallback would have needed. With no Stop hook left to
+bring back, the choice this question posed no longer exists: there is
+no reactive fallback, full stop. Removing `force-for-plugin` just means
+reply checking is opt-in, with no hook-based safety net either way.
+Jim's framing when adding this to the same batch: "we went overboard
+there before we knew about the output style."
 
-Claude Code hooks are not told which output style is currently active,
-so `stop-check.sh` cannot detect "the user selected it anyway" and
-skip only in that case — the choice is binary: always run the reactive
-check under Claude Code once forcing stops, or accept that an
-unselected style means an unchecked reply.
+Original question, for the record: once the style stopped being
+forced, should `stop-check.sh`'s reactive reply check have come back as
+the default under Claude Code (matching Copilot CLI's own behaviour),
+or was the resulting gap acceptable? Superseded before it needed an
+answer.
 
 ## Status
 
-Idea captured, not scoped, not started. Blocked on the open question
-above before this can move to an implementation plan.
+Done. `force-for-plugin: true` removed from
+`swe/output-styles/software-english.md` in the same pass as removing
+the Stop and PostToolUse hooks. Shipped on `main` at
+[`cec8f1a`](https://github.com/jimbarritt/claude-plugins/commit/cec8f1a),
+version 0.8.0. Full record in
+[`issue-6-stop-hook-delay.md`](issue-6-stop-hook-delay.md)'s Status
+section.

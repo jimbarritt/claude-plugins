@@ -80,11 +80,38 @@ away.
 
 ## Status
 
-Not started. Task file only; no code changed yet.
+Done, but not by the fix above. Before implementing it, Jim asked to
+review the hook's actual purpose first: under Claude Code, its reply
+check was already unconditionally skipped (the output style was
+assumed to cover it), so the ~2s cost was being paid, every turn, for
+only a once-per-turn tracked-markdown diff. Jim's call: that was
+overbuilt from before the output style existed as an alternative.
+Decided to remove the whole hook rather than fix the delay in place.
+
+`file-check.sh` (the `PostToolUse` hook, which deferred to this one for
+tracked markdown) went the same way in the same pass, once reviewed and
+found not worth keeping either — the plugin already has `/swe:lint-file`
+as a deliberate, on-demand check. `force-for-plugin` came off the
+output style in the same pass too: its own "no reactive check needed"
+reasoning depended on the Stop hook that no longer exists. Full record
+of that three-part decision:
+[`future-remove-force-for-plugin.md`](future-remove-force-for-plugin.md).
+
+Net effect for this issue: the root-cause hypothesis above was never
+tested, because the hook it was about no longer exists to instrument.
+`bash-check.sh`, `artifact-check.sh`, and `mcp-send-check.sh` are
+unaffected, still automatic.
+
+Shipped on `main` at
+[`cec8f1a`](https://github.com/jimbarritt/claude-plugins/commit/cec8f1a),
+version 0.8.0. Every doc/test reference to the two removed hooks and
+the removed flag updated in the same commit (`hooks.json`,
+`config.json`, `README.md`, `docs/agent-guide.md`,
+`skills/feedback/SKILL.md`, `software_english_lint.py`'s own comments,
+`tests/hooks_test.sh`). All three test suites pass. Issue closed with a
+comment explaining the actual resolution, since the commit message
+itself did not include a `closes #6` trailer.
 
 ## Next step
 
-Instrument first (confirm the hypothesis against real timestamps), then
-apply the fix above, then re-run the latency harness and
-`tests/hooks_test.sh` before shipping. Version bump on ship (current:
-0.7.0).
+None — closed.
