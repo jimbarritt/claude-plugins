@@ -317,6 +317,32 @@ Records a both-tier verdict for one named file in the commit check's
 ledger; see "The commit check" above. Standalone: lints nothing itself,
 needs no `data/` fetch, exits 0/2/3.
 
+## Writing a skill's frontmatter
+
+A `SKILL.md` frontmatter value must be valid YAML under a **strict**
+parser, not just under Claude Code's own. Two rules, both enforced by
+[`../tests/skill_frontmatter_test.sh`](../tests/skill_frontmatter_test.sh):
+
+- An unquoted value must not hold `": "` (a colon then a space). YAML
+  reads that as a second mapping separator and rejects the whole
+  document. Use a comma instead. Quoting also parses, but a harness
+  that splits on the first colon then shows the quote marks in the
+  description, so removing the colon is the portable fix.
+- An unquoted value must not open with a YAML indicator character
+  (`[`, `{`, `|`, `>`, `&`, `*`, `!`, `%`, `@`, `` ` ``, `,`, `#`).
+  Quote it: `argument-hint: "[uninstall] [repo-path]"`.
+
+This is not theoretical. Claude Code accepts the invalid form, so a
+broken skill looks fine locally while a strict-parsing harness drops it
+with no error anyone sees. `/swe:lint-file`'s own description carried a
+`": "` from `bd9edac` (v0.7.0) to v0.10.1 and was invisible in GitHub
+Copilot CLI that whole time, while every other skill in the same plugin
+loaded normally. A skill "missing" on one harness but not another is
+this, until proven otherwise.
+
+Copilot CLI additionally requires the frontmatter `name` to match the
+skill's own directory name exactly; the same test asserts it.
+
 ## Known limits
 
 - Vocabulary is a seed set. An unlisted but correct word gets a

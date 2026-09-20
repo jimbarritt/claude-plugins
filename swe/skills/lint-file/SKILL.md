@@ -1,6 +1,6 @@
 ---
 name: lint-file
-description: Run a full swe check on a named file, on demand: both tiers, regardless of hook gating
+description: Run a full swe check on a named file, on demand, both tiers, regardless of hook gating
 argument-hint: <file-path>
 allowed-tools: Bash, Read
 disable-model-invocation: false

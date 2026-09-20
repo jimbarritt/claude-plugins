@@ -1,6 +1,6 @@
 ---
 name: install-commit-hook
-description: Install swe's git pre-commit check in the current repository, so a commit with staged markdown needs a recorded clean lint
+description: Install swe's git pre-commit check here, so committing staged markdown needs a clean lint record
 argument-hint: "[uninstall] [repo-path]"
 allowed-tools: Bash, Read
 disable-model-invocation: false
@@ -41,7 +41,7 @@ If the installer reported that it chained an existing hook, name the
 file it moved (`pre-commit.local`) and say that hook still runs first,
 unchanged.
 
-## Step 4: Record the check's escape hatch
+## Step 4: State how to bypass the check
 
 Say once, plainly: `git commit --no-verify` bypasses the check, and the
 block message repeats that. Do not use it to work around a block
