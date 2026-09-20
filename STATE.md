@@ -18,6 +18,19 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-lint-file-invisible-copilot.md](tasks/issue-lint-file-invisible-copilot.md):
+  `/swe:lint-file` was invisible to GitHub Copilot CLI from v0.7.0 to
+  v0.10.0, while every other skill in the same plugin loaded. Its
+  frontmatter description held `on demand: `, a colon then a space
+  inside an unquoted plain YAML scalar, which a strict parser rejects
+  outright. Claude Code's parser accepts it, so the fault never showed
+  locally. Fixed with a comma (not quotes, which a split-on-first-colon
+  harness would carry into the description), guarded by a new
+  `tests/skill_frontmatter_test.sh` covering every frontmatter block in
+  the plugin, and documented in `docs/agent-guide.md`. Two wrong
+  theories preceded it, both about Copilot CLI's own behaviour; parsing
+  the files settled it. Released as `swe-v0.10.1`, on `main` at
+  [`9479980`](https://github.com/jimbarritt/claude-plugins/commit/9479980).
 - [tasks/future-precommit-lint-gate.md](tasks/future-precommit-lint-gate.md):
   a git pre-commit check (`/swe:install-commit-hook`) that blocks a
   commit staging a markdown file unless `/swe:lint-file` already

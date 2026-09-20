@@ -16,3 +16,4 @@
 | [future-remove-force-for-plugin.md](future-remove-force-for-plugin.md) | none filed yet | Done — shipped on `main` |
 | [future-remove-file-check-hook.md](future-remove-file-check-hook.md) | none filed yet | Done — shipped on `main` |
 | [future-precommit-lint-gate.md](future-precommit-lint-gate.md) | none filed yet | Done — shipped on `main`, released as `swe-v0.10.0` |
+| [issue-lint-file-invisible-copilot.md](issue-lint-file-invisible-copilot.md) | none filed yet | Done — shipped on `main`, released as `swe-v0.10.1` |

@@ -1,0 +1,19 @@
+# Files exempt from swe's checks, on the `planning` branch only. A
+# pattern with a "/" matches the path relative to this file's
+# directory; a pattern with no "/" matches the basename, at any depth.
+#
+# This branch holds an append-only cross-session record, not shipped
+# prose. The commit check installed by /swe:install-commit-hook works
+# at whole-file granularity: a file needs a clean lint of its entire
+# staged content before it can be committed. STATE.md accumulates one
+# entry per session and already holds findings inside entries written
+# by earlier sessions. Requiring a whole-file clean before appending a
+# new entry would mean editing those earlier entries, which are a
+# record of what happened and are not meant to be rewritten.
+#
+# The plugin's own shipped prose on `main` is unaffected: `main` has
+# its own .swe-ignore, and each worktree reads the one at its own root.
+# Note: a trailing slash does nothing here. swe's .swe-ignore reader
+# handles no directory-only patterns, so a directory needs a glob.
+STATE.md
+tasks/*
