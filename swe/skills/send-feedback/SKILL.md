@@ -108,6 +108,11 @@ When the user confirms an item:
    bug.
 4. Run `gh issue create --repo <owner/repo> --title "..." --body "..."
    --label auto-fix-candidate` (omit `--label` per Step 3 above).
+   A session scoped to a different repository fails this call with
+   `Access denied: repository "..." is not configured for this
+   session.` That is the session harness, not a real permissions
+   problem: add the target repo to the session's scope (`add_repo`),
+   then retry the same command.
 5. Move every log line belonging to this item's entries into an
    archive file: `~/.claude/swe/feedback-archive/{today's date, YYYY-MM-DD}.jsonl`. Rewrite the current log with those
    lines removed. Use a small Python script for this: read all lines,
