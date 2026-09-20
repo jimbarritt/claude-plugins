@@ -20,7 +20,8 @@ decide whether a fresh inference pass is worth doing, and if so, print
 the applicable rules for the caller to judge the prose against
 directly — as itself, with its own context, not an isolated call.
 
---advise-inference (used by the four non-Stop hooks) only decides:
+--advise-inference (used by the three PreToolUse hooks: bash, artifact,
+mcp-send) only decides:
 gated by inference_eligible() below, plus the deterministic tier being
 clean this same invocation and --stop-hook-active not being true. When
 eligible, it prints an INFERENCE_ADVISED block (see main()) holding the
@@ -53,12 +54,15 @@ separate from the vendored catalogue: it governs interaction structure
 than prose wording, so it is not part of the Software English spec. It
 is added to the printed inference-rules block only for a conversational
 source (--reply-file or --transcript), never for a file, a commit
-message, or an artifact.
+message, or an artifact. No automatic hook supplies a conversational
+source today: --reply-file/--transcript remain available for a direct,
+manual, or future call, same as the rest of this script's flags.
 
 A finding has a severity, read from the catalogue. An "error"-severity
-finding causes a non-zero exit, unless --stop-hook-active true was passed
-(then the finding is still reported, but the exit stays 0, so a hook
-built on this script never blocks more than once per turn).
+finding causes a non-zero exit, unless --stop-hook-active true was
+passed (then the finding is still reported, but the exit stays 0). No
+automatic caller passes this today; it remains available for a future
+hook built the same way the old Stop hook was.
 
 A Markdown blockquote line (starts with ">") is not checked — it holds
 someone else's words, quoted verbatim, not this writer's prose. The same

@@ -9,38 +9,36 @@ an LLM reader, not the human-facing prose the spec governs.
 
 ## What to do when a hook blocks you
 
-A `Stop` or blocking `PreToolUse` hook prints a report and exits 2. Read
-it: a rule name, the flagged text, and a suggested fix, one line per
-finding. Fix the flagged text as described, then finish the turn (or
-retry the tool call) again.
+A blocking `PreToolUse` hook (`bash-check.sh`, `artifact-check.sh`,
+`mcp-send-check.sh`) denies the tool call and returns a reason: a rule
+name, the flagged text, and a suggested fix, one line per finding, plus
+the path to the full report under `~/.claude/swe/reports/`. Read it,
+fix the flagged text as described, then retry the tool call.
 
 If you believe a finding is wrong — a false positive, a false negative,
 or a correct finding with a bad suggested fix — do not just work around
 it. Run `/swe:feedback <false-positive|false-negative|wrong-fix> [note]`
 so the pattern gets tracked, then proceed with your own best correction.
 
-`stop_hook_active: true` on the hook's input means this turn already
-re-ran once this way. The hook still prints its report but exits 0, so
-you will not be blocked a second time for the same turn. Claude Code
-also caps a `Stop` hook at 8 consecutive blocks regardless, overridable
-with `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP`.
-
-`PostToolUse` cannot block: the write already happened before
-`file-check.sh` runs. It exits 2 anyway when it finds an error-severity
-violation, since Claude Code still shows you the stderr as a system
-message on exit 2 for this event, even though the write cannot be
-undone. Fix the file when you see this report. `PostToolUse` exiting 0
-does not reach you at all; only exit 2 does.
+No hook checks a file write or a chat reply automatically. Run
+`/swe:lint-file <file-path>` yourself when you want a file checked; see
+"When the inference tier runs" below for how that command works.
 
 ## Hooks
 
 | Hook | Event | Covers | Config key |
 |---|---|---|---|
-| [`../hooks/stop-check.sh`](../hooks/stop-check.sh) | `Stop` | The chat reply and the transcript since the last user message (Copilot CLI only — see below); changed tracked markdown | `hooks.stop.reply` (reply, transcript; Copilot CLI only); `hooks.stop.docs` (tracked markdown) |
-| [`../hooks/file-check.sh`](../hooks/file-check.sh) | `PostToolUse` on `Write`\|`Edit` | A markdown file the Stop hook's git diff cannot see: outside the working tree, or untracked. Also tracked markdown, when `hooks.stop.docs` is off | `hooks.file` |
 | [`../hooks/bash-check.sh`](../hooks/bash-check.sh) | `PreToolUse` on `Bash` | A `git commit` message or a `gh pr`/`gh issue` title or body | `hooks.bash` |
 | [`../hooks/artifact-check.sh`](../hooks/artifact-check.sh) | `PreToolUse` on `Artifact` | A file about to publish: markdown directly, HTML via text-node extraction | `hooks.artifact` |
 | [`../hooks/mcp-send-check.sh`](../hooks/mcp-send-check.sh) | `PreToolUse` on the `Slack`/`Gmail`/`Drive` send tools | An outbound message body | `hooks["mcp-send"]` (hyphenated key, so a jq path needs bracket syntax) |
+
+A `Stop` hook (checking the chat reply and changed tracked markdown)
+and a `PostToolUse` hook on `Write`/`Edit` (checking a file as it was
+written) both existed here previously and were removed: reviewed and
+found to be doing very little once the output style existed to shape a
+reply directly, at a fixed ~2-second cost on every single turn
+regardless of whether anything needed checking (claude-plugins#6). See
+`STATE.md` on the `planning` branch for the fuller record.
 
 Each config key resolves via `hook_enabled()` in
 [`../hooks/_lib.sh`](../hooks/_lib.sh): the project's own
@@ -49,7 +47,7 @@ Each config key resolves via `hook_enabled()` in
 [README](../README.md#turn-off-a-check-for-one-project) for the
 project-level file's format.
 
-All five call
+All three call
 [`../scripts/software_english_lint.py`](../scripts/software_english_lint.py)
 after
 [`../scripts/fetch-software-english-data.sh`](../scripts/fetch-software-english-data.sh).
@@ -57,34 +55,33 @@ after
 ## Output style
 
 [`../output-styles/software-english.md`](../output-styles/software-english.md)
-carries `force-for-plugin: true` and `keep-coding-instructions: true`.
-Claude Code applies it automatically whenever this plugin is enabled,
-overriding the session's own `outputStyle` setting, and sends its
+carries `keep-coding-instructions: true`. It is a normal installed
+output style: a user selects it themselves (`/output-style`), the same
+as any other. Nothing forces it on when the plugin is enabled;
+`force-for-plugin: true` was removed once the `Stop` hook it justified
+went too (see "Hooks" above). Once selected, Claude Code sends its
 instructions with every request for the session, the same way it sends
-the system prompt.
-
-This is why `stop-check.sh`'s reply/transcript check always skips under
-Claude Code: the condensed rules in the output style shape the reply
-before it is written, instead of catching a violation after the fact.
-`hooks.stop.reply` still exists for Copilot CLI, which has no
-output-style mechanism and so keeps the reactive check.
+the system prompt, whether the output being written is a chat reply or
+a file.
 
 The output style is exempt from this plugin's own checks, listed in
 [`../../.swe-ignore`](../../.swe-ignore), for the same reason as this
 file: it cites banned words and patterns as examples, which the linter
 cannot tell apart from a live violation.
 
-Two gaps this does not close:
+What this does not close, whether or not the style is selected:
 
 - A subagent (the `Agent` tool) runs its own system prompt and does not
   inherit the parent conversation's output style. Its written output is
-  covered by `file-check.sh`, `bash-check.sh`, `artifact-check.sh`, and
-  `mcp-send-check.sh` when it writes a file, a commit, an artifact, or a
-  message, same as before; nothing yet covers a subagent's own reply
-  text.
-- The output style is a system-prompt instruction, not a check. A rule
-  the model still gets wrong ships in the reply unless another hook
-  (`hooks.stop.docs`, `hooks.file`, and the rest) catches it downstream.
+  covered by `bash-check.sh`, `artifact-check.sh`, and
+  `mcp-send-check.sh` when it writes a commit, an artifact, or a
+  message; nothing covers a subagent's own reply text or a file it
+  writes.
+- The output style is a system-prompt instruction, not a check, even
+  when selected. A rule the model still gets wrong ships as written;
+  nothing downstream catches it automatically for a reply or a file
+  edit. `/swe:lint-file` is the deliberate, on-demand way to check a
+  file, e.g. before a commit — nothing wires it up automatically.
 
 ## Rule tiers
 
@@ -122,7 +119,8 @@ prose against directly, as itself, with its own context. Nothing here
 ever shells out to `claude -p` or any other subprocess for the judging
 step.
 
-`--advise-inference` (used by the four non-`Stop` hooks) decides only:
+`--advise-inference` (used by the three `PreToolUse` hooks: `bash`,
+`artifact`, `mcp-send`) decides only:
 gated by `inference_eligible()` below, plus the deterministic tier
 being clean this same invocation, plus `stop_hook_active` being false
 (`Stop` only; the other hooks have no equivalent flag). When eligible,
@@ -139,13 +137,13 @@ The hook script (`strip_advise_block()`/`extract_advise_rules()` and
 `advise_inference()` in [`../hooks/_lib.sh`](../hooks/_lib.sh)) splits
 that block out of the deterministic-tier report and, only when the
 deterministic tier itself found nothing to block, returns a
-non-blocking advisory hook response: the tool call proceeds (or, for
-`PostToolUse`, already had), and Claude is told to dispatch a subagent
-to read the source (a file path, or the text itself for a commit/PR
-message or an outbound MCP message, inlined directly into the advisory
-message since there is no file to read) and judge it against those
-rules, as part of its own reasoning, then fix anything it finds. No
-step in that path re-invokes this script.
+non-blocking advisory hook response: the tool call proceeds, and Claude
+is told to dispatch a subagent to read the source (a file path for
+`artifact-check.sh`, or the text itself for `bash-check.sh`/
+`mcp-send-check.sh`, inlined directly into the advisory message since
+there is no file to read) and judge it against those rules, as part of
+its own reasoning, then fix anything it finds. No step in that path
+re-invokes this script.
 
 A pass is worth advising when:
 

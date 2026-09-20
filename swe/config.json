@@ -3,11 +3,6 @@
   "threshold_sentences": 4,
   "html_min_chars": 25,
   "hooks": {
-    "stop": {
-      "reply": true,
-      "docs": true
-    },
-    "file": true,
     "bash": true,
     "artifact": true,
     "mcp-send": true

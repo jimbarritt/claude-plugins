@@ -1,5 +1,5 @@
 {
   "name": "swe",
-  "description": "Enforces Software English on agent prose via a forced output style, five hooks, and on-demand check commands.",
-  "version": "0.7.0"
+  "description": "Checks agent prose against Software English via three hooks, a selectable output style, and on-demand check commands.",
+  "version": "0.8.0"
 }

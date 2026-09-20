@@ -1,10 +1,12 @@
 # swe
 
-Shapes every Claude Code reply with a forced output style, and checks
-every file edit, commit message, artifact, and outbound message a
-session produces, against
+Checks every commit message, artifact, and outbound message a Claude
+Code or Copilot CLI session produces, against
 [Software English](https://github.com/jimbarritt/software-english),
-automatically, once installed.
+automatically, once installed. Also installs an output style, written
+to the same rules, that you can select yourself
+(`/output-style`) to shape a reply or a file edit directly as it's
+written; and a `/swe:lint-file` command to check any file on demand.
 
 See [`docs/agent-guide.md`](docs/agent-guide.md) for the mechanism: the
 hooks, the rule tiers, and the inference tier's conditions. That file
@@ -27,14 +29,17 @@ have `gh` on `PATH`, authenticated against GitHub.
 
 ## What happens once it is installed
 
-Under Claude Code, the plugin's own output style puts the Software
-English rules in the system prompt as soon as the plugin is enabled,
-so a reply follows the rules from the first word, without a separate
-check after the fact. Under Copilot CLI, which has no output-style
-mechanism, the chat reply is checked once the turn ends instead.
+Nothing is forced on, and no file edit or chat reply is checked
+automatically. Select the output style yourself
+(`/output-style`, "Software English") if you want the rules shaping
+what Claude writes from the first word, reply or file alike; run
+`/swe:lint-file` yourself, e.g. before a commit, to check a file
+directly. Neither is wired up to run on its own.
 
-File edits, commit messages, artifacts, and outbound messages get
-checked as they happen, on both harnesses. When the check finds a
+Commit messages, artifacts, and outbound messages do get checked
+automatically, on both Claude Code and Copilot CLI, since these are
+one-off actions worth catching before they go out, not ongoing prose a
+person is already shaping as they write it. When the check finds a
 plain, pattern-checkable violation (the deterministic tier: banned
 words, vocabulary, tense, and similar), Claude Code blocks the action;
 Claude reads the printed report and fixes the text itself, then
@@ -45,13 +50,14 @@ model-judged pass (the inference tier). Rather than run that inside
 the hook itself, which can stall a tool call on a slow or failed model
 response, the hook only advises Claude that a fresh pass is worth
 doing; Claude dispatches it as a subagent, then fixes anything it
-reports. This does not happen on every single edit to a file already
-checked this way, only once the file has grown enough since its last
-pass to be worth checking again. For a commit message or an outbound
-message, the underlying command or send already went through by the
+reports. The underlying command or send already went through by the
 time the subagent's report comes back, since the hook does not hold it
-up for a model call: a commit can still be amended if something turns
-up, but a sent message cannot be un-sent.
+up for a model call. A commit can be amended after the fact if
+something turns up; an already-sent message stays sent regardless.
+Publishing the same artefact
+file repeatedly does not trigger a fresh deep pass on every single
+publish, only once it has grown enough since its last pass to be worth
+checking again.
 
 ## Check one file on demand
 
@@ -116,7 +122,7 @@ project root and set only the keys you want to change:
 ```json
 {
   "hooks": {
-    "stop": { "reply": false }
+    "bash": false
   }
 }
 ```
@@ -125,9 +131,6 @@ Keys, all `true` by default:
 
 | Key | Turns off |
 |---|---|
-| `stop.reply` | The Stop hook's check of the chat reply and the transcript. Copilot CLI only: under Claude Code, this check always skips, and the output style covers the reply instead |
-| `stop.docs` | The Stop hook's check of changed tracked markdown |
-| `file` | The per-edit check on an untracked or out-of-tree markdown file, or a code file's comments. Also takes over tracked markdown when `stop.docs` is off |
 | `bash` | The check on a `git commit`, `gh pr`, or `gh issue` message |
 | `artifact` | The check on a file about to publish as an Artifact |
 | `mcp-send` | The check on an outbound Slack/Gmail/Drive message |

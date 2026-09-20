@@ -1,6 +1,6 @@
 ---
 name: feedback
-description: Log a false positive, a false negative, or a wrong fix suggestion from swe, for later review by /swe:send-feedback
+description: Log a false positive, false negative, or wrong fix from swe, for later review by /swe:send-feedback
 argument-hint: <false-positive|false-negative|wrong-fix> [note]
 allowed-tools: Bash
 disable-model-invocation: false
@@ -28,9 +28,9 @@ an unrecognised verdict and ask for one of the three above.
 ## Step 2: Gather the finding's details
 
 **For `false-positive` or `wrong-fix`:** look back through this
-conversation for the most recent swe report (a Stop
-hook block, a `PreToolUse` block, or a `PostToolUse` report). Find the
-specific finding line the user means:
+conversation for the most recent swe report (a `PreToolUse` block, or
+the deterministic-tier output from a manual `/swe:lint-file` run).
+Find the specific finding line the user means:
 
 - `rule_id`: the bracketed rule name (e.g. `[banned-word]`, or the
   name before `: inference:` on an inference-tier line).

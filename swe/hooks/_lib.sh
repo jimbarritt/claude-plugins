@@ -19,7 +19,7 @@ is_claude_code() {
   [ "${CLAUDECODE:-}" = "1" ]
 }
 
-# Returns 1 when <jq-path> (e.g. '.hooks.stop.reply' or '.hooks["mcp-send"]')
+# Returns 1 when <jq-path> (e.g. '.hooks.bash' or '.hooks["mcp-send"]')
 # resolves to false: the project's <cwd>/.claude/swe-lint.json if it sets
 # that path, else the plugin's own config.json ($SWE_LINT_CONFIG when set,
 # for tests, else "$HERE/../config.json"). Any other case (no cwd, missing
@@ -127,9 +127,9 @@ extract_advise_rules() {
 # against the rules in $1 (built by the caller from ADVISE_RULES above,
 # which also knows the right file path or the text itself): never to
 # re-run this script for the judging step, since it cannot do that.
-# Only pretooluse and posttooluse call this; stop-check.sh never runs
-# the inference tier at all (see its own header comment on turn-latency
-# cost).
+# Today only the three PreToolUse hooks (bash, artifact, mcp-send) call
+# this. The posttooluse branch stays general library support, not tied
+# to any current caller.
 #
 # permissionDecision: "allow" plus a top-level systemMessage is the
 # confirmed advisory shape for Claude Code, both hook types. The Copilot
