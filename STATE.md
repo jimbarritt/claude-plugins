@@ -45,6 +45,19 @@ Checked: none of #4/#5/#6 carry the `auto-fix-candidate` label the
 issues by that label) — these three are plain, unlabelled issues, not
 already wired into that other mechanism.
 
+4. [tasks/future-remove-force-for-plugin.md](tasks/future-remove-force-for-plugin.md):
+   drop `force-for-plugin: true` from the output style, so a user
+   selects it manually instead of the plugin forcing it on. Blocked on
+   one open question before this can be scoped further: `stop-check.sh`
+   unconditionally skips its reactive reply check under Claude Code
+   today, on the assumption the forced style always covers the reply
+   instead. Once forcing stops, does that reactive check come back as
+   the default under Claude Code too (matching Copilot CLI's own
+   behaviour), or is an unchecked reply for anyone who doesn't select
+   the style an acceptable gap? Claude Code hooks cannot see which
+   output style is active, so this is a binary choice, not something
+   the hook can detect and branch on itself.
+
 After these: [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
 list and what "layered"/"filtered" rules means), then

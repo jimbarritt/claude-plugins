@@ -13,3 +13,4 @@
 | [issue-4-feedback-tooling-gaps.md](issue-4-feedback-tooling-gaps.md) | [claude-plugins#4](https://github.com/jimbarritt/claude-plugins/issues/4) | Scoped, not started |
 | [issue-5-gh-session-scope-friction.md](issue-5-gh-session-scope-friction.md) | [claude-plugins#5](https://github.com/jimbarritt/claude-plugins/issues/5) | Scoped, not started |
 | [issue-6-stop-hook-delay.md](issue-6-stop-hook-delay.md) | [claude-plugins#6](https://github.com/jimbarritt/claude-plugins/issues/6) | Scoped, not started |
+| [future-remove-force-for-plugin.md](future-remove-force-for-plugin.md) | none filed yet | Idea captured, blocked on one open question |
