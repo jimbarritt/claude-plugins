@@ -8,19 +8,48 @@ None.
 
 ## Next
 
-In priority order (Jim's pick):
+Three open-issue tasks, scoped and ready, awaiting Jim's go-ahead to
+execute (he asked to review before executing, and separately wants
+these run autonomously once approved, not one-by-one with a check-in
+between each):
 
-1. [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md):
-   idea only, not scoped. The full-lint command should take a
-   document-type argument from a fixed list (a profile, e.g. `rfc`),
-   which can specialise which deterministic/inference rules apply.
-   Needs a follow-up conversation before design: what the doc-type
-   list is, what "layered"/"filtered" means here, whether a profile is
-   plugin-owned or spec-owned.
-2. [tasks/future-stop-reply-check.md](tasks/future-stop-reply-check.md):
-   resolved for Claude Code by the output-style task (the reply check
-   no longer runs there, so the block-and-retry loop does not fire).
-   Still open for Copilot CLI, which keeps the reply check unchanged.
+1. [tasks/issue-6-stop-hook-delay.md](tasks/issue-6-stop-hook-delay.md):
+   `stop-check.sh` costs ~2s on every turn under Claude Code. Strong,
+   code-read (not yet instrumented) hypothesis: the trailing `wait
+   "$WATCHER"` blocks on the 2-second watchdog subshell's own `sleep 2`
+   even after the real check finishes in under 100ms, since `kill`
+   sent to a subshell blocked in a child syscall does not preempt it.
+   Proposed fix: drop that final `wait`. Verify by instrumenting/
+   remeasuring before and after, per the issue's own suggestion.
+2. [tasks/issue-4-feedback-tooling-gaps.md](tasks/issue-4-feedback-tooling-gaps.md):
+   `/swe:send-feedback`'s 2+-entry clustering threshold, and
+   `/swe:feedback` having no verdict for feedback about the tooling
+   itself (forced into `wrong-fix`/`rule_id: unknown`, which then
+   false-clusters with unrelated `unknown` entries). Proposed: a new
+   `feature-request` verdict with its own `rule_id: null` (not
+   `"unknown"`, so it cannot collide), and any entry with no real
+   cluster surfaces individually instead of waiting for a sibling. One
+   open question left in the task file: whether same-topic
+   `feature-request` entries should ever cluster with each other.
+3. [tasks/issue-5-gh-session-scope-friction.md](tasks/issue-5-gh-session-scope-friction.md):
+   `gh issue create` is refused until the target repo is attached to
+   the session's GitHub scope. Not a claude-plugins code fix (harness
+   behaviour, flagged for escalation elsewhere per the issue itself);
+   the only actionable scope here is a one-line note in
+   `send-feedback/SKILL.md` near the `gh issue create` call, so a
+   future run recognises the denial and knows the fix (`add_repo`,
+   then retry).
+
+Checked: none of #4/#5/#6 carry the `auto-fix-candidate` label the
+`send-feedback/SKILL.md` mentions (a separate harness elsewhere reads
+issues by that label) — these three are plain, unlabelled issues, not
+already wired into that other mechanism.
+
+After these: [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
+(idea only, not scoped — needs a follow-up conversation on the doc-type
+list and what "layered"/"filtered" rules means), then
+[tasks/future-stop-reply-check.md](tasks/future-stop-reply-check.md)
+(resolved for Claude Code already; still open for Copilot CLI).
 
 ## Recently done
 
