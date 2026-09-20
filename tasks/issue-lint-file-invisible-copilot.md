@@ -83,3 +83,46 @@ Carried in the same commit, all found while fixing the above:
 
 Done — shipped and released as `swe-v0.10.1`. Jim to confirm
 `/swe:lint-file` now appears after updating the plugin on Copilot CLI.
+
+## Follow-up: a guard for unreleased work
+
+Raised by Jim while checking whether the marketplace carried the
+version bump, after Copilot installed an old copy.
+
+Findings on the manifest itself, all correct already: the marketplace
+entry carries no `version`, which is right, because Claude Code takes
+`plugin.json`'s value when both exist and does not warn; the default
+branch is `main` and current; and `plugin.json` has been bumped at
+every release.
+
+The real hazard sat elsewhere. A declared version pins the plugin, so
+a push to `main` delivers nothing on its own. Six commits had changed
+`swe/` with no bump:
+
+```
+751f616  output-style: ban "load bearing" / "load-bearing"
+7e7abdd  send-feedback: note the add_repo fix
+b3b1732  Fix four em dashes in the README
+bed5dec  Bring swe's README up to date
+a53b53d  Use a full URL in the output style's picker description
+4a75dfe  Add the spec link to the picker description
+```
+
+Each was carried to users by the next commit that did bump, so nothing
+was lost; each was uninstallable until then, and nothing said so.
+
+Shipped on `main` at
+[`7f00234`](https://github.com/jimbarritt/claude-plugins/commit/7f00234):
+`scripts/check-unshipped.sh` compares every plugin in
+`marketplace.json` against its own newest release tag, and
+`.github/workflows/check-unshipped.yml` runs it on each push to `main`
+and on a pull request. Green on its first CI run. A version ahead of
+the newest tag reads as a release in progress, not a fault, so an
+intermediate commit that bumps early does not turn CI red. Repo
+tooling alone needs no bump, and the check does not require one. The
+rule is in `CLAUDE.md` under "Releasing a change", where a later
+session reads it.
+
+Still open: which version Copilot actually installed. Copilot CLI's
+own resolution rules could not be checked from the session, since
+`docs.github.com` is blocked by the environment's egress proxy.
