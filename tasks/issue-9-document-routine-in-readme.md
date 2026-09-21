@@ -124,6 +124,33 @@ only, no new behaviour, matching the `0.10.1` precedent).
   the README; that is process detail for the design document, not for
   README readers.
 
-## Status
+## Outcome
 
-Plan complete. Proceeding to implementation on `main`.
+Shipped as planned, no deviations.
+
+- `swe/README.md`: new "What happens to an issue filed here" section
+  inserted after "## Review logged feedback and file issues", exact
+  text as drafted above.
+- `swe/.claude-plugin/plugin.json`: `0.11.0` -> `0.11.1`.
+- Lint: deterministic tier clean (only pre-existing, unrelated
+  `vocabulary-membership` warnings across the whole file); reviewed
+  the inference-tier rule categories against the new prose by hand
+  (no rule catalogue-dispatch subagent available in this session) and
+  found nothing to fix. The `tasks/future-self-maintaining-repo.md`
+  pointer was weighed against `no-planning-content-in-reference`
+  (a Reference document should carry no pointer to a plan document);
+  treated as acceptable, following the same already-shipped pattern at
+  `swe/docs/agent-guide.md:46` ("See `STATE.md` on the `planning`
+  branch...").
+- All five `swe/tests/*.sh` suites pass (67 assertions total).
+- `scripts/check-unshipped.sh` confirmed pending before release, clean
+  after.
+- Commit: [`dbf434d`](https://github.com/jimbarritt/claude-plugins/commit/dbf434d25400f24a9b791693c276073b63a3f8e)
+  on `main`, `closes #9` (closed the issue automatically).
+- Release: `release-plugin.yml` run
+  [#6](https://github.com/jimbarritt/claude-plugins/actions/runs/35622003689),
+  success, tag `swe-v0.11.1`.
+- Issue comment posted with the commit, version, and release tag.
+
+First real issue worked end to end by this Routine, single pass, no
+escalation.

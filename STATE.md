@@ -4,12 +4,7 @@ Last updated: 2026-09-21
 
 ## In progress
 
-[tasks/issue-9-document-routine-in-readme.md](tasks/issue-9-document-routine-in-readme.md)
-([#9](https://github.com/jimbarritt/claude-plugins/issues/9)): new
-`swe/README.md` section, "What happens to an issue filed here",
-describing this Routine from a reader's point of view, plus the
-`swe` patch bump and release the change needs. Plan complete;
-implementation on `main` next.
+None.
 
 ## Next
 
@@ -39,6 +34,17 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-9-document-routine-in-readme.md](tasks/issue-9-document-routine-in-readme.md)
+  ([#9](https://github.com/jimbarritt/claude-plugins/issues/9)): the
+  first real issue worked end to end by the self-maintaining-repo
+  Routine itself, single pass, no escalation. Added a "What happens to
+  an issue filed here" section to `swe/README.md`, describing the
+  Routine's mechanism and pointing to
+  `tasks/future-self-maintaining-repo.md` on `planning` for the full
+  design. Documentation only; `swe` version bumped `0.11.0` ->
+  `0.11.1` and released as `swe-v0.11.1`. Shipped on `main` at
+  [`dbf434d`](https://github.com/jimbarritt/claude-plugins/commit/dbf434d25400f24a9b791693c276073b63a3f8e),
+  which closed the issue automatically.
 - `software-english` v0.0.5: `rules/core-rules.yaml` is now generated
   from `core-rules.toml` by `scripts/generate-rules-yaml.py`, with CI
   checking it stays generated. It had drifted to 10 of 20 rules, a
