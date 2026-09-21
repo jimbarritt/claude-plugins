@@ -13,8 +13,9 @@ None.
 fresh session, works it through the planning branch, releases, and
 escalates on the issue thread with a push notification; briefing now
 drafted as `MAINTAINER-RUN.md` on this branch; escalation label is
-`supervisor`, not `needs-jim`, per Jim; four open questions remain,
-cadence first), then
+`supervisor`, not `needs-jim`; cadence settled at hourly, 07:00 to
+22:00 UK local; three open questions remain, worker model first),
+then
 [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
 list and what "layered"/"filtered" rules means), then

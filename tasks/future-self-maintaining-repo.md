@@ -23,7 +23,7 @@ notification to Jim's phone.
 
 ## Decisions
 
-Jim has confirmed two points, so these are fixed rather than open:
+Jim has confirmed three points, so these are fixed rather than open:
 
 - The briefing lives on the `planning` branch, not on `main`. See
   `MAINTAINER-RUN.md` in this branch's root.
@@ -31,6 +31,17 @@ Jim has confirmed two points, so these are fixed rather than open:
   post today; the label names the role, not the person. Escalation
   otherwise runs as first proposed: the issue label plus a Routine
   push notification, no other channel by default.
+- Cadence: hourly, restricted to UK waking hours. Jim did not name
+  exact bounds, so 07:00 to 22:00 UK local is the working default,
+  16 firings a day; Jim can narrow or widen it. No firing happens
+  overnight, so an issue filed at 23:00 waits for the 07:00 firing.
+
+  The four hours are UK local, and `create_trigger`'s cron is UTC, so
+  the actual UTC range shifts by one hour between BST and GMT. The
+  existing "Adjust scheduled tasks for GMT" reminder already retimes
+  four other Routines each clock change; add this one to that list
+  once it exists, rather than leaving it to drift out of step with UK
+  local time.
 
 ## What exists today
 
@@ -181,8 +192,11 @@ out of scope unless the two above prove insufficient.
 2. **Labels.** Create the four labels on `claude-plugins`.
 3. **Briefing.** Write `MAINTAINER-RUN.md` on `planning`. Lint it.
 4. **Routine.** Create the hourly Routine in the `Default`
-   environment, `push: true`, prompt as above. Off-minute cron.
-   Cadence and hours are Jim's call (see open questions).
+   environment, `push: true`, prompt as above. Cron at minute 0,
+   restricted to the hours covering 07:00 to 22:00 UK local at
+   creation time (`0 6-21 * * *` in BST, `0 7-22 * * *` in GMT).
+   Add it to the seasonal clock-change reminder once that Routine
+   is set up.
 5. **Dry run.** File a small real issue, label it `agent:go`, watch
    one firing end to end. Read the task file and the issue thread it
    leaves.
@@ -194,12 +208,11 @@ out of scope unless the two above prove insufficient.
 
 ## Open questions
 
-Escalation channel is settled (see Decisions above). Remaining, for
-Jim, one at a time:
+Escalation channel and cadence are settled (see Decisions above).
+Remaining, for Jim, one at a time:
 
-1. Cadence: hourly, and whether to restrict to waking hours (UK).
-2. Model for the worker session.
-3. Whether to reuse the `tsk` mission and thread framework, or keep
+1. Model for the worker session.
+2. Whether to reuse the `tsk` mission and thread framework, or keep
    this loop self-contained in `claude-plugins`.
-4. Whether `software-english` changes stay in scope for an unattended
+3. Whether `software-english` changes stay in scope for an unattended
    run, as they are for an attended one.
