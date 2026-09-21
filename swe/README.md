@@ -143,6 +143,30 @@ Answer its questions one at a time. For each real pattern it finds
 across the log, it proposes a fix direction and asks whether to file a
 `gh issue create` against the repository that owns the rule.
 
+## What happens to an issue filed here
+
+Some issues on `jimbarritt/claude-plugins` go through an unattended
+Routine rather than an attended session. A Routine starts a fresh
+Claude session on a schedule. That session reads its briefing,
+`MAINTAINER-RUN.md`, from the `planning` branch, then takes one open
+issue. It writes a task file on `planning`, then does the work on
+`main`. It runs the test suites and the lint checks. It bumps the
+affected plugin's `version` in `plugin.json` and runs the release
+workflow. It then comments on the issue with the commit and the
+release tag, and closes the issue.
+
+An issue qualifies when it has the `agent:go` label, or when a
+trusted account opened it. A run that cannot finish the work without
+an answer writes one question on the issue. It swaps the
+`agent:working` label for `supervisor` and leaves the issue open.
+
+This Routine is part of the repository's own maintenance, not
+behaviour the plugin installs.
+
+`tasks/future-self-maintaining-repo.md` on the `planning` branch
+holds the full design. It states the labels, the trusted-account
+rule, the model split, and the escalation path.
+
 ## Exempt a whole file from every check
 
 Add a line to a `.swe-ignore` file at the project root, in the same
