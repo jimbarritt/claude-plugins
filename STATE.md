@@ -4,7 +4,12 @@ Last updated: 2026-09-21
 
 ## In progress
 
-None.
+[tasks/issue-9-document-routine-in-readme.md](tasks/issue-9-document-routine-in-readme.md)
+([#9](https://github.com/jimbarritt/claude-plugins/issues/9)): new
+`swe/README.md` section, "What happens to an issue filed here",
+describing this Routine from a reader's point of view, plus the
+`swe` patch bump and release the change needs. Plan complete;
+implementation on `main` next.
 
 ## Next
 
