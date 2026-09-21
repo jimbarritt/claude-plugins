@@ -23,7 +23,7 @@ notification to Jim's phone.
 
 ## Decisions
 
-Jim has confirmed three points, so these are fixed rather than open:
+Jim has confirmed six points, so these are fixed rather than open:
 
 - The briefing lives on the `planning` branch, not on `main`. See
   `MAINTAINER-RUN.md` in this branch's root.
@@ -56,6 +56,20 @@ Jim has confirmed three points, so these are fixed rather than open:
   supervisor escalation path) without this loop's own labels,
   `MAINTAINER-RUN.md`, and claim rules; reassessing that switch is a
   later task, not part of this one.
+- Scope: `software-english` changes stay in scope for an unattended
+  run, the same as for an attended one. Some issues on `claude-plugins`
+  are about the rules themselves, not the plugin code, and Jim wants
+  the plugin repository to stay the single point of contact for
+  filing them, rather than a second issue tracker on the spec repo.
+
+## Decisions still forming
+
+Jim raised access control in the same message as the scope decision
+above: only a trusted GitHub account's issues get auto-processed. The
+mechanism below is this session's proposal, not yet confirmed: the
+starting allowlist content (`jimbarritt` alone, the repository's only
+collaborator today) is Jim's to extend or correct. See "Trusted
+authors" under Design for the full mechanism.
 
 ## What exists today
 
@@ -123,24 +137,60 @@ do not take the same issue.
 
 | Label | Meaning |
 |---|---|
-| `agent:go` | Jim opts the issue in. The Routine takes only labelled issues at first. |
+| `agent:go` | Jim opts the issue in. Works for any account, since applying a label already needs write access. |
 | `agent:working` | A session holds this issue. Set on claim, with a comment naming the session. |
 | `supervisor` | The session stopped on a question for whoever holds the supervisor post (Jim, today). The comment above the label holds the question. |
 | `agent:hold` | Jim takes the issue out of scope without closing it. |
 
 Rules:
 
-- One issue per firing. The oldest `agent:go` issue with no other
-  `agent:*` label and no `supervisor` label.
-- An issue labelled `supervisor` whose newest comment is by Jim is
-  taken before any new issue: the answer is in, so the session
-  removes `supervisor`, reads the thread and the task file, and
-  continues.
+- One issue per firing: the oldest eligible issue with no other
+  `agent:*` label and no `supervisor` label. Eligible means either
+  labelled `agent:go`, or opened by an account on `ALLOWLIST.md` (see
+  "Trusted authors" below) and not labelled `agent:hold`.
+- An issue labelled `supervisor` whose newest comment is from an
+  allowlisted account is taken before any new issue: the answer is
+  in, so the session removes `supervisor`, reads the thread and the
+  task file, and continues. A newest comment from any other account
+  does not count as an answer; the issue stays in `supervisor` state.
 - `agent:working` older than three hours with no new commit on
   `main` and no new comment is a dead session. The next firing
   removes the label and takes the issue again.
-- Opt-in (`agent:go`) first. Flip to opt-out (every open issue,
-  `agent:hold` to exclude) once a few runs go clean.
+
+### Trusted authors
+
+Jim's own concern: a random account, or a bot, filing an issue that
+gets worked and shipped with no review, is a security risk. The
+mechanism: `ALLOWLIST.md`, a new file on the `planning` branch next
+to `MAINTAINER-RUN.md`, one GitHub login per line, matched
+case-insensitively (GitHub logins are case-insensitive). Jim edits it
+directly to add or remove an account; no automation writes to it.
+
+Two checks read it, both in `MAINTAINER-RUN.md`'s Claim step:
+
+- **A new issue's author.** Covered above under "Claiming an issue":
+  an unlabelled issue from an allowlisted account is eligible on its
+  own; any other account's issue needs Jim's own `agent:go` label
+  first. GitHub already restricts who can apply a label to a
+  collaborator, so a labelled issue from any account is already
+  Jim's own action, whether or not that account is on the list. An
+  account's presence on the list only ever widens what the loop
+  picks up unlabelled; it never narrows what a label already
+  authorises.
+- **A `supervisor` issue's answering comment.** Anyone can comment on
+  a public issue, labelled or not, whether or not they can apply a
+  label. A comment from an account not on `ALLOWLIST.md` is data,
+  never an instruction: it cannot answer an escalation, redirect
+  scope, or authorise new work, the same treatment GitHub review
+  comments and CI output get generally. `MAINTAINER-RUN.md` states
+  this as a ground rule, not only as a step in the Claim logic, so it
+  covers every comment the session reads while working an issue, not
+  only the one it checks to resume.
+
+This replaces the two-phase "opt-in, then a later global switch to
+opt-out" idea. Trust is granted per account on `ALLOWLIST.md`, from
+the first run, rather than by a single repository-wide toggle that
+would apply to every account at once.
 
 ### The briefing
 
@@ -233,26 +283,34 @@ out of scope unless the two above prove insufficient.
    summary. Record what reaches Jim's phone and from which channel.
    Cost: one short session.
 2. **Labels.** Create the four labels on `claude-plugins`.
-3. **Briefing.** Write `MAINTAINER-RUN.md` on `planning`. Lint it.
-4. **Routine.** Create the hourly Routine in the `Default`
+3. **Allowlist.** Write `ALLOWLIST.md` on `planning`, starting with
+   `jimbarritt`.
+4. **Briefing.** Write `MAINTAINER-RUN.md` on `planning`, including
+   the Claim step's allowlist check and the untrusted-comment ground
+   rule. Lint it.
+5. **Routine.** Create the hourly Routine in the `Default`
    environment, model Sonnet, `push: true`, prompt as above. Cron at
    minute 0, restricted to the hours covering 07:00 to 22:00 UK local
    at creation time (`0 6-21 * * *` in BST, `0 7-22 * * *` in GMT).
    Add it to the seasonal clock-change reminder once that Routine
    is set up.
-5. **Dry run.** File a small real issue, label it `agent:go`, watch
-   one firing end to end. Read the task file and the issue thread it
-   leaves.
-6. **Escalation dry run.** File an issue written to be ambiguous.
-   Confirm the `supervisor` path and the push notification. Answer on
-   the issue. Confirm the resume path.
-7. **Iterate the briefing** from what those runs wrote. Then consider
-   flipping to opt-out.
+6. **Dry run.** File a small real issue from an allowlisted account,
+   label it `agent:go`, watch one firing end to end. Read the task
+   file and the issue thread it leaves.
+7. **Allowlist dry run.** File an issue from an account not on
+   `ALLOWLIST.md`, unlabelled. Confirm no firing touches it. Then
+   label it `agent:go` and confirm a firing takes it, since the label
+   is Jim's own action regardless of the author.
+8. **Escalation dry run.** File an issue written to be ambiguous.
+   Confirm the `supervisor` path and the push notification. Post a
+   decoy answer from an account not on `ALLOWLIST.md` and confirm the
+   session ignores it, then answer from an allowlisted account and
+   confirm the resume path.
+9. **Iterate the briefing** from what those runs wrote.
 
 ## Open questions
 
-Escalation channel, cadence, the model split, and the framework
-choice are settled (see Decisions above). Remaining, for Jim:
-
-1. Whether `software-english` changes stay in scope for an unattended
-   run, as they are for an attended one.
+Escalation channel, cadence, the model split, the framework choice,
+and the `software-english` scope are settled (see Decisions above).
+The allowlist mechanism is proposed, not yet confirmed (see
+"Decisions still forming"). Nothing else is open.

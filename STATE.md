@@ -17,8 +17,10 @@ drafted as `MAINTAINER-RUN.md` on this branch; escalation label is
 22:00 UK local; the Routine's session runs on Sonnet and dispatches
 an Opus subagent for issue analysis and planning; stays
 self-contained in `claude-plugins` rather than building on `tsk`,
-which is not bootstrapped yet; one open question remains, whether
-`software-english` changes stay in scope for an unattended run), then
+which is not bootstrapped yet; `software-english` changes stay in
+scope; new `ALLOWLIST.md` on this branch gates which GitHub accounts
+the loop auto-processes, proposed but not yet confirmed by Jim; no
+other open question remains), then
 [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
 list and what "layered"/"filtered" rules means), then
