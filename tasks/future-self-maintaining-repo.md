@@ -21,6 +21,17 @@ version, releases it, closes the issue. When the session cannot
 continue without Jim, it escalates, and one escalation path is a
 notification to Jim's phone.
 
+## Decisions
+
+Jim has confirmed two points, so these are fixed rather than open:
+
+- The briefing lives on the `planning` branch, not on `main`. See
+  `MAINTAINER-RUN.md` in this branch's root.
+- The escalation label is `supervisor`, not a name. Jim holds that
+  post today; the label names the role, not the person. Escalation
+  otherwise runs as first proposed: the issue label plus a Routine
+  push notification, no other channel by default.
+
 ## What exists today
 
 - **Routines.** `create_trigger` with `create_new_session_on_fire`
@@ -59,9 +70,8 @@ Three options.
 1. **Hourly Routine that polls.** A fresh session fires on a cron,
    lists open issues, takes one, works it, stops. An idle firing
    lists issues, finds nothing, and stops in under a minute.
-   Recommended. It uses only what exists today, the session has the
-   full cloud tool set (GitHub MCP, planning branch, Routines), and
-   the briefing lives in this repo.
+   Recommended. It uses only what exists today, and the session has
+   the full cloud tool set (GitHub MCP, planning branch, Routines).
 2. **GitHub Actions on `issues.opened`** with
    `anthropics/claude-code-action`. Fires within seconds of the
    issue. Runs on a GitHub runner, not in the cloud environment: no
@@ -83,16 +93,16 @@ do not take the same issue.
 |---|---|
 | `agent:go` | Jim opts the issue in. The Routine takes only labelled issues at first. |
 | `agent:working` | A session holds this issue. Set on claim, with a comment naming the session. |
-| `needs-jim` | The session stopped on a question. The comment above the label holds the question. |
+| `supervisor` | The session stopped on a question for whoever holds the supervisor post (Jim, today). The comment above the label holds the question. |
 | `agent:hold` | Jim takes the issue out of scope without closing it. |
 
 Rules:
 
 - One issue per firing. The oldest `agent:go` issue with no other
-  `agent:*` label and no `needs-jim` label.
-- An issue labelled `needs-jim` whose newest comment is by Jim is
+  `agent:*` label and no `supervisor` label.
+- An issue labelled `supervisor` whose newest comment is by Jim is
   taken before any new issue: the answer is in, so the session
-  removes `needs-jim`, reads the thread and the task file, and
+  removes `supervisor`, reads the thread and the task file, and
   continues.
 - `agent:working` older than three hours with no new commit on
   `main` and no new comment is a dead session. The next firing
@@ -102,36 +112,20 @@ Rules:
 
 ### The briefing
 
-Keep the briefing in this repo on `main`, as `docs/maintainer-run.md`
-or similar. The Routine prompt then stays short: clone, read that
-file, follow it. A change to the briefing is an ordinary commit, and
-it is a repo tooling change, so `check-unshipped` needs no bump.
+The briefing lives on the `planning` branch, as `MAINTAINER-RUN.md` at
+its root, not on `main`. It is process, not shipped product, so it
+belongs with `STATE.md` and `tasks/` rather than in the released
+tree; a change to it is never a plugin change and never needs a
+version bump or a release. The Routine prompt stays short: clone,
+add the `planning` worktree, read `MAINTAINER-RUN.md`, follow it.
 
-The briefing holds, in order:
-
-1. Unattended. Never call `AskUserQuestion`. Never wait for input.
-2. Bootstrap: clone `claude-plugins`, read `CLAUDE.md`, add the
-   `planning` worktree.
-3. Claim an issue per the rules above, or stop.
-4. Write `tasks/issue-N-<slug>.md` on `planning`: the ask verbatim,
-   the reading, the plan. Update `STATE.md` "In progress". Push.
-5. Do the work on `main`. Run the test suites. Run `/swe:lint-file`
-   on every prose file touched. Run `scripts/check-unshipped.sh`.
-6. Bump `version` in `plugin.json`. Commit with `closes #N`. Push.
-7. Run `release-plugin.yml` with `actions_run_trigger`. Poll
-   `actions_get` until it finishes. A failed run is a blocker, not
-   done.
-8. Comment on the issue: commit, release tag, what changed. Close it
-   if the commit did not.
-9. Update `STATE.md` and the task file with the record. Push
-   `planning`.
-10. End with a one-line summary first: `#N done: swe-vX.Y.Z` or
-    `#N needs Jim: <question>`. The Routine's push notification is
-    built from this.
-
-Hard limits in the briefing: no force push, no history rewrite, no
-change outside the two repos in scope, one issue per run, stop after
-two failed attempts at the same fix.
+The steps, ground rules, and escalation procedure are written out in
+`MAINTAINER-RUN.md` itself, not repeated here: bootstrap and claim an
+issue, plan on `planning`, do the work and test it on `main`, bump and
+release, close the loop, record the outcome on `planning`, report a
+one-line summary the Routine push is built from. Update
+`MAINTAINER-RUN.md` directly as the design changes rather than
+editing this summary out of step with it.
 
 ### Escalation
 
@@ -150,28 +144,31 @@ On stuck, in this order:
    question. Push `planning`.
 2. Comment on the issue with that one question. One question only,
    per the working rule in `CLAUDE.md`.
-3. Swap `agent:working` for `needs-jim`.
-4. End the run with the summary line `#N needs Jim: <question>`.
+3. Swap `agent:working` for `supervisor`.
+4. End the run with the summary line `#N needs supervisor: <question>`.
 
-Jim answers on the issue. The next firing picks it up per the claim
-rules.
+Jim, as the current supervisor, answers on the issue. The next firing
+picks it up per the claim rules.
 
 ### Notification channels, assessed
 
 Jim asked whether a session can decide to send him a Claude
-notification. Four channels reach him.
+notification, and has since confirmed the channel: the issue label is
+the record, the Routine push is the signal, nothing else by default.
+The table below is the full assessment behind that choice.
 
 | Channel | Who sends it | Reaches | Under the session's control? |
 |---|---|---|---|
 | Routine `push: true` | The platform, on run finish | Phone | Partly. The session writes the summary. The platform decides whether the run counts as noteworthy. |
 | `PushNotification` tool | The session | Terminal, and phone via Remote Control | Yes, but a Routine-fired session has no terminal and no Remote Control. Untested there. |
-| Issue comment + `needs-jim` label + assign Jim | The session, via GitHub | GitHub notifications (email, app) | Yes. Durable. Attached to the issue. |
+| Issue comment + `supervisor` label + assign the supervisor | The session, via GitHub | GitHub notifications (email, app) | Yes. Durable. Attached to the issue. |
 | Gmail `send_message` | The session, via the Gmail connector | Inbox | Yes, if the Routine is granted the Gmail connector. Heavier. Fallback only. |
 
-Recommendation: the issue comment is the record and always happens.
-The Routine push is the immediate signal. Test `PushNotification` from
-a fired session before relying on it. Do not use Gmail unless the two
-above prove insufficient.
+Decision: the issue comment plus `supervisor` label is the record and
+always happens. The Routine push is the immediate signal. Test
+`PushNotification` from a fired session anyway (step 1 below), since
+it is cheap to check and useful if it turns out to work. Gmail stays
+out of scope unless the two above prove insufficient.
 
 ## Steps
 
@@ -182,7 +179,7 @@ above prove insufficient.
    summary. Record what reaches Jim's phone and from which channel.
    Cost: one short session.
 2. **Labels.** Create the four labels on `claude-plugins`.
-3. **Briefing.** Write `docs/maintainer-run.md` on `main`. Lint it.
+3. **Briefing.** Write `MAINTAINER-RUN.md` on `planning`. Lint it.
 4. **Routine.** Create the hourly Routine in the `Default`
    environment, `push: true`, prompt as above. Off-minute cron.
    Cadence and hours are Jim's call (see open questions).
@@ -190,20 +187,19 @@ above prove insufficient.
    one firing end to end. Read the task file and the issue thread it
    leaves.
 6. **Escalation dry run.** File an issue written to be ambiguous.
-   Confirm the `needs-jim` path and the push notification. Answer on
+   Confirm the `supervisor` path and the push notification. Answer on
    the issue. Confirm the resume path.
 7. **Iterate the briefing** from what those runs wrote. Then consider
    flipping to opt-out.
 
 ## Open questions
 
-For Jim, one at a time:
+Escalation channel is settled (see Decisions above). Remaining, for
+Jim, one at a time:
 
-1. Escalation channel: issue comment as the record, Routine push as
-   the signal. Agreed?
-2. Cadence: hourly, and whether to restrict to waking hours (UK).
-3. Model for the worker session.
-4. Whether to reuse the `tsk` mission and thread framework, or keep
+1. Cadence: hourly, and whether to restrict to waking hours (UK).
+2. Model for the worker session.
+3. Whether to reuse the `tsk` mission and thread framework, or keep
    this loop self-contained in `claude-plugins`.
-5. Whether `software-english` changes stay in scope for an unattended
+4. Whether `software-english` changes stay in scope for an unattended
    run, as they are for an attended one.

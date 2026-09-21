@@ -11,8 +11,10 @@ None.
 [tasks/future-self-maintaining-repo.md](tasks/future-self-maintaining-repo.md)
 (draft plan for an hourly Routine that takes a labelled issue in a
 fresh session, works it through the planning branch, releases, and
-escalates on the issue thread with a push notification; five open
-questions for Jim, escalation channel first), then
+escalates on the issue thread with a push notification; briefing now
+drafted as `MAINTAINER-RUN.md` on this branch; escalation label is
+`supervisor`, not `needs-jim`, per Jim; four open questions remain,
+cadence first), then
 [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
 list and what "layered"/"filtered" rules means), then

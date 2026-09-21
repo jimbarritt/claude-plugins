@@ -11,9 +11,11 @@ Purpose: let a session pick up where a previous session left off, when
 
 ```text
 planning/
-  README.md       - this file
-  STATE.md        - current status: what's in progress, what's next
-  tasks/          - one file per task or workstream, as needed
+  README.md            - this file
+  STATE.md             - current status: what's in progress, what's next
+  tasks/               - one file per task or workstream, as needed
+  MAINTAINER-RUN.md     - briefing for an unattended maintainer session
+                          (see tasks/future-self-maintaining-repo.md)
 ```
 
 ## Rules
