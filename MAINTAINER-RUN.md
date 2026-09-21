@@ -1,11 +1,10 @@
 # Maintainer run briefing
 
 This file is the briefing for an unattended session that fires from
-the self-maintaining-repo Routine. Draft only: the Routine described
-in [tasks/future-self-maintaining-repo.md](tasks/future-self-maintaining-repo.md)
-does not exist yet, so nothing calls this file today. Update this
-file directly whenever that design changes, so the two stay
-consistent.
+the self-maintaining-repo Routine, described in
+[tasks/future-self-maintaining-repo.md](tasks/future-self-maintaining-repo.md).
+Update this file directly whenever that design changes, so the two
+stay consistent.
 
 This file is committed to `planning`, not to `main`, because it is
 process, not shipped product. A change to it is never a plugin
@@ -27,13 +26,16 @@ change and never needs a version bump or a release.
 
 ## Steps
 
-1. **Bootstrap.** Clone `claude-plugins`. Add the `planning` worktree
-   and read this file and `ALLOWLIST.md` from there. Read `CLAUDE.md`
-   on `main`. Call `list_repository_collaborators` on
-   `jimbarritt/claude-plugins` once. The trusted set for this run is
-   every login that call returns, plus every login in
-   `ALLOWLIST.md`, matched case-insensitively; do not fetch either
-   again this run.
+1. **Bootstrap.** Call `add_repo` for `jimbarritt/claude-plugins`
+   with `access: "push"`, and for `jimbarritt/software-english` the
+   same way; a fresh session starts with neither repository in
+   scope, and every step below needs both. Clone `claude-plugins`.
+   Add the `planning` worktree and read this file and `ALLOWLIST.md`
+   from there. Read `CLAUDE.md` on `main`. Call
+   `list_repository_collaborators` on `jimbarritt/claude-plugins`
+   once. The trusted set for this run is every login that call
+   returns, plus every login in `ALLOWLIST.md`, matched
+   case-insensitively; do not fetch either again this run.
 2. **Claim an issue.** The oldest open issue with no `agent:working`
    label and no `agent:hold` label, that is either labelled
    `agent:go`, or opened by a trusted account. If an issue labelled
