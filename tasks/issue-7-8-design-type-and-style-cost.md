@@ -100,3 +100,49 @@ generating it from the TOML, is Jim's call.
 Done. `software-english` v0.0.4 released; `swe` v0.11.0 released with
 the pin bumped to it. Both issues closed with a comment recording what
 shipped. All five test suites pass against the new rule data.
+
+## Follow-up: the stale YAML catalogue, now generated
+
+Jim asked what "stale" meant, then asked for the file to be brought
+current. `software-english` v0.0.5.
+
+What it meant, measured:
+
+- `rules/core-rules.yaml` held 10 of the catalogue's 20 rules.
+  `no-em-dash` was among the missing ten.
+- It cited SPEC §7.6 for `document-type-template`. The TOML and SPEC
+  both place that rule at §7.8, so the section had been renumbered
+  without the YAML following.
+- Its header claimed the reference implementation hardcoded the rules
+  in Python "rather than parsing this file directly", which stopped
+  being true once the plugin began parsing the TOML, and named
+  `claude-plugins/software-english-lint/`, a path that stopped
+  existing at the v0.5.0 rename.
+- Both files declared version `"0.1"`, so nothing signalled the
+  disagreement.
+- Nothing in either repository reads the YAML. The TOML is read by
+  eight files.
+
+Brought current by generating it rather than by hand:
+`scripts/generate-rules-yaml.py` writes the YAML from the TOML, and
+`.github/workflows/check-rules-yaml.yml` runs its `--check` mode on
+every push and pull request, so a TOML edit committed without
+regenerating fails there. Green on its first run. Standard library
+only, matching the repository's lack of dependencies. SPEC Appendix A
+now states which file is the catalogue and which is generated.
+
+The round-trip check caught a real fault straight away.
+`textwrap.wrap` breaks on hyphens by default, so the first generated
+file folded `learning-oriented` into `learning- oriented`, and
+likewise `load-bearing` and `inference-based`. Three rule descriptions
+were corrupted in a way that reads as ordinary prose, and only a
+field-for-field comparison against the TOML showed it. The generator
+now wraps with `break_on_hyphens` and `break_long_words` off, and the
+two files parse to identical data, rule order and exemptions
+included.
+
+No `swe` release followed. The plugin fetches `rules/core-rules.toml`
+and `vocabulary/*.tsv`, and `git diff v0.0.4 v0.0.5` over exactly
+those paths is empty, so the pin stays at v0.0.4 and a bump would
+carry no change. Deleting the YAML remains available: nothing reads
+it, and generating it costs one script.

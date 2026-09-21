@@ -18,6 +18,16 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- `software-english` v0.0.5: `rules/core-rules.yaml` is now generated
+  from `core-rules.toml` by `scripts/generate-rules-yaml.py`, with CI
+  checking it stays generated. It had drifted to 10 of 20 rules, a
+  section reference the TOML had moved, and a header describing an
+  implementation that changed at v0.5.0. The round-trip check caught
+  the generator folding `learning-oriented` into `learning- oriented`
+  on its first run, which would have corrupted three rule descriptions
+  invisibly. No `swe` release: nothing the plugin fetches differs
+  between v0.0.4 and v0.0.5, so the pin stays put. Full record in
+  [tasks/issue-7-8-design-type-and-style-cost.md](tasks/issue-7-8-design-type-and-style-cost.md).
 - [tasks/issue-7-8-design-type-and-style-cost.md](tasks/issue-7-8-design-type-and-style-cost.md)
   ([#7](https://github.com/jimbarritt/claude-plugins/issues/7),
   [#8](https://github.com/jimbarritt/claude-plugins/issues/8)): two
