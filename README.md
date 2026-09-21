@@ -16,8 +16,8 @@ planning/
   tasks/               - one file per task or workstream, as needed
   MAINTAINER-RUN.md     - briefing for an unattended maintainer session
                           (see tasks/future-self-maintaining-repo.md)
-  ALLOWLIST.md          - GitHub accounts the maintainer session
-                          auto-processes issues from
+  ALLOWLIST.md          - GitHub accounts trusted without push
+                          access, an overlay on the collaborator list
 ```
 
 ## Rules

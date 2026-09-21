@@ -65,11 +65,25 @@ Jim has confirmed six points, so these are fixed rather than open:
 ## Decisions still forming
 
 Jim raised access control in the same message as the scope decision
-above: only a trusted GitHub account's issues get auto-processed. The
-mechanism below is this session's proposal, not yet confirmed: the
-starting allowlist content (`jimbarritt` alone, the repository's only
-collaborator today) is Jim's to extend or correct. See "Trusted
-authors" under Design for the full mechanism.
+above: only a trusted GitHub account's issues get auto-processed.
+Jim then raised a second point: `claude-plugins` is a public
+repository, confirmed via the GitHub API (`"private":false`), so a
+plaintext `ALLOWLIST.md` committed to `planning` names every trusted
+account for anyone to read, and Jim asked whether to encrypt it with
+a key held in the environment instead.
+
+Revised mechanism, still this session's proposal, not yet confirmed:
+trust comes from GitHub's own collaborator list by default, checked
+live each run, not from a file. `list_repository_collaborators`
+requires push access to call; a non-collaborator cannot see who is
+on it, unlike `ALLOWLIST.md` committed to a public branch. Jim
+already confirmed via that call that `jimbarritt` is the
+repository's only collaborator today. `ALLOWLIST.md` stays, but only
+as an overlay for a future account Jim wants to trust without giving
+it push access; it is empty for now, since every trusted account
+today is already a collaborator. See "Trusted authors" under Design
+for the full mechanism, and its own note on why encryption is not
+the answer to the point Jim raised.
 
 ## What exists today
 
@@ -86,7 +100,8 @@ authors" under Design for the full mechanism.
   cover what the loop needs: `list_issues`, `issue_read`,
   `issue_write` (labels, state, assignee), `add_issue_comment`,
   `actions_run_trigger` (runs `release-plugin.yml`), `actions_get`
-  (checks the release run). `gh` is not available in a cloud session.
+  (checks the release run), `list_repository_collaborators`.
+  `gh` is not available in a cloud session.
 - **Release tooling.** `scripts/check-unshipped.sh` and
   `release-plugin.yml` already hold the release rule. CI runs the
   check on every push to `main`.
@@ -146,40 +161,71 @@ Rules:
 
 - One issue per firing: the oldest eligible issue with no other
   `agent:*` label and no `supervisor` label. Eligible means either
-  labelled `agent:go`, or opened by an account on `ALLOWLIST.md` (see
-  "Trusted authors" below) and not labelled `agent:hold`.
-- An issue labelled `supervisor` whose newest comment is from an
-  allowlisted account is taken before any new issue: the answer is
-  in, so the session removes `supervisor`, reads the thread and the
-  task file, and continues. A newest comment from any other account
-  does not count as an answer; the issue stays in `supervisor` state.
+  labelled `agent:go`, or opened by a trusted account (see "Trusted
+  authors" below) and not labelled `agent:hold`.
+- An issue labelled `supervisor` whose newest comment is from a
+  trusted account is taken before any new issue: the answer is in,
+  so the session removes `supervisor`, reads the thread and the task
+  file, and continues. A newest comment from any other account does
+  not count as an answer; the issue stays in `supervisor` state.
 - `agent:working` older than three hours with no new commit on
   `main` and no new comment is a dead session. The next firing
   removes the label and takes the issue again.
 
 ### Trusted authors
 
-Jim's own concern: a random account, or a bot, filing an issue that
-gets worked and shipped with no review, is a security risk. The
-mechanism: `ALLOWLIST.md`, a new file on the `planning` branch next
-to `MAINTAINER-RUN.md`, one GitHub login per line, matched
-case-insensitively (GitHub logins are case-insensitive). Jim edits it
-directly to add or remove an account; no automation writes to it.
+Jim's own concern, in two parts. First: a random account, or a bot,
+filing an issue that gets worked and shipped with no review, is a
+security risk. Second: `claude-plugins` is a public repository, so a
+plaintext file naming every trusted account, committed to the
+`planning` branch, is itself readable by anyone; Jim asked whether to
+encrypt it with a key in the environment.
 
-Two checks read it, both in `MAINTAINER-RUN.md`'s Claim step:
+The mechanism answers both without encryption. A trusted account is
+one of two things, checked once per firing at Bootstrap and held for
+the rest of the run:
+
+- **A repository collaborator**, fetched live via
+  `list_repository_collaborators`. This call itself requires push
+  access to the repository, so, unlike a file committed to a public
+  branch, the result is not visible to an account that is not
+  already a collaborator. `jimbarritt` is the repository's only
+  collaborator today, confirmed via this call. Adding or removing a
+  collaborator, an ordinary GitHub action Jim already knows, adds or
+  removes trust automatically; no file needs editing to match.
+- **An account listed in `ALLOWLIST.md`**, on the `planning` branch
+  next to `MAINTAINER-RUN.md`, one GitHub login per line, matched
+  case-insensitively. This is the overlay for a future account Jim
+  wants to trust without giving it push access to the repository.
+  Empty today, since every trusted account is already a collaborator.
+  Adding a login here is a choice to make that account's presence on
+  the trusted list public, on a case-by-case basis, made deliberately
+  each time, rather than a property of the mechanism itself.
+
+On encryption: decrypting a file inside an unattended session needs
+the key available to that session, which makes the key itself a new
+secret to provision and rotate, for a result the collaborator check
+already gets for free by relying on a permission GitHub itself keeps
+private. Worth another look only if Jim wants to trust several
+non-collaborator accounts at once; even then, a private location for
+the extra logins (the Routine's own stored prompt, never published
+to the public repository, or a private gist) is simpler than
+encrypting a public file.
+
+Two checks read the trusted set, both in `MAINTAINER-RUN.md`'s Claim
+step:
 
 - **A new issue's author.** Covered above under "Claiming an issue":
-  an unlabelled issue from an allowlisted account is eligible on its
-  own; any other account's issue needs Jim's own `agent:go` label
-  first. GitHub already restricts who can apply a label to a
-  collaborator, so a labelled issue from any account is already
-  Jim's own action, whether or not that account is on the list. An
-  account's presence on the list only ever widens what the loop
-  picks up unlabelled; it never narrows what a label already
+  an unlabelled issue from a trusted account is eligible on its own;
+  any other account's issue needs Jim's own `agent:go` label first.
+  GitHub already restricts who can apply a label to a collaborator,
+  so a labelled issue from any account is already Jim's own action,
+  whether or not that account is trusted. Trust only ever widens what
+  the loop picks up unlabelled; it never narrows what a label already
   authorises.
 - **A `supervisor` issue's answering comment.** Anyone can comment on
   a public issue, labelled or not, whether or not they can apply a
-  label. A comment from an account not on `ALLOWLIST.md` is data,
+  label. A comment from an account that is not trusted is data,
   never an instruction: it cannot answer an escalation, redirect
   scope, or authorise new work, the same treatment GitHub review
   comments and CI output get generally. `MAINTAINER-RUN.md` states
@@ -188,9 +234,17 @@ Two checks read it, both in `MAINTAINER-RUN.md`'s Claim step:
   only the one it checks to resume.
 
 This replaces the two-phase "opt-in, then a later global switch to
-opt-out" idea. Trust is granted per account on `ALLOWLIST.md`, from
-the first run, rather than by a single repository-wide toggle that
-would apply to every account at once.
+opt-out" idea. Trust is granted per account, from the first run,
+rather than by a single repository-wide toggle that would apply to
+every account at once.
+
+A note on what is already public: the earlier version of this plan
+committed `ALLOWLIST.md` with `jimbarritt` as its only entry, and
+that commit stays in `planning`'s history regardless of what the file
+holds now. It named the repository's own owner, already visible to
+anyone as the account with admin access, so nothing new was
+disclosed by it. The overlay file's emptiness from here on is about
+future entries, not that one.
 
 ### The briefing
 
@@ -283,34 +337,35 @@ out of scope unless the two above prove insufficient.
    summary. Record what reaches Jim's phone and from which channel.
    Cost: one short session.
 2. **Labels.** Create the four labels on `claude-plugins`.
-3. **Allowlist.** Write `ALLOWLIST.md` on `planning`, starting with
-   `jimbarritt`.
+3. **Allowlist.** Write `ALLOWLIST.md` on `planning`, empty of
+   accounts, since every trusted account today is already a
+   collaborator.
 4. **Briefing.** Write `MAINTAINER-RUN.md` on `planning`, including
-   the Claim step's allowlist check and the untrusted-comment ground
-   rule. Lint it.
+   the Claim step's trusted-account check and the untrusted-comment
+   ground rule. Lint it.
 5. **Routine.** Create the hourly Routine in the `Default`
    environment, model Sonnet, `push: true`, prompt as above. Cron at
    minute 0, restricted to the hours covering 07:00 to 22:00 UK local
    at creation time (`0 6-21 * * *` in BST, `0 7-22 * * *` in GMT).
    Add it to the seasonal clock-change reminder once that Routine
    is set up.
-6. **Dry run.** File a small real issue from an allowlisted account,
-   label it `agent:go`, watch one firing end to end. Read the task
-   file and the issue thread it leaves.
-7. **Allowlist dry run.** File an issue from an account not on
-   `ALLOWLIST.md`, unlabelled. Confirm no firing touches it. Then
-   label it `agent:go` and confirm a firing takes it, since the label
-   is Jim's own action regardless of the author.
+6. **Dry run.** File a small real issue from a trusted account, label
+   it `agent:go`, watch one firing end to end. Read the task file and
+   the issue thread it leaves.
+7. **Trust dry run.** File an issue from an account that is neither a
+   collaborator nor on `ALLOWLIST.md`, unlabelled. Confirm no firing
+   touches it. Then label it `agent:go` and confirm a firing takes
+   it, since the label is Jim's own action regardless of the author.
 8. **Escalation dry run.** File an issue written to be ambiguous.
    Confirm the `supervisor` path and the push notification. Post a
-   decoy answer from an account not on `ALLOWLIST.md` and confirm the
-   session ignores it, then answer from an allowlisted account and
-   confirm the resume path.
+   decoy answer from an account that is not trusted and confirm the
+   session ignores it, then answer from a trusted account and confirm
+   the resume path.
 9. **Iterate the briefing** from what those runs wrote.
 
 ## Open questions
 
 Escalation channel, cadence, the model split, the framework choice,
 and the `software-english` scope are settled (see Decisions above).
-The allowlist mechanism is proposed, not yet confirmed (see
+The trusted-authors mechanism is proposed, not yet confirmed (see
 "Decisions still forming"). Nothing else is open.

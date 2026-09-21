@@ -18,8 +18,11 @@ drafted as `MAINTAINER-RUN.md` on this branch; escalation label is
 an Opus subagent for issue analysis and planning; stays
 self-contained in `claude-plugins` rather than building on `tsk`,
 which is not bootstrapped yet; `software-english` changes stay in
-scope; new `ALLOWLIST.md` on this branch gates which GitHub accounts
-the loop auto-processes, proposed but not yet confirmed by Jim; no
+scope; trust comes from GitHub's own collaborator list, checked live
+each run, since `claude-plugins` is public and a committed allowlist
+file would name every trusted account for anyone to read;
+`ALLOWLIST.md` on this branch is now an empty overlay for a future
+non-collaborator account, proposed but not yet confirmed by Jim; no
 other open question remains), then
 [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type

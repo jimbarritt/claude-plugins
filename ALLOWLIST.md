@@ -1,21 +1,25 @@
-# Trusted authors
+# Trusted authors: overlay
 
-Accounts whose issues the self-maintaining-repo Routine (see
+The self-maintaining-repo Routine (see
 [tasks/future-self-maintaining-repo.md](tasks/future-self-maintaining-repo.md))
-picks up without a `agent:go` label. Draft only, same as the Routine
-itself: nothing reads this file yet.
+treats every `jimbarritt/claude-plugins` collaborator as trusted by
+default, checked each run via `list_repository_collaborators`,
+which itself requires push access to call. This file is the overlay:
+an account listed here is trusted without holding push access to the
+repository.
 
-`MAINTAINER-RUN.md`'s Claim step reads this list twice: to decide
-whether an unlabelled issue is eligible, and to decide whether a
-comment on a `supervisor`-labelled issue counts as an answer. A
-label on any account's issue already comes from Jim, since GitHub
-restricts who can apply one, so this list only ever widens what the
-loop picks up unlabelled. It never narrows what a label already
-authorises. Match each login case-insensitively.
+Empty today. Every trusted account is already a collaborator, so
+nothing needs adding. Add a login here only for an account Jim wants
+to trust without granting it push access, one per line, matched
+case-insensitively. `claude-plugins` is a public repository, so an
+entry here is visible to anyone who reads this branch; weigh that
+before adding one, and prefer a private location (the Routine's own
+stored prompt, never published to the repository, or a private gist)
+if Jim wants an entry to stay unpublished.
 
 Jim edits this file directly to add or remove an account. No
 automation writes to it.
 
 ## Accounts
 
-- jimbarritt
+None listed.
