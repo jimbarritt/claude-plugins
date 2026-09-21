@@ -18,3 +18,4 @@
 | [future-precommit-lint-gate.md](future-precommit-lint-gate.md) | none filed yet | Done — shipped on `main`, released as `swe-v0.10.0` |
 | [issue-lint-file-invisible-copilot.md](issue-lint-file-invisible-copilot.md) | none filed yet | Done — shipped on `main`, released as `swe-v0.10.1` |
 | [issue-7-8-design-type-and-style-cost.md](issue-7-8-design-type-and-style-cost.md) | [claude-plugins#7](https://github.com/jimbarritt/claude-plugins/issues/7), [#8](https://github.com/jimbarritt/claude-plugins/issues/8) | Done — shipped on `main`, released as `swe-v0.11.0` and `software-english` `v0.0.4`, both issues closed |
+| [future-self-maintaining-repo.md](future-self-maintaining-repo.md) | none filed yet | Draft plan written, not agreed, not started |
