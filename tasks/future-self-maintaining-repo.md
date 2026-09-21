@@ -319,16 +319,15 @@ The table below is the full assessment behind that choice.
 
 | Channel | Who sends it | Reaches | Under the session's control? |
 |---|---|---|---|
-| Routine `push: true` | The platform, on run finish | Phone | Partly. The session writes the summary. The platform decides whether the run counts as noteworthy. |
-| `PushNotification` tool | The session | Terminal, and phone via Remote Control | Yes, but a Routine-fired session has no terminal and no Remote Control. Untested there. |
+| Routine `push: true` | The platform, on run finish | Phone | Partly. The session writes the summary. The platform decides whether the run counts as noteworthy. Confirmed working on the first real run: reached Jim's phone and opened straight to the session in the iOS app. |
+| `PushNotification` tool | The session | Terminal, and phone via Remote Control | Yes, but a Routine-fired session has no terminal and no Remote Control. Not tested; the Routine `push` above already covers the same need. |
 | Issue comment + `supervisor` label + assign the supervisor | The session, via GitHub | GitHub notifications (email, app) | Yes. Durable. Attached to the issue. |
 | Gmail `send_message` | The session, via the Gmail connector | Inbox | Yes, if the Routine is granted the Gmail connector. Heavier. Fallback only. |
 
 Decision: the issue comment plus `supervisor` label is the record and
-always happens. The Routine push is the immediate signal. Test
-`PushNotification` from a fired session anyway (step 1 below), since
-it is cheap to check and useful if it turns out to work. Gmail stays
-out of scope unless the two above prove insufficient.
+always happens. The Routine push is the immediate signal, confirmed
+working. Gmail stays out of scope unless the two above prove
+insufficient.
 
 ## Steps
 
@@ -397,8 +396,10 @@ was never removed once the issue closed. `MAINTAINER-RUN.md`'s Close
 step now says to remove it either way; the stray label on issue #9
 was cleared by hand once found.
 
-Whether the push notification itself reached Jim's phone is still
-unconfirmed from this session's side; worth Jim's own read on that.
+Jim confirmed the push notification reached his phone and opened
+straight to the Routine session in the iOS app. That was the whole
+point of the notification channel, and it works from a real,
+Routine-fired session, not only from an interactive one.
 
 ## Open questions
 

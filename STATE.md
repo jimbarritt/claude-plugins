@@ -13,12 +13,13 @@ None.
 the empty `ALLOWLIST.md` overlay all exist on `claude-plugins` and
 `planning`; the first real issue, #9, went through the full loop end
 to end on 2026-09-21, single pass, no escalation, released as
-`swe-v0.11.1`; two gaps found and fixed along the way, a fresh
-Routine session needing `add_repo` for both repositories before
-anything else, and the `agent:working` label not being cleared on
-close; the two remaining dry runs, a non-collaborator author and a
-deliberate escalation, are deferred at Jim's direction, not run),
-then
+`swe-v0.11.1`; the push notification reached Jim's phone and opened
+straight to the session, confirmed; two gaps found and fixed along
+the way, a fresh Routine session needing `add_repo` for both
+repositories before anything else, and the `agent:working` label not
+being cleared on close; the two remaining dry runs, a non-collaborator
+author and a deliberate escalation, are deferred at Jim's direction,
+not run), then
 [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
 list and what "layered"/"filtered" rules means), then
