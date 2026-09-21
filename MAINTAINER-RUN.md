@@ -33,8 +33,11 @@ change and never needs a version bump or a release.
    work instead of starting new. If nothing qualifies, stop.
 3. **Claim it.** Label the issue `agent:working`. Comment naming this
    session.
-4. **Plan.** Write `tasks/issue-N-<slug>.md` on `planning`: the ask
-   verbatim, your reading of it, the plan. Update `STATE.md`'s "In
+4. **Plan.** Dispatch a subagent on Opus (`Agent` tool,
+   `subagent_type: "Plan"`, `model: "opus"`) with the issue text and
+   the surrounding code, to read it and return a plan. Write
+   `tasks/issue-N-<slug>.md` on `planning` from what it returns: the
+   ask verbatim, your reading of it, the plan. Update `STATE.md`'s "In
    progress". Push `planning`.
 5. **Work.** Do the work on `main`. Run the test suites. Run
    `/swe:lint-file` on every prose file touched. Run

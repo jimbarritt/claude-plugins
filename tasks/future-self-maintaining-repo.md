@@ -42,6 +42,13 @@ Jim has confirmed three points, so these are fixed rather than open:
   four other Routines each clock change; add this one to that list
   once it exists, rather than leaving it to drift out of step with UK
   local time.
+- Model split: the Routine's own session runs on Sonnet. For step 4
+  (Plan), it dispatches a subagent on Opus, via the `Agent` tool's
+  `model` parameter, to read the issue and the surrounding code and
+  return a plan. The Sonnet session writes the task file from that
+  plan and does every other step itself: claiming, implementing,
+  testing, shipping, releasing, reporting. See "Model split" under
+  Design for the reasoning.
 
 ## What exists today
 
@@ -71,6 +78,13 @@ Jim has confirmed three points, so these are fixed rather than open:
   The Routine's own `push` notification is sent by the platform when
   a run finishes "with something noteworthy", built from the run's
   final summary.
+- **The `Agent` tool's model override.** A session can dispatch a
+  subagent on a named model, independent of the model the session
+  itself runs on. `subagent_type: "Plan"` is a software-architect
+  agent built for exactly this: it returns a step-by-step plan,
+  names the files a change touches, and weighs the trade-offs,
+  without editing anything itself (it has no `Edit`, `Write`, or
+  `Agent` tool).
 
 ## Design
 
@@ -138,6 +152,28 @@ one-line summary the Routine push is built from. Update
 `MAINTAINER-RUN.md` directly as the design changes rather than
 editing this summary out of step with it.
 
+### Model split
+
+Jim asked whether the Routine's session can run on Sonnet and dispatch
+an Opus subagent for analysis and planning. It can, through the
+`Agent` tool's `model` parameter, and the split matches the two kinds
+of work in this loop:
+
+- **Analysis and planning need judgement**: reading an ambiguous
+  issue, weighing two designs, deciding what the task file should
+  say. Opus, via `subagent_type: "Plan"`, does this step. It returns
+  a plan; it does not touch a file.
+- **Everything else is mechanical**: writing the task file from that
+  plan, editing code, running tests, running the linter, bumping a
+  version, pushing, running the release workflow, commenting on the
+  issue, updating labels. The Routine's own session does this on
+  Sonnet, the same way the prior eight issues on this repository were
+  done by hand.
+
+This keeps the expensive model on the one step that needs it and the
+cheaper model on the rest, at the cost of one extra dispatch per
+issue. `MAINTAINER-RUN.md`'s Plan step carries the instruction.
+
 ### Escalation
 
 The session is stuck when one of these holds:
@@ -192,9 +228,9 @@ out of scope unless the two above prove insufficient.
 2. **Labels.** Create the four labels on `claude-plugins`.
 3. **Briefing.** Write `MAINTAINER-RUN.md` on `planning`. Lint it.
 4. **Routine.** Create the hourly Routine in the `Default`
-   environment, `push: true`, prompt as above. Cron at minute 0,
-   restricted to the hours covering 07:00 to 22:00 UK local at
-   creation time (`0 6-21 * * *` in BST, `0 7-22 * * *` in GMT).
+   environment, model Sonnet, `push: true`, prompt as above. Cron at
+   minute 0, restricted to the hours covering 07:00 to 22:00 UK local
+   at creation time (`0 6-21 * * *` in BST, `0 7-22 * * *` in GMT).
    Add it to the seasonal clock-change reminder once that Routine
    is set up.
 5. **Dry run.** File a small real issue, label it `agent:go`, watch
@@ -208,11 +244,10 @@ out of scope unless the two above prove insufficient.
 
 ## Open questions
 
-Escalation channel and cadence are settled (see Decisions above).
-Remaining, for Jim, one at a time:
+Escalation channel, cadence, and the model split are settled (see
+Decisions above). Remaining, for Jim, one at a time:
 
-1. Model for the worker session.
-2. Whether to reuse the `tsk` mission and thread framework, or keep
+1. Whether to reuse the `tsk` mission and thread framework, or keep
    this loop self-contained in `claude-plugins`.
-3. Whether `software-english` changes stay in scope for an unattended
+2. Whether `software-english` changes stay in scope for an unattended
    run, as they are for an attended one.
