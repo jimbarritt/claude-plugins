@@ -62,7 +62,9 @@ change and never needs a version bump or a release.
    Poll `actions_get` until it finishes. Treat a failed run as
    blocked work: go to Escalate.
 8. **Close the loop.** Comment on the issue: commit, release tag,
-   what changed. Close the issue if the commit didn't.
+   what changed. Close the issue if the commit didn't; either way,
+   remove the `agent:working` label so a closed issue does not read
+   as still claimed.
 9. **Record.** Update `STATE.md` and the task file with the outcome.
    Push `planning`.
 10. **Report.** End your final message with one line first:

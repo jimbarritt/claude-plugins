@@ -1,7 +1,9 @@
 # Future task: a self-maintaining repo
 
 No GitHub issue filed yet. Raised by Jim in conversation on 2026-09-21.
-Status: draft plan, not agreed, not started.
+Status: live. The Routine, the labels, and the briefing all exist,
+and the first real issue went through the loop end to end. The two
+remaining dry runs (steps 7 and 8) are deferred at Jim's direction.
 
 ## Ask
 
@@ -330,38 +332,73 @@ out of scope unless the two above prove insufficient.
 
 ## Steps
 
-1. **Notification experiment.** Create a one-shot Routine
-   (`run_once_at` a few minutes out, `create_new_session_on_fire`,
-   `notifications: {push: true}`). Prompt: call `PushNotification`
-   with a test message, report its result, end with a one-line
-   summary. Record what reaches Jim's phone and from which channel.
-   Cost: one short session.
-2. **Labels.** Create the four labels on `claude-plugins`.
-3. **Allowlist.** Write `ALLOWLIST.md` on `planning`, empty of
-   accounts, since every trusted account today is already a
-   collaborator.
-4. **Briefing.** Write `MAINTAINER-RUN.md` on `planning`, including
-   the Claim step's trusted-account check and the untrusted-comment
-   ground rule. Lint it.
-5. **Routine.** Create the hourly Routine in the `Default`
-   environment, model Sonnet, `push: true`, prompt as above. Cron at
-   minute 0, restricted to the hours covering 07:00 to 22:00 UK local
-   at creation time (`0 6-21 * * *` in BST, `0 7-22 * * *` in GMT).
-   Add it to the seasonal clock-change reminder once that Routine
-   is set up.
-6. **Dry run.** File a small real issue from a trusted account, label
-   it `agent:go`, watch one firing end to end. Read the task file and
-   the issue thread it leaves.
-7. **Trust dry run.** File an issue from an account that is neither a
-   collaborator nor on `ALLOWLIST.md`, unlabelled. Confirm no firing
-   touches it. Then label it `agent:go` and confirm a firing takes
-   it, since the label is Jim's own action regardless of the author.
-8. **Escalation dry run.** File an issue written to be ambiguous.
-   Confirm the `supervisor` path and the push notification. Post a
-   decoy answer from an account that is not trusted and confirm the
-   session ignores it, then answer from a trusted account and confirm
-   the resume path.
-9. **Iterate the briefing** from what those runs wrote.
+1. ~~**Notification experiment.**~~ Skipped: the real dry run below
+   (step 6) carries `notifications: {push: true}` too, so it tests
+   the same thing at less cost than a separate throwaway session.
+2. **Labels.** Done. `agent:go`, `agent:working`, `supervisor`, and
+   `agent:hold` all exist on `claude-plugins`. No dedicated
+   create-label tool exists in this session's toolset; GitHub creates
+   a label the first time `issue_write` applies an unrecognised name,
+   so each was created that way, then the three not meant to sit on
+   the test issue were removed from it again.
+3. **Allowlist.** Done. `ALLOWLIST.md` on `planning`, empty.
+4. **Briefing.** Done. `MAINTAINER-RUN.md` on `planning`.
+5. **Routine.** Done, with one correction along the way. Created in
+   the `Default` environment, `push: true`, cron `0 6-21 * * *` (BST
+   in effect today), model set to Sonnet via `update_trigger` after
+   creation, since `create_trigger` has no `model` parameter of its
+   own. The first real firing (see step 6) found that a Routine-fired
+   session starts with neither repository in its scope, so every
+   GitHub call in `MAINTAINER-RUN.md` would have been denied; fixed
+   by adding explicit `add_repo` calls to its Bootstrap step. Jim
+   separately attached both repositories to the Routine itself
+   through the claude.ai Routines UI, which now shows them as fixed
+   `sources` on every fire; the two fixes overlap in effect, and
+   either alone would have been enough.
+6. **Dry run.** Done, and it is the first real issue the Routine has
+   worked. See "First real run" below for the full account.
+7. **Trust dry run.** Not done. Needs a second, non-collaborator
+   GitHub identity to author a real test issue from; deferred at
+   Jim's direction (2026-09-21) rather than fabricated.
+8. **Escalation dry run.** Not done, deferred alongside step 7.
+9. **Iterate the briefing.** Done once already, from what step 6
+   showed (see below); further iteration waits on steps 7 and 8.
+
+### First real run
+
+Fired early via `fire_trigger` against a real, purpose-written test
+issue ([#9](https://github.com/jimbarritt/claude-plugins/issues/9):
+document the Routine itself in `swe/README.md`, documentation only,
+inside `swe/` so the run would genuinely exercise a version bump and
+a release), rather than waiting for the schedule. Two firings:
+
+- **First firing**, before the repository-access fixes above: ended
+  idle without ever touching the issue. No `agent:working` label, no
+  comment. Consistent with every GitHub call being denied at the
+  first attempt.
+- **Second firing**, after both fixes: worked end to end, single
+  pass, no escalation. Claimed the issue with a comment naming the
+  session. Dispatched the Opus Plan subagent, which read the existing
+  README's structure and proposed a placement, a heading, and draft
+  prose; wrote
+  [`tasks/issue-9-document-routine-in-readme.md`](https://github.com/jimbarritt/claude-plugins/blob/planning/tasks/issue-9-document-routine-in-readme.md)
+  on `planning` from that plan. Edited `swe/README.md`, bumped
+  `swe`'s version `0.11.0` -> `0.11.1`, committed and pushed straight
+  to `main` (confirmed: the commit landed on `main` itself, not on
+  the auto-generated outcome branch the session's config also
+  carried). Ran `release-plugin.yml`; it succeeded, tag `swe-v0.11.1`.
+  Commented on the issue with the commit, the release tag, and a
+  link to the task file; the commit's own `closes #9` trailer closed
+  the issue. Updated `STATE.md`'s "Recently done". `check-unshipped.sh`
+  confirmed clean afterward.
+
+One gap found in this run, not a blocker: the `agent:working` label
+was never removed once the issue closed. `MAINTAINER-RUN.md`'s Close
+step now says to remove it either way; the stray label on issue #9
+was cleared by hand once found.
+
+Whether the push notification itself reached Jim's phone is still
+unconfirmed from this session's side; worth Jim's own read on that.
 
 ## Open questions
 

@@ -9,21 +9,16 @@ None.
 ## Next
 
 [tasks/future-self-maintaining-repo.md](tasks/future-self-maintaining-repo.md)
-(draft plan for an hourly Routine that takes a labelled issue in a
-fresh session, works it through the planning branch, releases, and
-escalates on the issue thread with a push notification; briefing now
-drafted as `MAINTAINER-RUN.md` on this branch; escalation label is
-`supervisor`, not `needs-jim`; cadence settled at hourly, 07:00 to
-22:00 UK local; the Routine's session runs on Sonnet and dispatches
-an Opus subagent for issue analysis and planning; stays
-self-contained in `claude-plugins` rather than building on `tsk`,
-which is not bootstrapped yet; `software-english` changes stay in
-scope; trust comes from GitHub's own collaborator list, checked live
-each run, since `claude-plugins` is public and a committed allowlist
-file would name every trusted account for anyone to read;
-`ALLOWLIST.md` on this branch is now an empty overlay for a future
-non-collaborator account, proposed but not yet confirmed by Jim; no
-other open question remains), then
+(live: the hourly Routine, the four labels, `MAINTAINER-RUN.md`, and
+the empty `ALLOWLIST.md` overlay all exist on `claude-plugins` and
+`planning`; the first real issue, #9, went through the full loop end
+to end on 2026-09-21, single pass, no escalation, released as
+`swe-v0.11.1`; two gaps found and fixed along the way, a fresh
+Routine session needing `add_repo` for both repositories before
+anything else, and the `agent:working` label not being cleared on
+close; the two remaining dry runs, a non-collaborator author and a
+deliberate escalation, are deferred at Jim's direction, not run),
+then
 [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
 list and what "layered"/"filtered" rules means), then
