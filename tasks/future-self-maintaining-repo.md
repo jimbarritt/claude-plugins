@@ -49,6 +49,13 @@ Jim has confirmed three points, so these are fixed rather than open:
   plan and does every other step itself: claiming, implementing,
   testing, shipping, releasing, reporting. See "Model split" under
   Design for the reasoning.
+- Framework: this loop stays self-contained in `claude-plugins`, not
+  built on the `tsk` mission and thread framework. `tsk` is not
+  bootstrapped yet. Once it is, installing `tsk` here is expected to
+  cover the same ground (a standing thread, a mission file, a
+  supervisor escalation path) without this loop's own labels,
+  `MAINTAINER-RUN.md`, and claim rules; reassessing that switch is a
+  later task, not part of this one.
 
 ## What exists today
 
@@ -244,10 +251,8 @@ out of scope unless the two above prove insufficient.
 
 ## Open questions
 
-Escalation channel, cadence, and the model split are settled (see
-Decisions above). Remaining, for Jim, one at a time:
+Escalation channel, cadence, the model split, and the framework
+choice are settled (see Decisions above). Remaining, for Jim:
 
-1. Whether to reuse the `tsk` mission and thread framework, or keep
-   this loop self-contained in `claude-plugins`.
-2. Whether `software-english` changes stay in scope for an unattended
+1. Whether `software-english` changes stay in scope for an unattended
    run, as they are for an attended one.

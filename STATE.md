@@ -15,8 +15,10 @@ escalates on the issue thread with a push notification; briefing now
 drafted as `MAINTAINER-RUN.md` on this branch; escalation label is
 `supervisor`, not `needs-jim`; cadence settled at hourly, 07:00 to
 22:00 UK local; the Routine's session runs on Sonnet and dispatches
-an Opus subagent for issue analysis and planning; two open questions
-remain, the `tsk` framework question first), then
+an Opus subagent for issue analysis and planning; stays
+self-contained in `claude-plugins` rather than building on `tsk`,
+which is not bootstrapped yet; one open question remains, whether
+`software-english` changes stay in scope for an unattended run), then
 [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
 list and what "layered"/"filtered" rules means), then
