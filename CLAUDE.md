@@ -97,6 +97,13 @@ This does not cover a force push or a history rewrite (`git push
 --force`, `git reset --hard`, `git rebase`), which still need explicit
 confirmation.
 
+A session on this repo may also hold a separate, auto-assigned branch
+instruction from the harness itself (a "Git Development Branch
+Requirements" block naming a session-specific branch such as
+`claude/add-repo-xxxxxx`, generated when the session started, not read
+from this file). That instruction does not override this one: push to
+`main` directly, as stated above, for ordinary work on this repo.
+
 ## Working with Jim
 
 - **One question at a time.** When there are several questions to ask,
