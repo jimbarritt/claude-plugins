@@ -183,15 +183,22 @@ Findings that shape the design:
   2026-09-22. A draft shape exists (topic, key, schema subject and
   version, CloudEvents headers, the Avro value rendered as JSON), and
   whether the headers are CloudEvents or plain Kafka is unanswered.
-- Where "goals and non-goals" comes from. `templates/design.md` cites
-  Ubl, "Design Docs at Google" (2020), for the five sections it takes.
-  The Kubernetes KEP template holds the same pair, verified
-  2026-09-22, and cites no source. The egress proxy blocked the Ubl
-  post, so nothing beyond that is established. Jim's own web research
-  agent takes this; no work needed here.
-  Note for the template: Ubl's definition, as cached, is the strict
-  one (a non-goal could reasonably have been a goal); the KEP
-  definition is anything out of scope.
+- ~~Where "goals and non-goals" comes from.~~ Resolved. Jim's own
+  research confirms it: a Google convention (Ubl, "Design Docs at
+  Google"), no formal spec, no earlier unrelated use found, copied
+  directly into other companies' templates (Squarespace's RFC
+  template). An IETF-charter lead was ruled out: RFC 1603/2418
+  require "Goals and milestones", a timetabled deliverable list, not
+  a Goals/Non-Goals pair. Recorded as
+  `docs/kb/goals-and-non-goals-origin.md` in `software-english`, on
+  `main` at
+  [`b2d2b2c`](https://github.com/jimbarritt/software-english/commit/b2d2b2c),
+  which also adds the `docs/kb/` directory for research notes
+  backing a spec or template decision.
+  Recommendation in that note, for the API Design type to consider:
+  keep both headings, but require each Goal to state its own success
+  criterion, not only its aim (the Kubernetes KEP fix), since a bare
+  list of aims reads informally otherwise.
 - Whether the request/response format needs its own rules in
   `core-rules.toml`, or only the template file.
 
