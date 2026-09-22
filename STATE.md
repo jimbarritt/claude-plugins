@@ -2,21 +2,27 @@
 
 Last updated: 2026-09-22
 
+## Next task — start here
+
+[tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md):
+a new API Design document type for `software-english`, a
+specialisation of Design. Scoping is done: deliverable, scope (HTTP
+and Kafka/Avro messages), the seven-section structure, both example
+formats (raw-HTTP and the Kafka/Avro message shape), the schema
+notation (TypeScript `type` aliases, recorded as ADR 1 on
+`software-english`), and the goals/non-goals origin (a KB note on
+`software-english`) are all decided and pushed. Whether the
+request/response format needs its own lint rule folded into
+[future-lint-document-profiles.md](future-lint-document-profiles.md)
+below. The task file's own "Next steps" section has the concrete
+checklist. Blocking step: Jim is filing a distilled worked example
+(a real API design of his) as a `claude-plugins` issue on
+2026-09-23, and will test the template against it directly, giving
+further feedback as GitHub issues. Check for that issue first.
+
 ## In progress
 
-[tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md)
-(new mission from Jim: a new API Design document type for
-`software-english`, a specialisation of Design. Scoping mostly done:
-deliverable, scope (HTTP and Kafka/Avro messages), the seven-section
-structure, both example formats (raw-HTTP and the Kafka/Avro
-message shape), the schema notation (TypeScript `type` aliases,
-recorded as ADR 1 on `software-english`), and the goals/non-goals
-origin (a KB note on `software-english`) are all decided and pushed.
-Whether the request/response format needs its own lint rule folded
-into
-[future-lint-document-profiles.md](future-lint-document-profiles.md)
-below. Waiting on Jim's distilled worked example, filed as a
-`claude-plugins` issue, before writing the template file itself).
+None.
 
 ## Next
 

@@ -1,8 +1,45 @@
 # Future task: API Design document type for software-english
 
+**This is the next task.** Start here.
+
 No GitHub issue filed. Raised by Jim in conversation, opening a new
 mission, separate from the `claude-plugins`/`software-english` work in
 progress.
+
+## Next steps (for the session that picks this up)
+
+1. Check `jimbarritt/claude-plugins` issues for Jim's worked example:
+   a distilled version of a real API design document of his,
+   including a request/response format he found worked well. He
+   plans to file it tomorrow (day after 2026-09-22) and test the
+   template against it directly, then give feedback as further GitHub
+   issues. If it is not there yet, ask before designing further.
+2. Write `templates/api-design.md` in `software-english` against the
+   draft structure below, using the worked example as the real test.
+   Follow the pattern the Design type used
+   (`templates/design.md`): a cached summary, canonical sources
+   listed up top, "Software English addition" called out
+   explicitly for anything not from a cited source (the structure
+   itself, the `type`-only rule, the examples-required rule, the two
+   example formats).
+3. Add an Appendix F row to `software-english/spec/SPEC.md`, citing
+   the canonical sources from the Research table below (RFC 9110/9112
+   for HTTP, Apache Avro and JSON Schema for schemas, OpenAPI and
+   AsyncAPI as cross-references, CloudEvents where used).
+4. Lint every new and touched file with
+   `python3 <claude-plugins>/swe/scripts/software_english_lint.py --quiet-vocab <files>`
+   before committing, the way every other change in this session did.
+5. Check whether the change needs a `software-english` version bump.
+   Precedent from the Design type addition
+   (`tasks/issue-7-8-design-type-and-style-cost.md`): the `swe`
+   plugin only fetches `rules/core-rules.toml` and `vocabulary/`, not
+   `templates/` or `SPEC.md`, so adding the template and the Appendix
+   F row alone may need no bump; a bump is needed only if
+   `core-rules.toml` itself changes (for example, a §7.9-style
+   exclusion naming the new type).
+6. Once Jim's real feedback comes in as further issues on
+   `claude-plugins`, treat each one as a normal issue against this
+   task, the same as any other.
 
 ## Ask
 
@@ -158,9 +195,11 @@ needs one or more canonical sources to cite.
 
 ## Status
 
-Scoping in progress. Research on candidate canonical sources done
-(below). Jim's direction: all of these are good references to include;
-OpenAPI as a cross-reference, not the structure.
+Scoping done. Deliverable, scope, the seven-section structure, both
+example formats, the schema notation, and the goals/non-goals
+question are all decided and recorded above. The only thing blocking
+writing `templates/api-design.md` itself is Jim's worked example,
+expected as a `claude-plugins` issue. See Next steps above.
 
 ## Research: candidate sources
 
