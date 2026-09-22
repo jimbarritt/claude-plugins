@@ -9,7 +9,7 @@
 | [future-inference-tier-rework.md](future-inference-tier-rework.md) | none filed yet | Done — shipped on `main` |
 | [future-lint-command.md](future-lint-command.md) | none filed yet | Done — shipped on `main` |
 | [future-plugin-rename.md](future-plugin-rename.md) | none filed yet | Done — shipped on `main` |
-| [future-lint-document-profiles.md](future-lint-document-profiles.md) | none filed yet | Idea captured only, not scoped |
+| [future-lint-document-profiles.md](future-lint-document-profiles.md) | none filed yet | Idea captured, not scoped; one concrete case added (API Design type's fenced content) |
 | [issue-4-feedback-tooling-gaps.md](issue-4-feedback-tooling-gaps.md) | [claude-plugins#4](https://github.com/jimbarritt/claude-plugins/issues/4) | Done — shipped on `main`, issue closed |
 | [issue-5-gh-session-scope-friction.md](issue-5-gh-session-scope-friction.md) | [claude-plugins#5](https://github.com/jimbarritt/claude-plugins/issues/5) | Scoped, not started — next up, in its own session |
 | [issue-6-stop-hook-delay.md](issue-6-stop-hook-delay.md) | [claude-plugins#6](https://github.com/jimbarritt/claude-plugins/issues/6) | Done — shipped on `main`, issue closed (resolved by removing the hook, not the proposed fix) |
@@ -19,4 +19,4 @@
 | [issue-lint-file-invisible-copilot.md](issue-lint-file-invisible-copilot.md) | none filed yet | Done — shipped on `main`, released as `swe-v0.10.1` |
 | [issue-7-8-design-type-and-style-cost.md](issue-7-8-design-type-and-style-cost.md) | [claude-plugins#7](https://github.com/jimbarritt/claude-plugins/issues/7), [#8](https://github.com/jimbarritt/claude-plugins/issues/8) | Done — shipped on `main`, released as `swe-v0.11.0` and `software-english` `v0.0.4`, both issues closed |
 | [future-self-maintaining-repo.md](future-self-maintaining-repo.md) | none filed yet | Draft plan written, not agreed, not started |
-| [future-api-design-doc-template.md](future-api-design-doc-template.md) | none filed yet | Idea captured only, not scoped |
+| [future-api-design-doc-template.md](future-api-design-doc-template.md) | none filed yet | Structure and notation decided; waiting on a worked example |

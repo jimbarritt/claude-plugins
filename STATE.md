@@ -5,10 +5,18 @@ Last updated: 2026-09-22
 ## In progress
 
 [tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md)
-(new mission from Jim: a document template/format for API design;
-idea captured, one part identified so far, a format for presenting
-API requests and responses; awaiting further detail from Jim before
-design work begins).
+(new mission from Jim: a new API Design document type for
+`software-english`, a specialisation of Design. Scoping mostly done:
+deliverable, scope (HTTP and Kafka/Avro messages), the seven-section
+structure, both example formats (raw-HTTP and the Kafka/Avro
+message shape), the schema notation (TypeScript `type` aliases,
+recorded as ADR 1 on `software-english`), and the goals/non-goals
+origin (a KB note on `software-english`) are all decided and pushed.
+Whether the request/response format needs its own lint rule folded
+into
+[future-lint-document-profiles.md](future-lint-document-profiles.md)
+below. Waiting on Jim's distilled worked example, filed as a
+`claude-plugins` issue, before writing the template file itself).
 
 ## Next
 
@@ -31,7 +39,9 @@ Actions trigger this plan already passed over, not built; Jim has a
 new mission before returning to this), then
 [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
-list and what "layered"/"filtered" rules means), then
+list and what "layered"/"filtered" rules means; now has one concrete
+case, the API Design type's fenced HTTP/TypeScript content, which the
+linter skips entirely today), then
 [tasks/future-stop-reply-check.md](tasks/future-stop-reply-check.md)
 (resolved for Claude Code already; still open for Copilot CLI — though
 worth re-reading with fresh eyes given how much changed in the pass

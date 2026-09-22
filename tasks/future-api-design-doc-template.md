@@ -218,8 +218,17 @@ Findings that shape the design:
   keep both headings, but require each Goal to state its own success
   criterion, not only its aim (the Kubernetes KEP fix), since a bare
   list of aims reads informally otherwise.
-- Whether the request/response format needs its own rules in
-  `core-rules.toml`, or only the template file.
+- ~~Whether the request/response format needs its own rules in
+  `core-rules.toml`.~~ Folded into
+  [future-lint-document-profiles.md](future-lint-document-profiles.md)
+  on 2026-09-22, at Jim's direction: the linter skips all fenced code,
+  so the request/response examples, message examples, and entity-
+  schema `type` declarations are unchecked today regardless of what
+  `core-rules.toml` says. Three concrete checks identified there (the
+  `type`-only rule, an examples-required structural check, fence
+  well-formedness) need the linter to look inside a specific fence
+  language, which is new scope, the same question that task already
+  asks about document-type profiles generally.
 
 Settled by the research above: no source serves as a structural model
 for the document itself, so the structure is Software English's own
