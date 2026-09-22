@@ -79,6 +79,53 @@ Captured from conversation with Jim, 2026-09-22.
   document and file it as a GitHub issue on `claude-plugins`. Design
   the template against that once it arrives.
 
+## Draft document structure
+
+Agreed with Jim, 2026-09-22. The seven Design sections keep Design's
+own order. Every API-specific part sits inside section 3, so the
+specialisation adds depth, not new top-level sections.
+
+```text
+Title: <API name> API design
+Status / date / author
+
+1. Context and scope
+2. Goals and non-goals
+3. The design
+   3.1 Entity schema
+       - one TypeScript `type` per entity
+       - trailing comments for any constraint the type cannot express
+   3.2 HTTP endpoints
+       - one subsection per endpoint
+       - signature line, then at least one example exchange, raw HTTP
+   3.3 Events and messages
+       - one subsection per topic
+       - topic, key, schema subject, example value (parts not settled)
+   3.4 Errors
+       - error shape as a type, status code table, one example
+   3.5 Versioning and compatibility
+4. Alternatives considered
+5. Cross-cutting concerns
+   - security, authentication, observability, idempotency, rate limits
+6. Open questions
+7. Future extensions
+
+Appendix A. Prior art
+Appendix B. Formal schemas (Avro or JSON Schema)
+Appendix C. Generated artefacts (OpenAPI or AsyncAPI), if any
+```
+
+Notes on the shape:
+
+- 3.1 comes before the endpoints because an endpoint example refers to
+  the types.
+- Prior art is an appendix, distinct from section 4. Section 4 holds
+  the alternatives for this design. The appendix holds what exists
+  elsewhere.
+- 3.4 and 3.5 are fixed subsections, not cross-cutting concerns. Jim
+  confirmed this on 2026-09-22.
+- "Entity schema" is Jim's name for 3.1, chosen over "Model".
+
 ## Constraint from the spec
 
 Appendix F is by reference only. Each type cites a canonical external
@@ -131,10 +178,23 @@ Findings that shape the design:
 
 ## Open questions
 
-- Which source, if any, serves as the structural model for the
-  document itself, as opposed to the parts (HTTP syntax, schema
-  languages) it cites.
 - What the canonical example format is for an event/message exchange,
-  matching the raw-HTTP form for an HTTP exchange.
+  matching the raw-HTTP form for an HTTP exchange. Deferred by Jim on
+  2026-09-22. A draft shape exists (topic, key, schema subject and
+  version, CloudEvents headers, the Avro value rendered as JSON), and
+  whether the headers are CloudEvents or plain Kafka is unanswered.
+- Where "goals and non-goals" comes from. `templates/design.md` cites
+  Ubl, "Design Docs at Google" (2020), for the five sections it takes.
+  The Kubernetes KEP template holds the same pair, verified
+  2026-09-22, and cites no source. The egress proxy blocked the Ubl
+  post, so nothing beyond that is established. Jim's own web research
+  agent takes this; no work needed here.
+  Note for the template: Ubl's definition, as cached, is the strict
+  one (a non-goal could reasonably have been a goal); the KEP
+  definition is anything out of scope.
 - Whether the request/response format needs its own rules in
   `core-rules.toml`, or only the template file.
+
+Settled by the research above: no source serves as a structural model
+for the document itself, so the structure is Software English's own
+addition.
