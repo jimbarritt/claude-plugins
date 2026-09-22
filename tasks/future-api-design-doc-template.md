@@ -38,6 +38,13 @@ Captured from conversation with Jim, 2026-09-22.
 - **OpenAPI:** the template does not reuse the OpenAPI document
   structure. OpenAPI (and AsyncAPI) are cross-references: an OpenAPI
   document may later be generated from a document in this format.
+- **Message-side model:** Kafka topics with Avro payloads and a schema
+  registry (what Jim uses at work). A message example therefore shows
+  topic, key, and the Avro payload, with the registered schema subject
+  and version.
+- **Worked example:** Jim will distil his last real API design
+  document and file it as a GitHub issue on `claude-plugins`. Design
+  the template against that once it arrives.
 
 ## Constraint from the spec
 
