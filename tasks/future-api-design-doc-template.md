@@ -49,6 +49,25 @@ Captured from conversation with Jim, 2026-09-22.
   extensions), with the API-specific content (endpoints/channels,
   schemas, request/response examples) added on top. Trim later if any
   section proves not to fit.
+- **Schema notation, two layers:** a literate definition in the body,
+  for a human reader, and a formal schema (Avro or JSON Schema) as the
+  registered artefact. The criterion for the literate layer is the
+  number of constructs a reader has to hold: fewer is better.
+  - TypeScript `type` aliases are the leading candidate (Jim used them
+    in his last document). Style rule: `type` only, no `interface`.
+    Constraints a type cannot express (RFC 3339, decimal string,
+    minimum) go in trailing comments.
+  - Avro IDL rejected as the literate form: `record`/`protocol` flips
+    the domain model into Avro's terms, which reads as unintuitive.
+  - TypeSpec (Microsoft, 1.16.0 verified 2026-09-22) under evaluation
+    against TypeScript. Verified by compiling an Order example in the
+    scratchpad: `@pattern`, `@minValue`, `@minItems`, doc comments and
+    `utcDateTime` all emit into OpenAPI 3.0 and JSON Schema 2020-12;
+    one `interface` line emits the endpoint with 200 and 404. No Avro
+    emitter. Costs more constructs (`model`, `scalar`, `enum`,
+    decorators, `#{ }`) than plain TypeScript.
+- **Style rule:** every endpoint or message shows at least one example
+  request and response. Jim reads examples first.
 - **Worked example:** Jim will distil his last real API design
   document and file it as a GitHub issue on `claude-plugins`. Design
   the template against that once it arrives.
