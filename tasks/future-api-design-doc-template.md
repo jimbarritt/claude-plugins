@@ -53,19 +53,21 @@ Captured from conversation with Jim, 2026-09-22.
   for a human reader, and a formal schema (Avro or JSON Schema) as the
   registered artefact. The criterion for the literate layer is the
   number of constructs a reader has to hold: fewer is better.
-  - TypeScript `type` aliases are the leading candidate (Jim used them
-    in his last document). Style rule: `type` only, no `interface`.
-    Constraints a type cannot express (RFC 3339, decimal string,
-    minimum) go in trailing comments.
+  - **Decided: TypeScript `type` aliases** are the literate notation
+    (Jim used them in his last document). Style rule: `type` only, no
+    `interface`. Constraints a type cannot express (RFC 3339, decimal
+    string, minimum) go in trailing comments.
   - Avro IDL rejected as the literate form: `record`/`protocol` flips
     the domain model into Avro's terms, which reads as unintuitive.
-  - TypeSpec (Microsoft, 1.16.0 verified 2026-09-22) under evaluation
-    against TypeScript. Verified by compiling an Order example in the
-    scratchpad: `@pattern`, `@minValue`, `@minItems`, doc comments and
-    `utcDateTime` all emit into OpenAPI 3.0 and JSON Schema 2020-12;
-    one `interface` line emits the endpoint with 200 and 404. No Avro
-    emitter. Costs more constructs (`model`, `scalar`, `enum`,
-    decorators, `#{ }`) than plain TypeScript.
+  - TypeSpec rejected as too noisy (Jim, 2026-09-22). Evaluated by
+    compiling an Order example with TypeSpec 1.16.0 in the scratchpad:
+    `@pattern`, `@minValue`, `@minItems`, doc comments and
+    `utcDateTime` all emit into OpenAPI 3.0 and JSON Schema 2020-12,
+    and one `interface` line emits the endpoint with 200 and 404, but
+    it costs five constructs (`model`, `scalar`, `enum`, decorators,
+    `#{ }`) where TypeScript needs one. No Avro emitter. Keep it in
+    mind only as a possible generation route from the formal layer,
+    not as document content.
 - **Style rule:** every endpoint or message shows at least one example
   request and response. Jim reads examples first.
 - **Worked example:** Jim will distil his last real API design
