@@ -43,8 +43,12 @@ Captured from conversation with Jim, 2026-09-22.
   topic, key, and the Avro payload, with the registered schema subject
   and version.
 - **Parent type:** a specialisation of the Design type. Jim confirmed
-  this on 2026-09-22; open questions is one shared section. Which of
-  Design's other sections carry over is not yet decided.
+  this on 2026-09-22. All seven of Design's sections carry over
+  (context and scope, goals and non-goals, the design, alternatives
+  considered, cross-cutting concerns, open questions, future
+  extensions), with the API-specific content (endpoints/channels,
+  schemas, request/response examples) added on top. Trim later if any
+  section proves not to fit.
 - **Worked example:** Jim will distil his last real API design
   document and file it as a GitHub issue on `claude-plugins`. Design
   the template against that once it arrives.
