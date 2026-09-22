@@ -4,7 +4,11 @@ Last updated: 2026-09-22
 
 ## In progress
 
-None.
+[tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md)
+(new mission from Jim: a document template/format for API design;
+idea captured, one part identified so far, a format for presenting
+API requests and responses; awaiting further detail from Jim before
+design work begins).
 
 ## Next
 
