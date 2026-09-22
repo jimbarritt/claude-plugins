@@ -1,6 +1,8 @@
 # Future task: API Design document type for software-english
 
-**This is the next task.** Start here.
+Shipped 2026-09-22. Jim's worked-example issue had not landed yet when
+he asked to proceed; the template was written against the decisions
+below instead, to revise once his real feedback comes in.
 
 No GitHub issue filed. Raised by Jim in conversation, opening a new
 mission, separate from the `claude-plugins`/`software-english` work in
@@ -195,11 +197,57 @@ needs one or more canonical sources to cite.
 
 ## Status
 
-Scoping done. Deliverable, scope, the seven-section structure, both
-example formats, the schema notation, and the goals/non-goals
-question are all decided and recorded above. The only thing blocking
-writing `templates/api-design.md` itself is Jim's worked example,
-expected as a `claude-plugins` issue. See Next steps above.
+Shipped 2026-09-22, without Jim's worked example (Jim's direction:
+proceed, use the worked example as a test case and give precise
+feedback via issues once it lands).
+
+`software-english` v0.0.7
+([`87062d5`](https://github.com/jimbarritt/software-english/commit/87062d5)):
+- `templates/api-design.md`: a new cached reference, a specialisation
+  of `templates/design.md`, following its own pattern (canonical
+  sources up top, a "Software English addition" section for the
+  structure, the two example formats, and the `type`-only rule).
+  Holds the seven-section structure, both example formats, and the
+  TypeScript-`type` schema notation from ADR 1, all as already decided
+  below.
+- Appendix F in `spec/SPEC.md` gets an "API Design" row, and the
+  paragraph after §7.9's Design/Reference note now names API Design as
+  a specialisation that inherits the same open-questions/
+  future-extension exemption.
+- `rules/core-rules.toml`'s `document-type-template` and
+  `no-planning-content-in-reference` descriptions now name API Design
+  explicitly. This is the part that actually changes judging-agent
+  behaviour: the `swe` plugin fetches only `core-rules.toml` and
+  `vocabulary/`, never `templates/` or `SPEC.md`, the same finding as
+  the Design type's own rollout
+  (`tasks/issue-7-8-design-type-and-style-cost.md`). Verified with
+  `--force-inference` against fixture text: both rule descriptions
+  come back naming API Design.
+
+`swe` v0.12.0
+([`b98bc62`](https://github.com/jimbarritt/claude-plugins/commit/b98bc62)):
+pin bumped to `software-english` v0.0.7. All five test suites pass.
+`scripts/check-unshipped.sh` confirms `swe` is released and matches
+`swe-v0.12.0`.
+
+Not done, deliberately: the request/response fenced-content checks (a
+`type`-only lint rule, an examples-required structural check) stay out
+of scope, folded into
+[future-lint-document-profiles.md](future-lint-document-profiles.md)
+as before, since the linter skips all fenced code regardless of what
+`core-rules.toml` says.
+
+Left open: `v0.0.6` on `software-english` already existed (tagged
+against an earlier, untagged commit, the "Delete the generated YAML
+catalogue" one), so this shipped as `v0.0.7` instead. Worth checking
+later whether an earlier session's release run went untracked in
+`STATE.md`.
+
+## Next: Jim's worked example
+
+Once Jim's worked example lands as a `claude-plugins` issue, test the
+template against it directly and treat his feedback as normal issues
+against this task, per the original "Next steps" above.
 
 ## Research: candidate sources
 

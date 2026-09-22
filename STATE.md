@@ -2,24 +2,6 @@
 
 Last updated: 2026-09-22
 
-## Next task — start here
-
-[tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md):
-a new API Design document type for `software-english`, a
-specialisation of Design. Scoping is done: deliverable, scope (HTTP
-and Kafka/Avro messages), the seven-section structure, both example
-formats (raw-HTTP and the Kafka/Avro message shape), the schema
-notation (TypeScript `type` aliases, recorded as ADR 1 on
-`software-english`), and the goals/non-goals origin (a KB note on
-`software-english`) are all decided and pushed. Whether the
-request/response format needs its own lint rule folded into
-[future-lint-document-profiles.md](future-lint-document-profiles.md)
-below. The task file's own "Next steps" section has the concrete
-checklist. Blocking step: Jim is filing a distilled worked example
-(a real API design of his) as a `claude-plugins` issue on
-2026-09-23, and will test the template against it directly, giving
-further feedback as GitHub issues. Check for that issue first.
-
 ## In progress
 
 None.
@@ -55,6 +37,28 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md):
+  an API Design document type for `software-english`, a
+  specialisation of Design, shipped without Jim's worked example
+  (his direction: proceed, use the example as a later test case).
+  `software-english` v0.0.7
+  ([`87062d5`](https://github.com/jimbarritt/software-english/commit/87062d5)):
+  `templates/api-design.md` (a cached reference following
+  `templates/design.md`'s own pattern), a new "API Design" row in
+  `spec/SPEC.md` Appendix F, and both `document-type-template` and
+  `no-planning-content-in-reference` in `rules/core-rules.toml`
+  updated to name API Design, the part that actually changes the
+  judging agent's behaviour (same finding as the Design type's own
+  rollout). `swe` v0.12.0
+  ([`b98bc62`](https://github.com/jimbarritt/claude-plugins/commit/b98bc62)):
+  pin bumped to v0.0.7. All five test suites pass;
+  `scripts/check-unshipped.sh` confirms `swe` is released. `v0.0.6`
+  on `software-english` was already taken by an earlier, untagged
+  commit, so this shipped as `v0.0.7`. The request/response
+  fenced-content checks stay deferred to
+  [future-lint-document-profiles.md](tasks/future-lint-document-profiles.md),
+  unchanged. Jim's worked example is still expected as a
+  `claude-plugins` issue; full record in the task file.
 - [tasks/issue-9-document-routine-in-readme.md](tasks/issue-9-document-routine-in-readme.md)
   ([#9](https://github.com/jimbarritt/claude-plugins/issues/9)): the
   first real issue worked end to end by the self-maintaining-repo
