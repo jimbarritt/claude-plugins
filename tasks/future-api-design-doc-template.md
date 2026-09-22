@@ -39,9 +39,29 @@ Captured from conversation with Jim, 2026-09-22.
   structure. OpenAPI (and AsyncAPI) are cross-references: an OpenAPI
   document may later be generated from a document in this format.
 - **Message-side model:** Kafka topics with Avro payloads and a schema
-  registry (what Jim uses at work). A message example therefore shows
-  topic, key, and the Avro payload, with the registered schema subject
-  and version.
+  registry (what Jim uses at work).
+  **Decided: message example format**, 2026-09-22, mirroring RFC
+  9112's request line / headers / blank line / body shape:
+  ```text
+  topic:   orders.order-placed.v1
+  key:     ord_01J8ZK3QW4N9X2M7P5R1T6V0B8
+  schema:  orders.order-placed.v1-value, version 3
+
+  headers:
+    <any headers actually sent, plain key: value>
+
+  value:
+  { ... Avro record rendered as JSON, in the entity schema's shape ... }
+  ```
+  `topic`/`key` play the request line's role; `schema` names the
+  registry subject and version, the one part with no HTTP equivalent;
+  `value` is the Avro record as JSON (binary Avro is not readable) and
+  uses the same TypeScript type as the entity schema. `headers` is
+  empty by default: CloudEvents was not confirmed in use, so it is not
+  assumed. A document that does use CloudEvents states that in its
+  context section, and the headers block then follows CloudEvents'
+  own naming, cited by reference (CloudEvents 1.0.2, CNCF, from the
+  source research above).
 - **Parent type:** a specialisation of the Design type. Jim confirmed
   this on 2026-09-22. All seven of Design's sections carry over
   (context and scope, goals and non-goals, the design, alternatives
@@ -100,7 +120,8 @@ Status / date / author
        - signature line, then at least one example exchange, raw HTTP
    3.3 Events and messages
        - one subsection per topic
-       - topic, key, schema subject, example value (parts not settled)
+       - topic, key, schema subject/version, headers, example value
+         (Avro as JSON), decided format below
    3.4 Errors
        - error shape as a type, status code table, one example
    3.5 Versioning and compatibility
@@ -178,11 +199,9 @@ Findings that shape the design:
 
 ## Open questions
 
-- What the canonical example format is for an event/message exchange,
-  matching the raw-HTTP form for an HTTP exchange. Deferred by Jim on
-  2026-09-22. A draft shape exists (topic, key, schema subject and
-  version, CloudEvents headers, the Avro value rendered as JSON), and
-  whether the headers are CloudEvents or plain Kafka is unanswered.
+- ~~What the canonical example format is for an event/message
+  exchange.~~ Resolved 2026-09-22; see the message example format
+  above.
 - ~~Where "goals and non-goals" comes from.~~ Resolved. Jim's own
   research confirms it: a Google convention (Ubl, "Design Docs at
   Google"), no formal spec, no earlier unrelated use found, copied
