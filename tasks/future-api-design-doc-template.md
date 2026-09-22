@@ -56,7 +56,12 @@ Captured from conversation with Jim, 2026-09-22.
   - **Decided: TypeScript `type` aliases** are the literate notation
     (Jim used them in his last document). Style rule: `type` only, no
     `interface`. Constraints a type cannot express (RFC 3339, decimal
-    string, minimum) go in trailing comments.
+    string, minimum) go in trailing comments. Recorded as
+    `docs/adr/001-typescript-type-aliases-as-literate-schema-notation.md`
+    in `software-english`, on `main` at
+    [`697cf1b`](https://github.com/jimbarritt/software-english/commit/697cf1b).
+    Protobuf, GraphQL SDL, CUE, Smithy, Zod/TypeBox and a field table
+    were also assessed there and rejected.
   - Avro IDL rejected as the literate form: `record`/`protocol` flips
     the domain model into Avro's terms, which reads as unintuitive.
   - TypeSpec rejected as too noisy (Jim, 2026-09-22). Evaluated by
