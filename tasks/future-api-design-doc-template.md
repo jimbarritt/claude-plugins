@@ -57,11 +57,44 @@ needs one or more canonical sources to cite.
 
 ## Status
 
-Scoping in progress. Research running on candidate canonical sources:
-OpenAPI, AsyncAPI, RFC 9110/9112, JSON Schema, Apache Avro, CloudEvents,
-the `.http` file format, HAR, and the Google, Microsoft, and Zalando
-API design guides. Jim's direction: all of these are good references
-to include; OpenAPI as a cross-reference, not the structure.
+Scoping in progress. Research on candidate canonical sources done
+(below). Jim's direction: all of these are good references to include;
+OpenAPI as a cross-reference, not the structure.
+
+## Research: candidate sources
+
+Verified 2026-09-22 by a research agent, mostly from the publishers'
+GitHub repositories, since the session proxy blocked several of the
+canonical sites. Re-verify the canonical URL when writing the cached
+reference file.
+
+| Source | URL | Version/date | Publisher | Governs for the template |
+|---|---|---|---|---|
+| RFC 9110 HTTP Semantics | https://www.rfc-editor.org/rfc/rfc9110.html | June 2022, STD 97 | IETF HTTP WG | Method, status code, header semantics |
+| RFC 9112 HTTP/1.1 | https://www.rfc-editor.org/rfc/rfc9112.html | June 2022, STD 99, obsoletes RFC 7230 | IETF HTTP WG | Syntax of example requests and responses |
+| JSON Schema | https://json-schema.org/specification | 2020-12; self-published under OpenJS Foundation, IETF track dropped Oct 2022 | JSON Schema project | Schema blocks, JSON Schema form |
+| Apache Avro | https://avro.apache.org/docs/current/specification/ | 1.12.2, 2026-08-23 | Apache Software Foundation | Schema blocks, Avro form |
+| CloudEvents | https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md | 1.0.2, 2024-02-06 | CNCF | Event envelope attributes |
+| OpenAPI | https://spec.openapis.org/oas/latest.html | 3.2.1, 2026-09-10 | OpenAPI Initiative | Cross-reference: generation target, HTTP |
+| AsyncAPI | https://www.asyncapi.com/docs/reference/specification/v3.1.0 | 3.1.0, 2026-01-31 | AsyncAPI Initiative | Cross-reference: generation target, messages; names Avro 1.9.0 as recommended schema format |
+| JetBrains HTTP Request in Editor spec | https://github.com/JetBrains/http-request-in-editor-spec/blob/master/spec.md | undated, last commit 2023-05-30, TODO sections, aligns to RFC 7230 | JetBrains | Convention for `.http` request blocks |
+| VS Code REST Client | https://github.com/Huachao/vscode-restclient | README only, cites RFC 2616 | individual | Same block format, no written spec |
+| HAR 1.2 | http://www.softwareishard.com/blog/har-12-spec/ | W3C draft (2012) marked abandoned | individual | Weak; convention only |
+| Google AIPs | https://google.aip.dev/ | rolling | Google | HTTP and gRPC resource design; no event AIP; AIP-100 names "API design review", no template |
+| Microsoft REST API Guidelines | https://github.com/microsoft/api-guidelines | top-level file deprecated; Azure guidelines changed 2025-03-28 | Microsoft | HTTP only |
+| Zalando RESTful API and Event Guidelines | https://opensource.zalando.com/restful-api-guidelines/ | rolling | Zalando | REST and events; event schemas use OpenAPI Schema Object, no Avro or CloudEvents |
+
+Findings that shape the design:
+
+- No source defines an "API design document" as a document type with a
+  template. The document structure is therefore Software English's own
+  addition, marked as such; the parts (HTTP syntax, schema languages,
+  event envelope) are cited by reference.
+- The `.http` format has no versioned spec. Cite it as a convention,
+  with RFC 9112 as the standard behind it.
+- AsyncAPI 3.1.0 names JSON Schema draft-07 as its required schema
+  format; OpenAPI 3.1+ uses 2020-12. A generator from this document
+  type has to handle both.
 
 ## Open questions
 
