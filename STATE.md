@@ -1,6 +1,6 @@
 # State
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 ## In progress
 
@@ -19,7 +19,12 @@ the way, a fresh Routine session needing `add_repo` for both
 repositories before anything else, and the `agent:working` label not
 being cleared on close; the two remaining dry runs, a non-collaborator
 author and a deliberate escalation, are deferred at Jim's direction,
-not run), then
+not run; researched whether comments/commits could show as a
+separate bot instead of Jim, per Anthropic's docs the Claude GitHub
+App backs a different product, `claude-code-action`, than the cloud
+sessions this loop runs on, and the only route found is the GitHub
+Actions trigger this plan already passed over, not built; Jim has a
+new mission before returning to this), then
 [tasks/future-lint-document-profiles.md](tasks/future-lint-document-profiles.md)
 (idea only, not scoped — needs a follow-up conversation on the doc-type
 list and what "layered"/"filtered" rules means), then
