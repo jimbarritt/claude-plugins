@@ -42,6 +42,9 @@ Captured from conversation with Jim, 2026-09-22.
   registry (what Jim uses at work). A message example therefore shows
   topic, key, and the Avro payload, with the registered schema subject
   and version.
+- **Parent type:** a specialisation of the Design type. Jim confirmed
+  this on 2026-09-22; open questions is one shared section. Which of
+  Design's other sections carry over is not yet decided.
 - **Worked example:** Jim will distil his last real API design
   document and file it as a GitHub issue on `claude-plugins`. Design
   the template against that once it arrives.
