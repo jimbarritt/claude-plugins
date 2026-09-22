@@ -18,5 +18,5 @@
 | [future-precommit-lint-gate.md](future-precommit-lint-gate.md) | none filed yet | Done — shipped on `main`, released as `swe-v0.10.0` |
 | [issue-lint-file-invisible-copilot.md](issue-lint-file-invisible-copilot.md) | none filed yet | Done — shipped on `main`, released as `swe-v0.10.1` |
 | [issue-7-8-design-type-and-style-cost.md](issue-7-8-design-type-and-style-cost.md) | [claude-plugins#7](https://github.com/jimbarritt/claude-plugins/issues/7), [#8](https://github.com/jimbarritt/claude-plugins/issues/8) | Done — shipped on `main`, released as `swe-v0.11.0` and `software-english` `v0.0.4`, both issues closed |
-| [future-self-maintaining-repo.md](future-self-maintaining-repo.md) | none filed yet | Draft plan written, not agreed, not started |
-| [future-api-design-doc-template.md](future-api-design-doc-template.md) | none filed yet | **Next task.** Scoping done; waiting on Jim's worked example issue |
+| [future-self-maintaining-repo.md](future-self-maintaining-repo.md) | none filed yet | Live: the Routine, labels, and `MAINTAINER-RUN.md` exist; issue #9 went through the full loop end to end |
+| [future-api-design-doc-template.md](future-api-design-doc-template.md) | none filed yet | Done — shipped as `software-english` v0.0.7, `swe` v0.12.0; Jim's worked example still pending as a `claude-plugins` issue |

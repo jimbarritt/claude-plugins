@@ -37,6 +37,49 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- `claude-plugins/CLAUDE.md`
+  ([`cb10626`](https://github.com/jimbarritt/claude-plugins/commit/cb10626)):
+  a session on this repo sometimes holds a harness-generated "Git
+  Development Branch Requirements" block naming an auto-assigned,
+  session-specific branch (e.g. `claude/add-repo-xxxxxx`), set at
+  session creation and unrelated to this file. It conflicts with this
+  file's own "push straight to `main`" convention, and it causes real
+  confusion across a few sessions. `CLAUDE.md` now states
+  explicitly that its own instruction wins, so a future session does
+  not have to resolve the conflict by inference each time. No task
+  file: raised and fixed directly in conversation. The root cause (the
+  harness auto-assigning a branch at session creation) is outside this
+  repo's control; only the in-repo ambiguity is fixed.
+- `software-english` "cache" -> "local reference" rename, three rounds
+  in one conversation, all at Jim's direction (his rule: a file is a
+  "cache" only if it is a byte-for-byte copy of a fetched file; none
+  of these are). Round 1
+  ([`81c06cb`](https://github.com/jimbarritt/software-english/commit/81c06cb)):
+  cut "This file is a cache. It does not replace the canonical
+  sources." from the 9 templates that opened with it. Round 2
+  ([`8213fec`](https://github.com/jimbarritt/software-english/commit/8213fec)):
+  the same cut from all 14 templates' "Verify against the source"
+  sections and one stray instance in `research-note.md`'s body;
+  `SPEC.md`'s "each cached file states its own last-verified date"
+  claim removed since it was no longer true. Round 3
+  ([`384aa21`](https://github.com/jimbarritt/software-english/commit/384aa21)):
+  "cache"/"cached" renamed to "local reference" everywhere it
+  described these written summaries (all 14 template titles, `SPEC.md`
+  Appendix F including its table header, `README.md`,
+  `docs/agent-guide.md`, `COLOPHON.md`, ADR 1, and
+  `core-rules.toml`'s `document-type-template` description). Left
+  alone throughout: `vocabulary/structure.tsv` and `operations.tsv`'s
+  real dictionary entries for "cache"/"evict", and `SPEC.md`'s own
+  example sentences illustrating anthropomorphism and metaphor with a
+  generic software cache as the subject (§5.1, §5.5): those describe
+  the actual software concept, not this repo's own files. Released as
+  `software-english` v0.0.8; `swe` v0.12.1
+  ([`45d726c`](https://github.com/jimbarritt/claude-plugins/commit/45d726c))
+  picked up the pin bump, since `core-rules.toml` changed. All five
+  test suites pass; `scripts/check-unshipped.sh` confirms `swe` is
+  released. No task file: prose cleanup raised and done directly in
+  conversation, across three follow-up messages after the API Design
+  task below shipped.
 - [tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md):
   an API Design document type for `software-english`, a
   specialisation of Design, shipped without Jim's worked example

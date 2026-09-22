@@ -243,6 +243,13 @@ catalogue" one), so this shipped as `v0.0.7` instead. Worth checking
 later whether an earlier session's release run went untracked in
 `STATE.md`.
 
+Later the same session, `templates/api-design.md` and `SPEC.md`'s
+Appendix F row for it were touched again by an unrelated cleanup (the
+repo-wide "cache" -> "local reference" rename, see STATE.md's
+"Recently done"), which carried `software-english` to v0.0.8 and `swe`
+to v0.12.1. The version numbers above are this task's own shipment,
+not the current pin.
+
 ## Next: Jim's worked example
 
 Once Jim's worked example lands as a `claude-plugins` issue, test the
