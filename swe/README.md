@@ -110,9 +110,13 @@ exact staged content. An edit after the last lint pass invalidates the
 record, so re-run `/swe:lint-file` after any change.
 
 A blocked commit prints which files need a fresh lint pass and the
-exact command to run. `git commit --no-verify` bypasses the check for
-one commit. An existing `pre-commit` hook in the repository is kept and
-chained, not replaced: it still runs, first, unchanged.
+exact command to run. A commit that passes prints one line naming the
+number of staged markdown files checked and the clean verdict, so a
+hook that ran and passed is distinguishable from one that never fired.
+A commit with no staged markdown prints nothing from this check.
+`git commit --no-verify` bypasses the check for one commit. An existing
+`pre-commit` hook in the repository is kept and chained, not replaced:
+it still runs, first, unchanged.
 
 `.git/` is never cloned, so run `/swe:install-commit-hook` again in
 each clone of the repository. Run `/swe:install-commit-hook uninstall`

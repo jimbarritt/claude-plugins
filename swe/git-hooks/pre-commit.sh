@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# swe-commit-check-version: 1
+# swe-commit-check-version: 2
 #
 # Git pre-commit hook installed by /swe:install-commit-hook. Its source
 # of truth is swe/git-hooks/pre-commit.sh in the claude-plugins
@@ -246,4 +246,5 @@ if [ "$CFG_BLOCK_DET" = "true" ] && [ "$DET_STATUS" -ne 0 ]; then
   exit 1
 fi
 
+echo "swe: commit check passed. ${#FILES[@]} staged markdown file(s) have a clean lint record for their staged content."
 exit 0

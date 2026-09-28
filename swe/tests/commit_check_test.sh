@@ -368,17 +368,30 @@ commit() {  # commit <message> -- runs in $REPO, returns git's exit code
 
 echo x > "$REPO/code.py"
 git -C "$REPO" add code.py
-commit "no markdown staged"
+OUT="$(commit "no markdown staged" 2>&1)"
 assert "no staged markdown: commit succeeds" "$([ $? -eq 0 ]; echo $?)"
+case "$OUT" in
+  *"commit check passed"*) assert "no staged markdown: no success line (nothing was checked)" 1 ;;
+  *) assert "no staged markdown: no success line (nothing was checked)" 0 ;;
+esac
 
 echo "# unlinted" > "$REPO/a.md"
 git -C "$REPO" add a.md
-commit "unlinted markdown" 2>/dev/null
+OUT="$(commit "unlinted markdown" 2>&1)"
 assert "staged markdown with no ledger row: commit is blocked" "$([ $? -ne 0 ]; echo $?)"
+case "$OUT" in
+  *"commit check passed"*) assert "blocked commit: no success line" 1 ;;
+  *) assert "blocked commit: no success line" 0 ;;
+esac
 
 lint_and_record "$REPO" a.md clean 0
-commit "clean markdown"
+OUT="$(commit "clean markdown" 2>&1)"
 assert "staged markdown with a matching clean row: commit succeeds" "$([ $? -eq 0 ]; echo $?)"
+case "$OUT" in
+  *"swe: commit check passed. 1 staged markdown file(s) have a clean lint record for their staged content."*)
+    assert "clean commit: success line names the count and verdict" 0 ;;
+  *) assert "clean commit: success line names the count and verdict" 1 ;;
+esac
 
 echo "# edited after lint" > "$REPO/a.md"
 git -C "$REPO" add a.md
@@ -398,6 +411,18 @@ lint_and_record "$REPO" a.md clean 0
 commit "clean after failed"
 assert "a later clean row for the same content: commit succeeds" "$([ $? -eq 0 ]; echo $?)"
 
+echo "# two" > "$REPO/two-a.md"
+echo "# two" > "$REPO/two-b.md"
+git -C "$REPO" add two-a.md two-b.md
+lint_and_record "$REPO" two-a.md clean 0
+lint_and_record "$REPO" two-b.md clean 0
+OUT="$(commit "two clean files" 2>&1)"
+assert "two staged clean files: commit succeeds" "$([ $? -eq 0 ]; echo $?)"
+case "$OUT" in
+  *"2 staged markdown file(s) have a clean lint record"*) assert "two staged clean files: success line counts both" 0 ;;
+  *) assert "two staged clean files: success line counts both" 1 ;;
+esac
+
 echo "# bypass me" > "$REPO/c.md"
 git -C "$REPO" add c.md
 git -C "$REPO" -c user.email=t@t.com -c user.name=t commit -q --no-verify -m bypass
@@ -406,8 +431,12 @@ assert "git commit --no-verify bypasses the check" "$([ $? -eq 0 ]; echo $?)"
 echo "ignored.md" > "$REPO/.swe-ignore"
 echo "# ignored" > "$REPO/ignored.md"
 git -C "$REPO" add .swe-ignore ignored.md
-commit "ignored file"
+OUT="$(commit "ignored file" 2>&1)"
 assert ".swe-ignore'd markdown needs no ledger row" "$([ $? -eq 0 ]; echo $?)"
+case "$OUT" in
+  *"commit check passed"*) assert "everything staged ignored: no success line" 1 ;;
+  *) assert "everything staged ignored: no success line" 0 ;;
+esac
 rm -f "$REPO/.swe-ignore"
 git -C "$REPO" rm -q --cached .swe-ignore >/dev/null 2>&1 || true
 
@@ -415,18 +444,45 @@ mkdir -p "$REPO/.claude"
 echo '{"commit-check": {"enabled": false}}' > "$REPO/.claude/swe-lint.json"
 echo "# should pass, check disabled" > "$REPO/disabled.md"
 git -C "$REPO" add .claude/swe-lint.json disabled.md
-commit "check disabled by project config"
+OUT="$(commit "check disabled by project config" 2>&1)"
 assert "commit-check.enabled: false skips the check entirely" "$([ $? -eq 0 ]; echo $?)"
+case "$OUT" in
+  *"commit check passed"*) assert "check disabled: no success line" 1 ;;
+  *) assert "check disabled: no success line" 0 ;;
+esac
 
 echo '{"commit-check": {"paths": ["*.rst"]}}' > "$REPO/.claude/swe-lint.json"
 git -C "$REPO" add .claude/swe-lint.json
 echo "# not checked, wrong extension" > "$REPO/other.md"
 git -C "$REPO" add other.md
-commit "paths filter excludes markdown"
+OUT="$(commit "paths filter excludes markdown" 2>&1)"
 assert "commit-check.paths narrowed away from *.md: markdown is not checked" "$([ $? -eq 0 ]; echo $?)"
+case "$OUT" in
+  *"commit check passed"*) assert "paths filter excludes everything staged: no success line" 1 ;;
+  *) assert "paths filter excludes everything staged: no success line" 0 ;;
+esac
 rm -f "$REPO/.claude/swe-lint.json"
 git -C "$REPO" add .claude/swe-lint.json 2>/dev/null || true
 git -C "$REPO" rm -q --cached .claude/swe-lint.json >/dev/null 2>&1 || true
+
+# --- ledger unreadable: fail-open, and the success line stays silent -------
+
+LEDGER="$(ledger_path "$REPO")"
+rm -f "$LEDGER"
+mkdir -p "$LEDGER"
+echo "# unreadable ledger" > "$REPO/unreadable.md"
+git -C "$REPO" add unreadable.md
+OUT="$(commit "ledger unreadable" 2>&1)"
+assert "ledger unreadable: commit still succeeds (fail-open)" "$([ $? -eq 0 ]; echo $?)"
+case "$OUT" in
+  *"could not be read"*) assert "ledger unreadable: fail-open warning printed" 0 ;;
+  *) assert "ledger unreadable: fail-open warning printed" 1 ;;
+esac
+case "$OUT" in
+  *"commit check passed"*) assert "ledger unreadable: no success line (nothing was verified)" 1 ;;
+  *) assert "ledger unreadable: no success line (nothing was verified)" 0 ;;
+esac
+rmdir "$LEDGER"
 
 echo
 echo "$PASS passed, $FAIL failed"

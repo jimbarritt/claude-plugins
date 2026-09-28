@@ -283,6 +283,18 @@ a fresh clone with nothing yet recorded: exactly the case this check
 exists for. `git commit --no-verify` is the standing bypass; the block message
 repeats it.
 
+**A passing commit prints too** (claude-plugins#11): one line, naming
+the number of staged markdown files verified and the clean verdict:
+`swe: commit check passed. N staged markdown file(s) have a clean lint
+record for their staged content.` It prints right before the hook's own
+final `exit 0`, so it shows only once the commit proceeds (after the
+ledger check and `block_on_deterministic`, not before). Every path
+where nothing was checked (no staged files matching
+`commit-check.paths`, `commit-check.enabled: false`, everything staged
+matched by `.swe-ignore`) and every fail-open path (no `python3`, an
+unreadable ledger) stays silent on this line, since neither confirms
+the ledger clean.
+
 **Deterministic tier at commit time.** Advisory by default: findings
 print but do not block, run against each staged file's exact staged
 content (`git show :<path>`, not the working tree). Set
