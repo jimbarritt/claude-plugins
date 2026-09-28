@@ -1,10 +1,24 @@
 # State
 
-Last updated: 2026-09-22
+Last updated: 2026-09-28
 
 ## In progress
 
-None.
+[tasks/issue-10-lint-ledger-nonce.md](tasks/issue-10-lint-ledger-nonce.md)
+([#10](https://github.com/jimbarritt/claude-plugins/issues/10)):
+`--force-inference` to mint a single-use nonce bound to the file's git
+blob id, which `--record-lint-result` must be given back before it
+writes a row, closing the shortcut where an agent records `clean` on
+an earlier session's judgement of different content. Plan complete
+(Opus Plan subagent); implementation starting on `main`. This run also
+found `list_repository_collaborators` returning only `jimbarritt` when
+issue #10's author, `jimbarritt-pleo`, had in fact been added as a
+collaborator the day before — a pending invite does not show in that
+API until accepted. Paused and asked Jim directly rather than treating
+the account as untrusted or guessing; he confirmed the invite was
+accepted, and a re-check then showed it. Worth remembering for a future
+run: a newly-added collaborator may not be trusted-set-visible until
+they accept.
 
 ## Next
 
