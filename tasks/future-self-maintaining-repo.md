@@ -1,9 +1,9 @@
 # Future task: a self-maintaining repo
 
 No GitHub issue filed yet. Raised by Jim in conversation on 2026-09-21.
-Status: live. The Routine, the labels, and the briefing all exist,
-and the first real issue went through the loop end to end. The two
-remaining dry runs (steps 7 and 8) are deferred at Jim's direction.
+Status: live. The Routine, the labels, and the briefing all exist, and
+two real issues (#9, #10) have gone through the loop end to end. The
+two remaining dry runs (steps 7 and 8) are deferred at Jim's direction.
 
 ## Ask
 
@@ -478,6 +478,39 @@ Jim confirmed the push notification reached his phone and opened
 straight to the Routine session in the iOS app. That was the whole
 point of the notification channel, and it works from a real,
 Routine-fired session, not only from an interactive one.
+
+### Second real run
+
+[#10](https://github.com/jimbarritt/claude-plugins/issues/10): the
+lint ledger's `--record-lint-result` trusted its caller completely,
+so a verdict could get recorded without Step 4 actually running.
+Opened by `jimbarritt-pleo`, not Jim, a second real collaborator
+account rather than a purpose-written test issue.
+
+This run found a gap in the trusted-authors mechanism before it ever
+reached claiming: `list_repository_collaborators` returned only
+`jimbarritt`, even though Jim stated he had added `jimbarritt-pleo`
+as a collaborator the day before. Both `affiliation: direct` and
+`affiliation: outside` gave the same result. The cause: GitHub's
+collaborators endpoint lists only an *accepted* invite; a pending one
+is invisible to it, and no tool in this session's toolset lists
+pending invitations to tell the two cases apart. Rather than guessing
+or treating the account as untrusted on the strength of the API
+result alone, the session paused and asked Jim directly. He confirmed
+the invite was still pending, accepted it, and a re-check then showed
+`jimbarritt-pleo` as a collaborator (role `write`), at which point the
+run proceeded normally. Worth carrying into a future run: a "trusted
+account shows as untrusted" result right after Jim says he added
+someone is more likely a pending invite than a wrong assumption on
+either side, and is worth a direct check before either acting on it or
+escalating over it.
+
+Once past that, the run worked end to end, single pass, aside from two
+wording-fix rounds — both found only by actually running
+`/swe:lint-file` and a manual banned-word sweep on the changed files,
+not by assuming new prose was clean. Full record in
+[`tasks/issue-10-lint-ledger-nonce.md`](tasks/issue-10-lint-ledger-nonce.md).
+Shipped as `swe-v0.13.0`.
 
 ## Open questions
 

@@ -186,4 +186,78 @@ No changes needed in `swe/git-hooks/pre-commit.sh` or
 
 ## Outcome
 
-(fill in after Step 5-9 of MAINTAINER-RUN.md complete)
+Shipped as planned, no deviations from the Opus plan beyond wording
+fixes found while actually linting the changed files.
+
+- `swe/scripts/software_english_lint.py`: `_repo_context()` (shared
+  toplevel/rel-path/blob/algo/git-common resolution), `issue_lint_nonce()`,
+  `_load_nonces()`/`_save_nonces()` (atomic write via a sibling temp file
+  plus `os.replace`), `--nonce` argparse flag, `record_lint_result()`
+  gains a `nonce` parameter and the validation order from the plan
+  (given, known, matching file, matching blob; consumed before the
+  ledger write). `main()` prints `swe-lint-nonce: <value>` as the last
+  line of a single-file `--force-inference` run, or the "no lint nonce
+  issued" reason line, regardless of whether the rules block printed or
+  the deterministic tier found errors. Module docstring extended.
+- `swe/skills/lint-file/SKILL.md`: Step 3 tells the agent not to
+  filter/truncate the output and to note the trailing nonce line; Step 4
+  states a prior judgement never applies to changed content; Step 5's
+  two commands gain `--nonce <value>` and exit 4 is documented (go back
+  to Step 3, don't retry with another value).
+- `swe/docs/agent-guide.md`: new "Proof that Step 3 ran" section;
+  "Two state files" renamed "Three state files"; "Run the linter
+  directly" and "Known limits" updated to match.
+- `swe/tests/commit_check_test.sh`: added a fixture plugin copy with a
+  minimal `data/core-rules.toml` (`--force-inference` needs a rule
+  catalogue to reach the sources loop where a nonce is minted;
+  `--record-lint-result` never needed one, so the existing tests'
+  behaviour is unchanged). 34 new assertions: nonce issuance and its
+  store entry, recording with a valid nonce, replay, no-nonce, a
+  fabricated nonce, the stale-blob case from the issue itself (with the
+  refusal message asserted to name the content change), wrong-file,
+  failed-then-clean flip, superseded nonces, no-prose and
+  deterministically-failing files still getting a nonce, outside-a-repo
+  and `.swe-ignore`'d files getting none, and a ledger write failure
+  that still consumes the nonce. All five suites pass (97 assertions
+  total, up from 63).
+- `swe/.claude-plugin/plugin.json`: `0.12.1` -> `0.13.0` (minor: CLI
+  contract change).
+
+Two wording fixes found only by actually running `/swe:lint-file` on
+the changed files, not anticipated in the plan:
+
+- `SKILL.md`'s new Step 3/4/5 prose tripped four deterministic findings
+  on the first pass: `note that` (banned, CUT), `carries` and `refuses`
+  (both banned, reworded), and a `no-continuous-tense` false-positive on
+  "it was missing" (rephrased as a bare list item). Fixed; the file
+  re-lints clean, both tiers, and its `clean` row is now in the ledger.
+- The new docstring paragraph in `software_english_lint.py` tripped one
+  finding purely from a tooling quirk: `extract_comments()` tracks
+  quote state per line only, so a literal `#` inside a docstring
+  (`claude-plugins#10`) gets misread as a `#`-comment start, and
+  whatever text follows it on that line gets checked as if it were a
+  real comment. Moved the issue reference to end its line so nothing
+  trails after the `#`; not a tool bug worth fixing for this issue (it
+  is pre-existing, and the docstring's prose is otherwise not checked by
+  this same extractor at all, since it has no protection for
+  triple-quoted strings beyond the one line at a time). Also found by
+  hand-checking the diff against the full `banned.tsv` word list, since
+  the tool only checks fragments after a literal `#`: `refuses`/`gates`
+  in prose the extractor never reaches, in `software_english_lint.py`'s
+  docstring and `agent-guide.md` respectively (the latter is
+  `.swe-ignore`'d entirely). Both reworded, even though nothing would
+  have caught them automatically. `agent-guide.md`'s pre-existing em
+  dashes were left alone (13 already in the file before this change;
+  the file's own established style, and it is exempt from the check).
+- Commit: [`fd9d3c8`](https://github.com/jimbarritt/claude-plugins/commit/fd9d3c8)
+  on `main`, `closes #10` (closed the issue automatically).
+- Release: `release-plugin.yml` run
+  [#9](https://github.com/jimbarritt/claude-plugins/actions/runs/36444774755),
+  success, tag `swe-v0.13.0`. `scripts/check-unshipped.sh` confirmed
+  pending before release, matching after.
+- Issue comment posted with the commit, the mechanism, and the release
+  tag; `agent:working` label removed after the automatic close.
+
+No escalation. Single pass, aside from the two wording rounds above,
+both caught by actually running the checks rather than assuming the
+new prose was clean.

@@ -4,21 +4,7 @@ Last updated: 2026-09-28
 
 ## In progress
 
-[tasks/issue-10-lint-ledger-nonce.md](tasks/issue-10-lint-ledger-nonce.md)
-([#10](https://github.com/jimbarritt/claude-plugins/issues/10)):
-`--force-inference` to mint a single-use nonce bound to the file's git
-blob id, which `--record-lint-result` must be given back before it
-writes a row, closing the shortcut where an agent records `clean` on
-an earlier session's judgement of different content. Plan complete
-(Opus Plan subagent); implementation starting on `main`. This run also
-found `list_repository_collaborators` returning only `jimbarritt` when
-issue #10's author, `jimbarritt-pleo`, had in fact been added as a
-collaborator the day before — a pending invite does not show in that
-API until accepted. Paused and asked Jim directly rather than treating
-the account as untrusted or guessing; he confirmed the invite was
-accepted, and a re-check then showed it. Worth remembering for a future
-run: a newly-added collaborator may not be trusted-set-visible until
-they accept.
+None.
 
 ## Next
 
@@ -51,6 +37,31 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-10-lint-ledger-nonce.md](tasks/issue-10-lint-ledger-nonce.md)
+  ([#10](https://github.com/jimbarritt/claude-plugins/issues/10)):
+  second real issue worked end to end by the self-maintaining-repo
+  Routine, single pass (aside from two wording-fix rounds caught by
+  actually running the checks, not anticipated in the Opus plan). Also
+  the first run where an issue's author was a second collaborator, not
+  Jim: `list_repository_collaborators` returned only `jimbarritt` at
+  first, because `jimbarritt-pleo`'s invite (added the day before) was
+  still pending acceptance, and GitHub's collaborators API omits a
+  pending invite. Paused and asked Jim directly rather than guessing or
+  treating the account as untrusted; he confirmed the invite, a
+  re-check then showed it as a collaborator, and the run proceeded.
+  `--force-inference` now mints a single-use nonce bound to a file's
+  exact git blob id, and `--record-lint-result` requires that nonce
+  back (for `clean` and `failed` alike) before writing a ledger row,
+  closing the shortcut the issue reported: recording a verdict on an
+  earlier, or stale, judgement without re-running Step 4.
+  `swe/scripts/software_english_lint.py`, `swe/skills/lint-file/SKILL.md`,
+  `swe/docs/agent-guide.md`, and `swe/tests/commit_check_test.sh` (34
+  new assertions, a fixture rule catalogue added since
+  `--force-inference` needs one to reach the sources loop) all updated;
+  all five suites pass (97 assertions). Version bumped `0.12.1` ->
+  `0.13.0`. Shipped on `main` at
+  [`fd9d3c8`](https://github.com/jimbarritt/claude-plugins/commit/fd9d3c8),
+  which closed the issue automatically, released as `swe-v0.13.0`.
 - `claude-plugins/CLAUDE.md`
   ([`cb10626`](https://github.com/jimbarritt/claude-plugins/commit/cb10626)):
   a session on this repo sometimes holds a harness-generated "Git
