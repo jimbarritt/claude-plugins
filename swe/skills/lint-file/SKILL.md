@@ -44,8 +44,21 @@ it has no model access and never spawns one. It records this pass in
 on the same file counts too, for the throttle `--advise-inference`
 applies.
 
+Do not filter or truncate this command's output (no `head`, `sed`,
+`tail`, or `grep`). Step 4 must judge against the rules printed here,
+in full, not a list recalled from earlier in the conversation.
+
+The last line of output is `swe-lint-nonce: <value>`. Step 5 needs
+that value. It is valid for this file's exact current content only,
+and only once. If instead the last line reads `swe: no lint
+nonce issued for <file>: <reason>`, the file needs no ledger row (it
+is outside a git repository, or matched by `.swe-ignore`); do Step 4
+and skip Step 5.
+
 If the file has no prose to check (e.g. empty, or a code file with no
-comments), no block is printed; skip Step 4.
+comments), no `===INFERENCE_ADVISED===` block is printed; skip Step 4.
+The nonce line still prints in this case, since a no-prose file still
+needs a `clean` row recorded in Step 5.
 
 ## Step 4: Judge the file against the inference rules yourself
 
@@ -56,6 +69,13 @@ wait on for this step. Note any violation as `<file-path>:<line>:
 [severity] [rule-id] detail`, matching the deterministic tier's own
 format. Severity comes from the rule's own catalogue entry
 (`data/core-rules.toml`).
+
+A judgement made earlier, in this session or any other, never applies
+to changed content. Even a one-token edit makes this a new file. Judge
+the content as it is now, in full, every time. The ledger is keyed by
+content for exactly this reason, and Step 5's nonce enforces it: a
+nonce issued before an edit no longer matches the file's blob, so
+Step 5 rejects it.
 
 ## Step 5: Record the verdict
 
@@ -73,14 +93,14 @@ Zero errors:
 
 ```
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" \
-  --record-lint-result clean --findings 0 <file-path>
+  --record-lint-result clean --findings 0 --nonce <value from Step 3> <file-path>
 ```
 
 One or more errors:
 
 ```
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" \
-  --record-lint-result failed --findings <count> <file-path>
+  --record-lint-result failed --findings <count> --nonce <value from Step 3> <file-path>
 ```
 
 The row is keyed to the file's exact content at this moment, via its
@@ -92,7 +112,10 @@ outside a git repository, which needs no further action). Exit 2 means
 the command itself was malformed; fix the arguments and run it again.
 Exit 3 means the ledger could not be written: report that line as-is,
 because a commit staging this file will then be blocked with no other
-explanation.
+explanation. Exit 4 means the nonce was rejected: missing, unknown,
+already used, issued for another file, or the file changed after
+Step 3. Do not retry with another value: go back to Step 3 and run
+Steps 3, 4, and 5 again on the file as it is now.
 
 ## Step 6: Report
 

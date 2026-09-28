@@ -179,7 +179,10 @@ unconditionally: no gate, no threshold, no throttle. It still skips on
 empty prose, and still records the pass (word/sentence count, for the
 throttle above) whenever it prints the block. It is the current session
 itself, right where `/swe:lint-file` was run, that then judges the file
-directly; no subagent is dispatched for that command.
+directly; no subagent is dispatched for that command. For a single
+named file inside a git repository, it also mints and prints a
+single-use nonce bound to the file's exact git blob id, whether or not
+the rules block printed — see "Proof that Step 3 ran" below.
 
 ## The commit check
 
@@ -212,7 +215,7 @@ today, right after it judges a file's inference-tier findings itself
 (see [`../skills/lint-file/SKILL.md`](../skills/lint-file/SKILL.md)):
 
 ```
-python3 scripts/software_english_lint.py --record-lint-result {clean|failed} --findings N <file-path>
+python3 scripts/software_english_lint.py --record-lint-result {clean|failed} --findings N --nonce N <file-path>
 ```
 
 A standalone mode: no rule catalogue read, no report printed, no other
@@ -221,19 +224,56 @@ one-line note for a file outside a git repository, which needs no
 ledger); exit 2 means the call itself was malformed; exit 3 means the
 ledger could not be written — reported, not silent, unlike
 `save_inference_state()` above, because a lost row here becomes a
-commit blocked with no visible cause.
+commit blocked with no visible cause; exit 4 means the nonce failed,
+covered in "Proof that Step 3 ran" next.
 
-**Two state files, and why they are separate.**
+**Proof that Step 3 ran.** `--record-lint-result` used to trust its
+caller completely: nothing stopped an agent recording `clean` on the
+strength of an earlier session's judgement of different content
+(claude-plugins#10). `--force-inference` now mints a single-use nonce
+for a single named file inside a git repository and stores it in
+`<git-common-dir>/swe/lint-nonces.json`, keyed by the nonce, holding
+the file's repo-relative path, its worktree toplevel, and its blob id
+at mint time. `--record-lint-result` requires that nonce back
+(`--nonce`), for `clean` and `failed` alike, and checks it in order:
+given at all, known in the store, issued for this same file, and
+issued for this file's *current* blob. Any failure exits 4 with the
+reason. On success the entry is deleted before the ledger row is
+appended, so the nonce is spent by its first use regardless of whether
+that write succeeds; a write failure after that still needs a fresh
+`--force-inference` pass, not a retry with the same value. A `failed`
+verdict needs a nonce for the same reason a `clean` one does: without
+that, a `failed` recording could be followed by a `clean` recording on
+the same nonce, letting the second one through unjudged.
+
+This proves that `--force-inference` ran on this exact content and its
+output reached the caller. It does not, and cannot, prove that the
+caller judged the file against the rules the block printed: that step
+happens inside the model, invisible to this script by construction. A caller with direct shell access can still write the
+ledger or the nonce store by hand. The design turns an accidental
+shortcut — recording a verdict without running Step 4 — into a
+deliberate forgery, which is the realistic case this closes.
+
+**Three state files, and why they are separate.**
 `~/.claude/swe/inference-state.json` (above) is global, per-user, keyed
 by resolved path, and answers "is a fresh advisory pass worth
 dispatching" — a cost heuristic written before any judgement exists.
 The ledger is per-repository, keyed by `(path, blob)`, and answers "was
 this exact content judged, and what was the verdict" — written after
-judgement. Merging them would let a `failed` verdict in one clone
-suppress advisories for the same path in every other clone sharing that
-global file, and would force the throttle file to grow without bound.
-`/swe:lint-file` writes to both, at different steps; that is their only
-coupling.
+judgement. The nonce store is also per-repository, keyed by the nonce
+itself, and answers "did `--force-inference` run on this exact
+content, and has that pass already been claimed" — short-lived, since
+an entry lasts only from one `--force-inference` pass to the
+`--record-lint-result` call that consumes it, or until a later
+`--force-inference` pass on the same file supersedes it. Merging the
+first two would let a `failed` verdict in one clone suppress advisories
+for the same path in every other clone sharing that global file, and
+would force the throttle file to grow without bound. `/swe:lint-file`
+writes to all three, at different steps; that is their only coupling.
+The ledger row schema and the pre-commit hook are unchanged by any of
+this: the hook still cannot tell how a row was written, and the guard
+sits entirely at the only sanctioned writer, `--record-lint-result`
+itself.
 
 **Fail-open boundary.** The check fails open only when it cannot
 evaluate the ledger at all: no `python3` on `PATH`, or the ledger file
@@ -310,12 +350,15 @@ Run `scripts/fetch-software-english-data.sh` once by hand first, if
 not.
 
 ```bash
-python3 scripts/software_english_lint.py FILE.md --record-lint-result clean --findings 0
+python3 scripts/software_english_lint.py FILE.md --force-inference --quiet-vocab
+# note the printed swe-lint-nonce value, then:
+python3 scripts/software_english_lint.py FILE.md --record-lint-result clean --findings 0 --nonce <value>
 ```
 
 Records a both-tier verdict for one named file in the commit check's
 ledger; see "The commit check" above. Standalone: lints nothing itself,
-needs no `data/` fetch, exits 0/2/3.
+needs no `data/` fetch, exits 0/2/3/4 (4: the nonce failed — "Proof
+that Step 3 ran" above has the reasons).
 
 ## Writing a skill's frontmatter
 
@@ -388,6 +431,13 @@ skill's own directory name exactly; the same test asserts it.
 - The commit check's ledger is never pruned either, and `.git/` is never
   cloned, so each clone of a repository starts with an empty ledger and
   needs its own `/swe:install-commit-hook` run.
+- The nonce a `--force-inference` pass mints proves that pass ran on
+  this exact content and its output reached the caller; it does not
+  prove Step 4's judgement happened, since that step is invisible to
+  the script by construction. Direct shell access can still write the
+  ledger or `lint-nonces.json` by hand, bypassing both. `lint-nonces.json`
+  holds at most one pending entry per file per worktree, so unlike the
+  other two state files, it stays bounded on its own.
 - `git diff --cached --diff-filter=ACM` skips a pure rename (`R`), which
   is correct (the content was already judged), but a rename with edits
   is also reported as `R` and so slips through unchecked.

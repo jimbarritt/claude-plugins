@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
-# Covers the pre-commit check: --record-lint-result on the linter,
-# swe/scripts/install-commit-hook.sh, and swe/git-hooks/pre-commit.sh
-# itself.
+# Covers the pre-commit check: --force-inference and --record-lint-result
+# on the linter (including the single-use nonce that binds one to the
+# other, claude-plugins#10), swe/scripts/install-commit-hook.sh, and
+# swe/git-hooks/pre-commit.sh itself.
 # Deterministic and offline: every repository is a throwaway `git init`
-# under a scratch directory, never fetches rule data (the deterministic
-# tier's own fail-open path, covered separately by
-# lint_fail_open_test.sh, is unaffected either way), and never touches
-# $HOME.
+# under a scratch directory, and the linter runs against a fixture copy
+# of scripts/ carrying a small data/core-rules.toml (the real plugin
+# checkout has no data/ until fetched; --force-inference needs a rule
+# catalogue to reach the sources loop where a nonce is minted).  Never
+# touches $HOME or the network.
 #
 # Run: swe/tests/commit_check_test.sh
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="$HERE/.."
-LINTER="$PLUGIN_ROOT/scripts/software_english_lint.py"
 INSTALLER="$PLUGIN_ROOT/scripts/install-commit-hook.sh"
 
 PASS=0
@@ -31,6 +32,70 @@ assert() {
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# --- fixture plugin: scripts/ + config.json + a minimal rule catalogue ----
+# --record-lint-result never reads data/ (it returns before the catalogue
+# load), but --force-inference does, so the nonce-issuing tests below need
+# one. Every rule id check_line() indexes directly must be present; the
+# word lists are left empty so none of the scratch content below trips
+# them by accident.
+FIXTURE="$TMP/plugin"
+mkdir -p "$FIXTURE"
+cp -r "$PLUGIN_ROOT/scripts" "$FIXTURE/scripts"
+cp "$PLUGIN_ROOT/config.json" "$FIXTURE/config.json"
+mkdir -p "$FIXTURE/data"
+cat > "$FIXTURE/data/core-rules.toml" <<'TOML'
+[exemptions]
+skip_line_marker = "swe:ignore"
+
+[[rules]]
+id = "banned-word"
+severity = "error"
+
+[[rules]]
+id = "no-em-dash"
+character = "—"
+severity = "error"
+
+[[rules]]
+id = "sentence-length"
+max_words = 200
+severity = "warning"
+
+[[rules]]
+id = "no-continuous-tense"
+pattern = "\\b(is|are|was|were)\\s+(\\w+ing)\\b"
+stoplist = []
+severity = "warning"
+
+[[rules]]
+id = "no-perfect-tense-for-behaviour"
+pattern = "\\b(has|have|had)\\s+(\\w+ed)\\b"
+stoplist = []
+severity = "warning"
+
+[[rules]]
+id = "anthropomorphism-fixed-list"
+lookback_words = 3
+word_list = []
+severity = "warning"
+
+[[rules]]
+id = "abstract-location"
+lookback_words = 3
+word_list = []
+severity = "warning"
+
+[[rules]]
+id = "vocabulary-membership"
+severity = "warning"
+
+[[rules]]
+id = "tone-judgement"
+check = "model-judgement"
+description = "Judge tone by hand."
+TOML
+LINTER="$FIXTURE/scripts/software_english_lint.py"
+
 new_repo() {  # new_repo <name>
   local dir="$TMP/$1"
   mkdir -p "$dir"
@@ -43,19 +108,51 @@ ledger_path() {  # ledger_path <repo>
   echo "$1/.git/swe/lint-log.ndjson"
 }
 
-# --- --record-lint-result -------------------------------------------------
+nonce_for() {  # nonce_for <repo> <file> -- prints the minted nonce, or nothing
+  (cd "$1" && python3 "$LINTER" "$2" --force-inference --quiet-vocab 2>&1) \
+    | sed -n 's/^swe-lint-nonce: //p' | tail -1
+}
+
+lint_and_record() {  # lint_and_record <repo> <file> <status> <findings>
+  local repo="$1" file="$2" status="$3" findings="$4" nonce
+  nonce="$(nonce_for "$repo" "$file")"
+  (cd "$repo" && python3 "$LINTER" --record-lint-result "$status" --findings "$findings" --nonce "$nonce" "$file" >/dev/null 2>&1)
+}
+
+# --- --force-inference: nonce issuance -------------------------------------
 
 REPO="$(new_repo recorder)"
 echo "# hello" > "$REPO/a.md"
 git -C "$REPO" add a.md
 
-OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 a.md 2>&1)"
-STATUS=$?
-assert "recorder exits 0" "$([ "$STATUS" -eq 0 ]; echo $?)"
+FI_OUT="$(cd "$REPO" && python3 "$LINTER" a.md --force-inference --quiet-vocab 2>&1)"
+LAST_LINE="$(printf '%s\n' "$FI_OUT" | tail -1)"
+case "$LAST_LINE" in
+  "swe-lint-nonce: "*) assert "force-inference prints the nonce as its last line" 0 ;;
+  *) assert "force-inference prints the nonce as its last line" 1 ;;
+esac
+NONCE1="${LAST_LINE#swe-lint-nonce: }"
+if [[ "$NONCE1" =~ ^[0-9a-f]{32}$ ]]; then
+  assert "the nonce is 32 lowercase hex characters" 0
+else
+  assert "the nonce is 32 lowercase hex characters" 1
+fi
+
+NONCE_STORE="$REPO/.git/swe/lint-nonces.json"
+assert "the nonce store file exists" "$([ -f "$NONCE_STORE" ]; echo $?)"
+EXPECT_BLOB="$(git -C "$REPO" hash-object -- a.md)"
+STORE_BLOB="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]]['blob'])" "$NONCE_STORE" "$NONCE1" 2>/dev/null)"
+assert "the nonce entry's blob matches git hash-object" "$([ "$STORE_BLOB" = "$EXPECT_BLOB" ]; echo $?)"
+STORE_PATH="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]]['path'])" "$NONCE_STORE" "$NONCE1" 2>/dev/null)"
+assert "the nonce entry's path is repo-relative" "$([ "$STORE_PATH" = "a.md" ]; echo $?)"
+
+# --- --record-lint-result: recording with a valid nonce --------------------
+
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE1" a.md 2>&1)"
+assert "recorder exits 0 with a valid nonce" "$([ $? -eq 0 ]; echo $?)"
 assert "recorder writes the ledger file" "$([ -f "$(ledger_path "$REPO")" ]; echo $?)"
 
 ROW="$(tail -1 "$(ledger_path "$REPO")")"
-EXPECT_BLOB="$(git -C "$REPO" hash-object -- a.md)"
 GOT_BLOB="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['blob'])" "$ROW")"
 assert "recorded blob matches git hash-object" "$([ "$GOT_BLOB" = "$EXPECT_BLOB" ]; echo $?)"
 GOT_STATUS="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['status'])" "$ROW")"
@@ -63,23 +160,142 @@ assert "recorded status is clean" "$([ "$GOT_STATUS" = "clean" ]; echo $?)"
 GOT_PATH="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['path'])" "$ROW")"
 assert "recorded path is repo-relative" "$([ "$GOT_PATH" = "a.md" ]; echo $?)"
 
-(cd "$REPO" && python3 "$LINTER" --record-lint-result failed --findings 2 a.md >/dev/null 2>&1)
+# --- nonce misuse: replay, no nonce, fabricated, stale, wrong file ---------
+
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE1" a.md 2>&1)"
+assert "replaying a spent nonce exits 4" "$([ $? -eq 4 ]; echo $?)"
 LINES="$(wc -l < "$(ledger_path "$REPO")")"
-assert "recorder appends, does not rewrite" "$([ "$LINES" -eq 2 ]; echo $?)"
+assert "a replay appends no ledger row" "$([ "$LINES" -eq 1 ]; echo $?)"
+
+echo "# second file" > "$REPO/skip3.md"
+git -C "$REPO" add skip3.md
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 skip3.md 2>&1)"
+assert "recording with no --nonce given exits 4" "$([ $? -eq 4 ]; echo $?)"
+LINES="$(wc -l < "$(ledger_path "$REPO")")"
+assert "a no-nonce recording appends no ledger row" "$([ "$LINES" -eq 1 ]; echo $?)"
+
+FAKE="0123456789abcdef0123456789abcdef"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$FAKE" skip3.md 2>&1)"
+assert "a fabricated nonce exits 4" "$([ $? -eq 4 ]; echo $?)"
+
+NONCE2="$(nonce_for "$REPO" skip3.md)"
+echo "# second file, edited" > "$REPO/skip3.md"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE2" skip3.md 2>&1)"
+assert "a nonce issued before an edit exits 4 (claude-plugins#10)" "$([ $? -eq 4 ]; echo $?)"
+case "$OUT" in
+  *"changed since"*) assert "the refusal names the content change" 0 ;;
+  *) assert "the refusal names the content change" 1 ;;
+esac
+LINES="$(wc -l < "$(ledger_path "$REPO")")"
+assert "a stale-blob recording appends no ledger row" "$([ "$LINES" -eq 1 ]; echo $?)"
+
+echo "# other file" > "$REPO/b.md"
+git -C "$REPO" add b.md
+NONCE_A="$(nonce_for "$REPO" skip3.md)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_A" b.md 2>&1)"
+assert "a nonce issued for a different file exits 4" "$([ $? -eq 4 ]; echo $?)"
+
+# --- failed also needs a nonce, and cannot be flipped to clean on it -------
+
+echo "# flip test" > "$REPO/flip.md"
+git -C "$REPO" add flip.md
+NONCE_FLIP="$(nonce_for "$REPO" flip.md)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result failed --findings 2 --nonce "$NONCE_FLIP" flip.md 2>&1)"
+assert "a failed verdict records with a valid nonce" "$([ $? -eq 0 ]; echo $?)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_FLIP" flip.md 2>&1)"
+assert "flipping to clean on the same spent nonce exits 4" "$([ $? -eq 4 ]; echo $?)"
+
+# --- a later --force-inference supersedes an earlier pending nonce ---------
+
+echo "# superseded" > "$REPO/super.md"
+git -C "$REPO" add super.md
+NONCE_SUP_A="$(nonce_for "$REPO" super.md)"
+NONCE_SUP_B="$(nonce_for "$REPO" super.md)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_SUP_A" super.md 2>&1)"
+assert "a superseded nonce exits 4" "$([ $? -eq 4 ]; echo $?)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_SUP_B" super.md 2>&1)"
+assert "the superseding nonce still records" "$([ $? -eq 0 ]; echo $?)"
+
+# --- a nonce is issued even with no prose, or with deterministic errors ---
+
+: > "$REPO/empty.md"
+git -C "$REPO" add empty.md
+FI_OUT="$(cd "$REPO" && python3 "$LINTER" empty.md --force-inference --quiet-vocab 2>&1)"
+case "$FI_OUT" in
+  *INFERENCE_ADVISED*) assert "a no-prose file prints no INFERENCE_ADVISED block" 1 ;;
+  *) assert "a no-prose file prints no INFERENCE_ADVISED block" 0 ;;
+esac
+NONCE_EMPTY="$(printf '%s\n' "$FI_OUT" | sed -n 's/^swe-lint-nonce: //p' | tail -1)"
+if [[ "$NONCE_EMPTY" =~ ^[0-9a-f]{32}$ ]]; then
+  assert "a no-prose file still gets a nonce" 0
+else
+  assert "a no-prose file still gets a nonce" 1
+fi
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_EMPTY" empty.md 2>&1)"
+assert "a no-prose file's clean recording succeeds" "$([ $? -eq 0 ]; echo $?)"
+
+printf '# has an em dash \xe2\x80\x94 right here\n' > "$REPO/dash.md"
+git -C "$REPO" add dash.md
+FI_OUT="$(cd "$REPO" && python3 "$LINTER" dash.md --force-inference --quiet-vocab 2>&1)"
+FI_STATUS=$?
+assert "a deterministically-failing file exits the lint status (1)" "$([ "$FI_STATUS" -eq 1 ]; echo $?)"
+NONCE_DASH="$(printf '%s\n' "$FI_OUT" | sed -n 's/^swe-lint-nonce: //p' | tail -1)"
+if [[ "$NONCE_DASH" =~ ^[0-9a-f]{32}$ ]]; then
+  assert "a deterministically-failing file still gets a nonce" 0
+else
+  assert "a deterministically-failing file still gets a nonce" 1
+fi
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result failed --findings 1 --nonce "$NONCE_DASH" dash.md 2>&1)"
+assert "failed records with the nonce from a deterministically-failing pass" "$([ $? -eq 0 ]; echo $?)"
+
+# --- outside a git repository, and a .swe-ignore'd file: no nonce ----------
 
 OUTSIDE_DIR="$(mktemp -d)"
+echo "# outside" > "$OUTSIDE_DIR/x.md"
+FI_OUT="$(cd "$OUTSIDE_DIR" && python3 "$LINTER" x.md --force-inference --quiet-vocab 2>&1)"
+case "$FI_OUT" in
+  *"no lint nonce issued"*) assert "outside a git repo: force-inference reports no nonce issued" 0 ;;
+  *) assert "outside a git repo: force-inference reports no nonce issued" 1 ;;
+esac
+case "$FI_OUT" in
+  *"swe-lint-nonce:"*) assert "outside a git repo: no nonce value is printed" 1 ;;
+  *) assert "outside a git repo: no nonce value is printed" 0 ;;
+esac
 OUT="$(python3 "$LINTER" --record-lint-result clean "$OUTSIDE_DIR/x.md" 2>&1)"
 STATUS=$?
-assert "outside a git repo: exits 0" "$([ "$STATUS" -eq 0 ]; echo $?)"
+assert "outside a git repo: recording with no nonce still exits 0" "$([ "$STATUS" -eq 0 ]; echo $?)"
 assert "outside a git repo: no ledger written" "$([ ! -d "$OUTSIDE_DIR/.git" ]; echo $?)"
 rm -rf "$OUTSIDE_DIR"
 
 OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean a.md b.md 2>&1)"
-STATUS=$?
-assert "two positional files: exits 2" "$([ "$STATUS" -eq 2 ]; echo $?)"
+assert "two positional files: exits 2" "$([ $? -eq 2 ]; echo $?)"
 
 python3 "$LINTER" --record-lint-result maybe a.md >/dev/null 2>&1
 assert "invalid status value: exits 2" "$([ $? -eq 2 ]; echo $?)"
+
+echo "ignoreme.md" > "$REPO/.swe-ignore"
+echo "# ignored content" > "$REPO/ignoreme.md"
+git -C "$REPO" add .swe-ignore ignoreme.md
+FI_OUT="$(cd "$REPO" && python3 "$LINTER" ignoreme.md --force-inference --quiet-vocab 2>&1)"
+case "$FI_OUT" in
+  *"swe-lint-nonce"*) assert ".swe-ignore'd file: no nonce line printed at all" 1 ;;
+  *) assert ".swe-ignore'd file: no nonce line printed at all" 0 ;;
+esac
+rm -f "$REPO/.swe-ignore"
+git -C "$REPO" rm -q --cached .swe-ignore >/dev/null 2>&1 || true
+
+# --- a ledger write failure still consumes the nonce -----------------------
+
+LEDGER="$(ledger_path "$REPO")"
+rm -f "$LEDGER"
+mkdir -p "$LEDGER"
+echo "# ledger write failure" > "$REPO/ledgerfail.md"
+git -C "$REPO" add ledgerfail.md
+NONCE_LF="$(nonce_for "$REPO" ledgerfail.md)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_LF" ledgerfail.md 2>&1)"
+assert "a ledger write failure exits 3" "$([ $? -eq 3 ]; echo $?)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_LF" ledgerfail.md 2>&1)"
+assert "the nonce is already spent after a failed write (no retry with the same value)" "$([ $? -eq 4 ]; echo $?)"
 
 # --- install-commit-hook.sh -----------------------------------------------
 
@@ -160,7 +376,7 @@ git -C "$REPO" add a.md
 commit "unlinted markdown" 2>/dev/null
 assert "staged markdown with no ledger row: commit is blocked" "$([ $? -ne 0 ]; echo $?)"
 
-(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 a.md >/dev/null 2>&1)
+lint_and_record "$REPO" a.md clean 0
 commit "clean markdown"
 assert "staged markdown with a matching clean row: commit succeeds" "$([ $? -eq 0 ]; echo $?)"
 
@@ -169,11 +385,16 @@ git -C "$REPO" add a.md
 commit "edited after lint" 2>/dev/null
 assert "content edited after the recorded pass: commit is blocked" "$([ $? -ne 0 ]; echo $?)"
 
-(cd "$REPO" && python3 "$LINTER" --record-lint-result failed --findings 3 a.md >/dev/null 2>&1)
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 a.md 2>&1)"
+assert "recording with no fresh nonce after an edit exits 4" "$([ $? -eq 4 ]; echo $?)"
+commit "still edited, no fresh record" 2>/dev/null
+assert "with no fresh record: commit stays blocked" "$([ $? -ne 0 ]; echo $?)"
+
+lint_and_record "$REPO" a.md failed 3
 commit "failed status" 2>/dev/null
 assert "a failed row for the exact staged content: commit is blocked" "$([ $? -ne 0 ]; echo $?)"
 
-(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 a.md >/dev/null 2>&1)
+lint_and_record "$REPO" a.md clean 0
 commit "clean after failed"
 assert "a later clean row for the same content: commit succeeds" "$([ $? -eq 0 ]; echo $?)"
 
