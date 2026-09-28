@@ -4,11 +4,7 @@ Last updated: 2026-09-28
 
 ## In progress
 
-[tasks/issue-11-commit-hook-success-line.md](tasks/issue-11-commit-hook-success-line.md)
-([#11](https://github.com/jimbarritt/claude-plugins/issues/11)): the
-`swe` pre-commit hook prints on failure only; add a success line on the
-one silent-but-checked path (ledger clean, nothing else blocked).
-Plan returned by an Opus Plan subagent; work starting on `main`.
+None.
 
 ## Next
 
@@ -41,6 +37,28 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-11-commit-hook-success-line.md](tasks/issue-11-commit-hook-success-line.md)
+  ([#11](https://github.com/jimbarritt/claude-plugins/issues/11)):
+  third real issue worked end to end by the self-maintaining-repo
+  Routine, single pass, no escalation. The pre-commit hook printed on
+  failure only; a passing commit now prints one line, naming the
+  count of staged markdown files verified and the clean verdict,
+  right before the hook's own final `exit 0` so it only shows once
+  the commit actually proceeds (after the ledger check and
+  `block_on_deterministic`, not before). Every path where nothing was
+  checked, or the ledger could not be evaluated (fail-open), stays
+  silent as before. Plan came from an Opus Plan subagent read against
+  the real hook script; implementation matched it, including bumping
+  the hook's own version marker (`swe-commit-check-version: 1` -> `2`)
+  so `/swe:install-commit-hook` re-copies it into repositories that
+  already have the hook installed. 9 new/updated assertions in
+  `swe/tests/commit_check_test.sh`; two em-dashes and two `actually`
+  banned-word findings caught by actually running the lint on the
+  docs edit, fixed before committing. All five test suites pass (108
+  assertions). Version bumped `0.13.0` -> `0.14.0`. Shipped on `main`
+  at
+  [`c6a68ef`](https://github.com/jimbarritt/claude-plugins/commit/c6a68ef732930e1978fe8ce26281ddfe8dcc102e),
+  which closed the issue automatically, released as `swe-v0.14.0`.
 - [tasks/issue-10-lint-ledger-nonce.md](tasks/issue-10-lint-ledger-nonce.md)
   ([#10](https://github.com/jimbarritt/claude-plugins/issues/10)):
   second real issue worked end to end by the self-maintaining-repo
