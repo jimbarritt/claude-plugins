@@ -4,7 +4,11 @@ Last updated: 2026-09-28
 
 ## In progress
 
-None.
+[tasks/issue-11-commit-hook-success-line.md](tasks/issue-11-commit-hook-success-line.md)
+([#11](https://github.com/jimbarritt/claude-plugins/issues/11)): the
+`swe` pre-commit hook prints on failure only; add a success line on the
+one silent-but-checked path (ledger clean, nothing else blocked).
+Plan returned by an Opus Plan subagent; work starting on `main`.
 
 ## Next
 
