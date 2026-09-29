@@ -20,3 +20,8 @@
 | [issue-7-8-design-type-and-style-cost.md](issue-7-8-design-type-and-style-cost.md) | [claude-plugins#7](https://github.com/jimbarritt/claude-plugins/issues/7), [#8](https://github.com/jimbarritt/claude-plugins/issues/8) | Done — shipped on `main`, released as `swe-v0.11.0` and `software-english` `v0.0.4`, both issues closed |
 | [future-self-maintaining-repo.md](future-self-maintaining-repo.md) | none filed yet | Live: the Routine, labels, and `MAINTAINER-RUN.md` exist; issue #9 went through the full loop end to end |
 | [future-api-design-doc-template.md](future-api-design-doc-template.md) | none filed yet | Done — shipped as `software-english` v0.0.7, `swe` v0.12.0; Jim's worked example still pending as a `claude-plugins` issue |
+| [issue-9-document-routine-in-readme.md](issue-9-document-routine-in-readme.md) | [claude-plugins#9](https://github.com/jimbarritt/claude-plugins/issues/9) | Done — shipped on `main`, released as `swe-v0.11.1`, issue closed |
+| [issue-10-lint-ledger-nonce.md](issue-10-lint-ledger-nonce.md) | [claude-plugins#10](https://github.com/jimbarritt/claude-plugins/issues/10) | Done — shipped on `main`, released as `swe-v0.13.0`, issue closed |
+| [issue-11-commit-hook-success-line.md](issue-11-commit-hook-success-line.md) | [claude-plugins#11](https://github.com/jimbarritt/claude-plugins/issues/11) | Done — shipped on `main`, released as `swe-v0.14.0`, issue closed |
+| [issue-12-send-feedback-redaction.md](issue-12-send-feedback-redaction.md) | [claude-plugins#12](https://github.com/jimbarritt/claude-plugins/issues/12) | In progress |
+| [future-feedback-log-confidentiality.md](future-feedback-log-confidentiality.md) | none filed yet | Waiting for Jim's decision; not started |

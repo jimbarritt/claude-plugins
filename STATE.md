@@ -1,10 +1,27 @@
 # State
 
-Last updated: 2026-09-28
+Last updated: 2026-09-29
 
 ## In progress
 
-None.
+[tasks/issue-12-send-feedback-redaction.md](tasks/issue-12-send-feedback-redaction.md)
+([#12](https://github.com/jimbarritt/claude-plugins/issues/12)):
+send-feedback drafts a public GitHub issue from a feedback log entry's
+`quote`/`note`, which routinely hold private detail (employer/project
+names, ticket ids, verbatim excerpts). Plan (Opus Plan subagent,
+read against the real skill files): implement the issue's items 1-3
+now (state the redaction rule and its reason, show the redacted
+draft and wait before `gh issue create`) in `send-feedback` only;
+defer item 4 (whether `/swe:feedback`'s log itself should also be
+redacted at capture time, or the archive expired) to a new task,
+[tasks/future-feedback-log-confidentiality.md](tasks/future-feedback-log-confidentiality.md).
+The issue asks to decide item 4 first; proceeding anyway is
+justified because every answer to item 4 still needs send-time
+redaction (existing logs are already verbatim; the drafting session
+can hold private context that never passed through the log at all),
+so this is not the "two readings lead to materially different work"
+escalation case. The closing comment on the issue states this
+plainly so Jim can reopen if he disagrees.
 
 ## Next
 
