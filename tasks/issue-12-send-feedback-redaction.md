@@ -110,8 +110,30 @@ reopen if he disagrees with proceeding this way.
 
 ## What shipped
 
-See commit and release reference below, added once pushed.
+`swe/skills/send-feedback/SKILL.md`: a new "The issue tracker is
+public; the feedback log is not" section (the rule and its reason),
+Step 3 item 3 reworded so the user's yes only takes an item to a
+draft, and Step 4 rewritten with a new item 3 that shows the exact
+title, body and target repository and waits for approval before
+`gh issue create` runs, plus the draft-instruction (item 2) now says
+not to copy `quote`/`note` text in. `swe/README.md` gained a short
+paragraph on the same behaviour. One real lint finding caught by
+actually running `--force-inference` on the edited file: a
+`banned-word` hit on "(see below)" in the new Step 4 item 3, fixed by
+stating the decline behaviour inline instead of forward-referencing.
+All five test suites pass (108 assertions, unchanged by this
+work). Version bumped `0.14.0` -> `0.15.0`. Shipped on `main` at
+[`bc5bb5c`](https://github.com/jimbarritt/claude-plugins/commit/bc5bb5c62d499647e61da0d522865428ece82ddf),
+which closed the issue automatically, released as
+[`swe-v0.15.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.15.0).
+
+Item 4 deferred to
+[future-feedback-log-confidentiality.md](future-feedback-log-confidentiality.md),
+not decided first as the issue asked; the closing comment on #12
+states the reasoning and invites Jim to reopen if he disagrees with
+proceeding this way.
 
 ## Outcome
 
-<!-- filled in at Record step -->
+Single pass, no escalation. Fourth real issue worked end to end by
+the self-maintaining-repo Routine.

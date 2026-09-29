@@ -4,24 +4,7 @@ Last updated: 2026-09-29
 
 ## In progress
 
-[tasks/issue-12-send-feedback-redaction.md](tasks/issue-12-send-feedback-redaction.md)
-([#12](https://github.com/jimbarritt/claude-plugins/issues/12)):
-send-feedback drafts a public GitHub issue from a feedback log entry's
-`quote`/`note`, which routinely hold private detail (employer/project
-names, ticket ids, verbatim excerpts). Plan (Opus Plan subagent,
-read against the real skill files): implement the issue's items 1-3
-now (state the redaction rule and its reason, show the redacted
-draft and wait before `gh issue create`) in `send-feedback` only;
-defer item 4 (whether `/swe:feedback`'s log itself should also be
-redacted at capture time, or the archive expired) to a new task,
-[tasks/future-feedback-log-confidentiality.md](tasks/future-feedback-log-confidentiality.md).
-The issue asks to decide item 4 first; proceeding anyway is
-justified because every answer to item 4 still needs send-time
-redaction (existing logs are already verbatim; the drafting session
-can hold private context that never passed through the log at all),
-so this is not the "two readings lead to materially different work"
-escalation case. The closing comment on the issue states this
-plainly so Jim can reopen if he disagrees.
+None.
 
 ## Next
 
@@ -54,6 +37,38 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-12-send-feedback-redaction.md](tasks/issue-12-send-feedback-redaction.md)
+  ([#12](https://github.com/jimbarritt/claude-plugins/issues/12)):
+  fourth real issue worked end to end by the self-maintaining-repo
+  Routine, single pass, no escalation. `send-feedback` drafted a
+  public GitHub issue straight from a feedback log entry's
+  `quote`/`note` fields, which routinely hold private detail
+  (employer/project names, ticket ids, verbatim excerpts from internal
+  documents) — the log is local, the tracker is not. Shipped the
+  issue's items 1-3 in `swe/skills/send-feedback/SKILL.md`: a new
+  section stating the redaction rule and its reason, Step 3 reworded
+  so a yes only takes an item to a draft (not to publishing it), and
+  Step 4 rewritten to show the exact redacted title, body and target
+  repository and wait for approval before `gh issue create` runs.
+  `swe/README.md` updated to match. Deliberately did not implement
+  item 4 (an open question on whether `/swe:feedback`'s log itself
+  should also be redacted at capture time, or the archive expired)
+  even though the issue asked to decide it first: an Opus Plan
+  subagent's read of the real skill files found every answer to item 4
+  still needs send-time redaction (existing logs and archives are
+  already verbatim; the session drafting an issue can hold private
+  context that never passed through the log at all), so this was not
+  the "two readings lead to materially different work" escalation
+  case. Item 4 split out to
+  [tasks/future-feedback-log-confidentiality.md](tasks/future-feedback-log-confidentiality.md),
+  and the closing comment on the issue states the reasoning plainly so
+  Jim can reopen if he disagrees. One real lint finding (`banned-word`
+  on "(see below)") caught by actually running the lint on the edited
+  skill file, fixed. All five test suites pass (108 assertions,
+  unchanged). Version bumped `0.14.0` -> `0.15.0`. Shipped on `main` at
+  [`bc5bb5c`](https://github.com/jimbarritt/claude-plugins/commit/bc5bb5c62d499647e61da0d522865428ece82ddf),
+  which closed the issue automatically, released as
+  [`swe-v0.15.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.15.0).
 - [tasks/issue-11-commit-hook-success-line.md](tasks/issue-11-commit-hook-success-line.md)
   ([#11](https://github.com/jimbarritt/claude-plugins/issues/11)):
   third real issue worked end to end by the self-maintaining-repo
