@@ -147,6 +147,11 @@ Answer its questions one at a time. For each real pattern it finds
 across the log, it proposes a fix direction and asks whether to file a
 `gh issue create` against the repository that owns the rule.
 
+Before it files anything, it shows the exact issue title and body and
+waits for your approval. The issue is public, so the draft describes
+the fault in general terms. It does not quote your log, which can hold
+names, ticket ids, or excerpts from private work.
+
 ## What happens to an issue filed here
 
 Some issues on `jimbarritt/claude-plugins` go through an unattended
