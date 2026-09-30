@@ -1,6 +1,10 @@
 {
   "name": "swe",
   "description": "Checks agent prose against Software English via three hooks, a selectable output style, on-demand check commands, and a git commit check.",
-  "version": "0.16.2",
+  "version": "0.16.3",
+  "author": {
+    "name": "Jim Barritt",
+    "url": "https://github.com/jimbarritt"
+  },
   "license": "Apache-2.0"
 }
