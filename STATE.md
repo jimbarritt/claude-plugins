@@ -4,7 +4,15 @@ Last updated: 2026-09-29
 
 ## In progress
 
-None.
+[tasks/issue-13-transport-metaphor-banned-words.md](tasks/issue-13-transport-metaphor-banned-words.md)
+([#13](https://github.com/jimbarritt/claude-plugins/issues/13)): fifth real
+issue picked up by the self-maintaining-repo Routine. Fix lives entirely in
+`software-english` (`vocabulary/banned.tsv`, `rules/core-rules.toml`,
+`spec/SPEC.md`), no `claude-plugins` code change. Plan written from an Opus
+Plan subagent's read of the real files; four judgement calls made without a
+supervisor (drop `landing`, keep `piggybacking`, apply the "(mixed)"
+heading precedent from §5.6, leave `journey`'s hint alone) since this is an
+unattended run.
 
 ## Next
 
