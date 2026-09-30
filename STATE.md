@@ -4,7 +4,17 @@ Last updated: 2026-09-30
 
 ## In progress
 
-None.
+[tasks/issue-14-inference-block-findings-shape.md](tasks/issue-14-inference-block-findings-shape.md)
+([#14](https://github.com/jimbarritt/claude-plugins/issues/14)): sixth real
+issue claimed by the self-maintaining-repo Routine. `--force-inference`'s
+rule block uses a different line shape from a deterministic finding, so a
+findings-shaped grep silently drops it, which is how a metaphor shipped
+undetected under #13. Plan from an Opus Plan subagent's read of the real
+code: rewrite the block to finding-shaped lines (`label:0: [warning]
+[rule-id] inference pending: ...`) plus a summary line, inside the existing
+fences so hooks are unaffected; reject `--count` combined with either
+inference flag (a second, related hole the plan found unprompted). Entirely
+within `claude-plugins`; no `software-english` change. Work starting next.
 
 ## Next
 
