@@ -1,6 +1,6 @@
 # State
 
-Last updated: 2026-09-30
+Last updated: 2026-09-30 (issue #15)
 
 ## In progress
 
@@ -37,6 +37,58 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-15-motion-idiom-abstract-subject.md](tasks/issue-15-motion-idiom-abstract-subject.md)
+  ([#15](https://github.com/jimbarritt/claude-plugins/issues/15)): seventh
+  real issue worked end to end by the self-maintaining-repo Routine, single
+  pass, no escalation. `no-metaphor-or-analogy`'s v0.0.9 transport fix
+  missed a sibling shape: an abstract subject (a decision, a contract, a
+  reader's attention) given an ordinary verb of physical motion or
+  position, not a vehicle verb. The issue proposed six phrasal shapes and
+  left two judgement calls open to the maintainer (which shapes are safe
+  to catch deterministically, and whether the fix belongs on
+  `abstract-location` or `banned.tsv`); an Opus Plan subagent tested every
+  candidate against the real linter before proposing anything, rather than
+  reasoning from the issue's text alone. Kept two, both idioms that carry
+  their own subject inside the fixed phrase so no gate is needed ("where
+  this/that leaves", "as they/it come(s)"), added to
+  `vocabulary/banned.tsv`. Dropped four ("go past", "pass over", "does not
+  move", "behind the" + component): each also names a correct, literal
+  operation on a structure noun in ordinary technical prose (a second pass
+  over a table, a file that does not move to an archive directory, a
+  service behind a proxy), confirmed by running those exact sentences
+  through the real linter, not just asserted; left to the inference tier,
+  named as explicit examples in `no-metaphor-or-analogy`'s description.
+  `abstract-location`'s own `word_list` unchanged, since every dropped verb
+  fails its literal-operation test too; one new sentence added to its
+  description recording why, so a future pass doesn't re-add them. SPEC
+  §5.2 and §5.5 updated to match. One implementation-time correction found
+  only by actually running the new test, not anticipated in the plan: its
+  `fires()`/`clean()` helpers piped the linter's own stdout straight into
+  `grep -q`, and under `set -o pipefail` the linter's own non-zero
+  "finding reported" exit code outranked `grep`'s real match result in the
+  nested pipeline's exit status, so every true-positive assertion read as
+  a failure and every guard read as a pass regardless of what `grep` found
+  (8 of 18 failed on the first run, all 8 the true-positive assertions).
+  Fixed by capturing the linter's output to a variable before grepping it.
+  New `swe/tests/motion_idiom_test.sh` is the first test in this plugin to
+  run the real linter against real Software English data (via `SWE_SRC` or
+  the pinned tag) rather than a synthetic fixture catalogue; 18 assertions,
+  all pass, both against a local checkout and against the released tag.
+  All six suites pass. Also surfaced, not fixed (put in the issue's
+  closing comment, not filed separately, at the one-issue-per-run limit):
+  `abstract-location` already false-positives on a few real sentences
+  ("the rest of the file", "the process hangs", "goes live on Monday") and
+  has no plural handling on its subject gate. Entirely cross-repo, same
+  shape as issue #13: shipped on `software-english`'s `main` at
+  [`8078f05`](https://github.com/jimbarritt/software-english/commit/8078f05),
+  released as
+  [`v0.0.10`](https://github.com/jimbarritt/software-english/releases/tag/v0.0.10),
+  which closed the issue automatically via a cross-repo `closes` trailer.
+  `claude-plugins` pin bumped to that tag and `swe` version `0.16.0` ->
+  `0.16.1` on `main` at
+  [`6190b17`](https://github.com/jimbarritt/claude-plugins/commit/6190b17),
+  released as
+  [`swe-v0.16.1`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.16.1).
 - [tasks/issue-14-inference-block-findings-shape.md](tasks/issue-14-inference-block-findings-shape.md)
   ([#14](https://github.com/jimbarritt/claude-plugins/issues/14)): sixth
   real issue worked end to end by the self-maintaining-repo Routine, single
