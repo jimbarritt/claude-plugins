@@ -1,18 +1,10 @@
 # State
 
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 
 ## In progress
 
-[tasks/issue-13-transport-metaphor-banned-words.md](tasks/issue-13-transport-metaphor-banned-words.md)
-([#13](https://github.com/jimbarritt/claude-plugins/issues/13)): fifth real
-issue picked up by the self-maintaining-repo Routine. Fix lives entirely in
-`software-english` (`vocabulary/banned.tsv`, `rules/core-rules.toml`,
-`spec/SPEC.md`), no `claude-plugins` code change. Plan written from an Opus
-Plan subagent's read of the real files; four judgement calls made without a
-supervisor (drop `landing`, keep `piggybacking`, apply the "(mixed)"
-heading precedent from §5.6, leave `journey`'s hint alone) since this is an
-unattended run.
+None.
 
 ## Next
 
@@ -45,6 +37,53 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-13-transport-metaphor-banned-words.md](tasks/issue-13-transport-metaphor-banned-words.md)
+  ([#13](https://github.com/jimbarritt/claude-plugins/issues/13)): fifth
+  real issue worked end to end by the self-maintaining-repo Routine, single
+  pass, no escalation. `no-metaphor-or-analogy` is inference-based, so
+  `software_english_lint.py` never caught formulaic transport metaphors
+  ("the event rides on the topic") reported after one shipped undetected.
+  The issue's own file paths (`swe/data/...`) were stale; the fix lives
+  entirely in `jimbarritt/software-english` (`vocabulary/banned.tsv`,
+  `rules/core-rules.toml`, `spec/SPEC.md`), no `claude-plugins` code
+  change, since the plugin fetches those files directly. Plan from an
+  Opus Plan subagent's read of the real files (confirmed no approved
+  vocabulary conflict, confirmed the linter's whole-word/no-stemming
+  matching, confirmed no test harness exists in `software-english`). A
+  new `# Transport metaphor` group added to `banned.tsv` (`ride on`,
+  `travels`/`travelled`/`travelling`, `piggyback` family, `hitch a
+  ride`/`along for the ride`, `ferry` family), plus missed inflections on
+  the existing `land`/`carry`/`flow` families (`landed`, `carried
+  across`, `flows through`/`flowed through`). `no-metaphor-or-analogy`'s
+  description and SPEC §5.5 updated to name the fixed list, following the
+  mixed-tier pattern §5.6 already uses. Four judgement calls made without
+  a supervisor, since this is an unattended run: dropped bare
+  `travel`/`landing` (real domain nouns/terms, "travel dates", "landing
+  page"), kept `piggybacking` despite being a real TCP term of art
+  (SPEC's code-span/quote exemption already covers that use, same
+  precedent as `gate`/`drive`/`hit`), applied the "(mixed)" heading
+  change (factually accurate once the fixed list exists, mirrors an
+  existing precedent rather than inventing new SPEC structure), left
+  `journey`'s existing `CUT` hint unchanged (out of scope). The issue's
+  own non-transport sweep items (`blast radius`, `the seam`, and so on)
+  are not formulaic transport metaphors, left to the inference tier,
+  noted as a possible follow-up issue rather than added here. Verified
+  directly against the real linter, not just read: the reported sentence
+  now fires `banned-word`; `landing page`/`travel service` do not; the
+  new SPEC prose introduces zero new lint findings elsewhere in the
+  document (diffed error output before/after, identical 12 pre-existing
+  findings). All five `claude-plugins` test suites pass (108 assertions,
+  unchanged) against the newly fetched pinned data. Shipped on
+  `software-english`'s `main` at
+  [`7b18340`](https://github.com/jimbarritt/software-english/commit/7b18340),
+  released as
+  [`v0.0.9`](https://github.com/jimbarritt/software-english/releases/tag/v0.0.9),
+  which closed the issue automatically via a cross-repo `closes`
+  trailer. `claude-plugins` pin bumped to that tag and `swe` version
+  `0.15.0` -> `0.15.1` on `main` at
+  [`221e451`](https://github.com/jimbarritt/claude-plugins/commit/221e451),
+  released as
+  [`swe-v0.15.1`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.15.1).
 - [tasks/issue-12-send-feedback-redaction.md](tasks/issue-12-send-feedback-redaction.md)
   ([#12](https://github.com/jimbarritt/claude-plugins/issues/12)):
   fourth real issue worked end to end by the self-maintaining-repo

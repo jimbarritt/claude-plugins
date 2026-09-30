@@ -152,3 +152,42 @@ version, and run `release-plugin.yml`. `claude-plugins/CLAUDE.md`
 already documents this as a separate release step, not part of fixing
 the spec repo, so this issue's own Ship/Release steps apply to
 `software-english` only.
+
+## Outcome
+
+Done in one pass, no escalation. Implemented the plan as written above,
+with one correction found only by actually running the linter (not
+anticipated by the Plan subagent): the new SPEC.md fixed-list sentence
+wrapped the backtick-quoted word list across three lines, which broke
+the single-line inline-code-span exemption `no-metaphor-or-analogy`'s
+own prior art (§5.6's list) relies on, so the new list's own words
+tripped `banned-word` on themselves. Fixed by keeping the whole list on
+one line, matching §5.6's existing convention exactly. Diffed lint
+error output before/after the SPEC.md edit (`--force-inference`) to
+confirm zero new findings anywhere outside the edited section; the 12
+pre-existing findings elsewhere in the document are unchanged.
+
+Reconsidered the plan's own Step 6 framing ("this issue's fix belongs
+entirely to `software-english`... a follow-up not part of this issue's
+scope") against STATE.md's own precedent: every prior issue that
+changed `core-rules.toml` or a `vocabulary/*.tsv` file was shipped
+together with a `software-english` release, a `claude-plugins` pin
+bump, and a `swe` version release in the same pass (see the API Design
+and cache-rename entries above), because leaving that undone means the
+plugin never actually gains the fix the issue reported. Did the same
+here rather than treating it as a deferred follow-up: released
+`software-english` v0.0.9, bumped the `claude-plugins` pin and `swe`
+version, ran `release-plugin.yml`, confirmed via `check-unshipped.sh`
+and a real `fetch-software-english-data.sh` run against the new tag
+that the deployed plugin data now contains the fix.
+
+Shipped on `software-english`'s `main` at
+[`7b18340`](https://github.com/jimbarritt/software-english/commit/7b18340),
+released as
+[`v0.0.9`](https://github.com/jimbarritt/software-english/releases/tag/v0.0.9),
+closing issue #13 automatically via a cross-repo `closes` trailer.
+`claude-plugins` pin bump and version bump on `main` at
+[`221e451`](https://github.com/jimbarritt/claude-plugins/commit/221e451),
+released as
+[`swe-v0.15.1`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.15.1).
+All five `claude-plugins` test suites pass (108 assertions, unchanged).
