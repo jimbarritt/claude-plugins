@@ -133,10 +133,33 @@ it prints a fenced block:
 
 ```
 ===INFERENCE_ADVISED===
-- rule-id: description
-- rule-id: description
+doc.md:0: [warning] [anthropomorphism-paraphrase] inference pending: A paraphrase of anthropomorphic language ...
+doc.md:0: [warning] [no-metaphor-or-analogy] inference pending: State a fact or a mechanism directly ...
+doc.md:0: [warning] [inference-pending] 2 inference rule(s) above need model judgement; this script does not judge them. Deterministic tier: 0 error(s), 0 warning(s).
 ===END_INFERENCE_ADVISED===
 ```
+
+Each rule line is shaped like a deterministic finding (`label:line:
+[severity] [rule-id] detail`), deliberately: a caller filtering output
+for finding lines (a `grep -E ":\s*\[(error|warning)\]"`, the natural
+thing to do on a long file) used to drop this whole block silently, so
+a filtered `--force-inference` run read as a clean two-tier pass when
+the inference tier had never run at all (claude-plugins#14). Line
+number is always `0` (never used by a real finding, since `prose_lines()`
+counts from 1) and severity is always `warning` (a pending rule is not
+itself a violation), whatever the catalogue's own severity for that
+rule is; where that differs, the line ends `(severity on violation:
+<severity>)` so the judging step still has it. `[inference-pending]` is
+a reserved id, in neither catalogue, marking the one summary line,
+which restates the source's real deterministic counts so a caller
+counting `[warning]` lines is not misled by the added rule lines.
+
+Splitting a pending rule, the summary, and a real finding apart, by
+regex:
+
+- pending rule: `^.+:0: \[warning\] \[[a-z0-9-]+\] inference pending: `
+- summary: `\[inference-pending\]`
+- real finding: any finding-shaped line with a line number of 1 or more
 
 The hook script (`strip_advise_block()`/`extract_advise_rules()` and
 `advise_inference()` in [`../hooks/_lib.sh`](../hooks/_lib.sh)) splits
@@ -179,7 +202,31 @@ unconditionally: no gate, no threshold, no throttle. It still skips on
 empty prose, and still records the pass (word/sentence count, for the
 throttle above) whenever it prints the block. It is the current session
 itself, right where `/swe:lint-file` was run, that then judges the file
-directly; no subagent is dispatched for that command.
+directly; no subagent is dispatched for that command. For a single
+named file inside a git repository, it also mints and prints a
+single-use nonce bound to the file's exact git blob id, whether or not
+the rules block printed — see "Proof that Step 3 ran" below.
+
+Neither `--advise-inference` nor `--force-inference` can be combined
+with `--count`: `--count` returns its one-line summary before the
+inference block would print and before a nonce would mint, so the
+combination would always report "0 errors, 0 warnings" and exit 0
+regardless of prose content, the same failure claude-plugins#14
+describes, just reached a different way. The combination exits 2
+rather than being silently accepted.
+
+The exit code still reflects the deterministic tier only, on both
+flags: a pending inference rule is never itself a finding, and a shell
+pipeline like the one in claude-plugins#14 reports the last command's
+(here, `grep`'s) exit status regardless, so a distinct "block printed,
+not yet judged" exit code would not reach the caller the issue
+describes. The finding-shaped rule lines are the fix for that case, not
+the exit code.
+
+The hooks strip the whole fenced block (`strip_advise_block()`) before
+they count `[error]`/`[warning]` lines for
+`report_and_maybe_block()`, so the added rule and summary lines never
+change a hook's own error/warning counts or its blocking decision.
 
 ## The commit check
 
@@ -212,7 +259,7 @@ today, right after it judges a file's inference-tier findings itself
 (see [`../skills/lint-file/SKILL.md`](../skills/lint-file/SKILL.md)):
 
 ```
-python3 scripts/software_english_lint.py --record-lint-result {clean|failed} --findings N <file-path>
+python3 scripts/software_english_lint.py --record-lint-result {clean|failed} --findings N --nonce N <file-path>
 ```
 
 A standalone mode: no rule catalogue read, no report printed, no other
@@ -221,19 +268,56 @@ one-line note for a file outside a git repository, which needs no
 ledger); exit 2 means the call itself was malformed; exit 3 means the
 ledger could not be written — reported, not silent, unlike
 `save_inference_state()` above, because a lost row here becomes a
-commit blocked with no visible cause.
+commit blocked with no visible cause; exit 4 means the nonce failed,
+covered in "Proof that Step 3 ran" next.
 
-**Two state files, and why they are separate.**
+**Proof that Step 3 ran.** `--record-lint-result` used to trust its
+caller completely: nothing stopped an agent recording `clean` on the
+strength of an earlier session's judgement of different content
+(claude-plugins#10). `--force-inference` now mints a single-use nonce
+for a single named file inside a git repository and stores it in
+`<git-common-dir>/swe/lint-nonces.json`, keyed by the nonce, holding
+the file's repo-relative path, its worktree toplevel, and its blob id
+at mint time. `--record-lint-result` requires that nonce back
+(`--nonce`), for `clean` and `failed` alike, and checks it in order:
+given at all, known in the store, issued for this same file, and
+issued for this file's *current* blob. Any failure exits 4 with the
+reason. On success the entry is deleted before the ledger row is
+appended, so the nonce is spent by its first use regardless of whether
+that write succeeds; a write failure after that still needs a fresh
+`--force-inference` pass, not a retry with the same value. A `failed`
+verdict needs a nonce for the same reason a `clean` one does: without
+that, a `failed` recording could be followed by a `clean` recording on
+the same nonce, letting the second one through unjudged.
+
+This proves that `--force-inference` ran on this exact content and its
+output reached the caller. It does not, and cannot, prove that the
+caller judged the file against the rules the block printed: that step
+happens inside the model, invisible to this script by construction. A caller with direct shell access can still write the
+ledger or the nonce store by hand. The design turns an accidental
+shortcut — recording a verdict without running Step 4 — into a
+deliberate forgery, which is the realistic case this closes.
+
+**Three state files, and why they are separate.**
 `~/.claude/swe/inference-state.json` (above) is global, per-user, keyed
 by resolved path, and answers "is a fresh advisory pass worth
 dispatching" — a cost heuristic written before any judgement exists.
 The ledger is per-repository, keyed by `(path, blob)`, and answers "was
 this exact content judged, and what was the verdict" — written after
-judgement. Merging them would let a `failed` verdict in one clone
-suppress advisories for the same path in every other clone sharing that
-global file, and would force the throttle file to grow without bound.
-`/swe:lint-file` writes to both, at different steps; that is their only
-coupling.
+judgement. The nonce store is also per-repository, keyed by the nonce
+itself, and answers "did `--force-inference` run on this exact
+content, and has that pass already been claimed" — short-lived, since
+an entry lasts only from one `--force-inference` pass to the
+`--record-lint-result` call that consumes it, or until a later
+`--force-inference` pass on the same file supersedes it. Merging the
+first two would let a `failed` verdict in one clone suppress advisories
+for the same path in every other clone sharing that global file, and
+would force the throttle file to grow without bound. `/swe:lint-file`
+writes to all three, at different steps; that is their only coupling.
+The ledger row schema and the pre-commit hook are unchanged by any of
+this: the hook still cannot tell how a row was written, and the guard
+sits entirely at the only sanctioned writer, `--record-lint-result`
+itself.
 
 **Fail-open boundary.** The check fails open only when it cannot
 evaluate the ledger at all: no `python3` on `PATH`, or the ledger file
@@ -242,6 +326,18 @@ evaluate that is not `clean`, including an absent ledger file, which is
 a fresh clone with nothing yet recorded: exactly the case this check
 exists for. `git commit --no-verify` is the standing bypass; the block message
 repeats it.
+
+**A passing commit prints too** (claude-plugins#11): one line, naming
+the number of staged markdown files verified and the clean verdict:
+`swe: commit check passed. N staged markdown file(s) have a clean lint
+record for their staged content.` It prints right before the hook's own
+final `exit 0`, so it shows only once the commit proceeds (after the
+ledger check and `block_on_deterministic`, not before). Every path
+where nothing was checked (no staged files matching
+`commit-check.paths`, `commit-check.enabled: false`, everything staged
+matched by `.swe-ignore`) and every fail-open path (no `python3`, an
+unreadable ledger) stays silent on this line, since neither confirms
+the ledger clean.
 
 **Deterministic tier at commit time.** Advisory by default: findings
 print but do not block, run against each staged file's exact staged
@@ -304,18 +400,26 @@ when a fresh pass would be worth doing, gated as above. Add
 `--force-inference` to print the same block unconditionally instead: this is what `/swe:lint-file` does. Neither ever judges the prose
 itself; that is always the caller's own job. Add `--quiet-vocab` to
 omit `vocabulary-membership` lines; every hook does this by default.
+Counting `[warning]` lines in either flag's output includes the
+`inference pending` rule lines and the trailing `[inference-pending]`
+summary line, not just real warning findings; the summary line's own
+text states the source's real deterministic error/warning counts.
+Neither flag can be combined with `--count` (exits 2).
 
 Run `scripts/fetch-software-english-data.sh` once by hand first, if
 `data/` is empty — the hooks do this automatically, a manual run does
 not.
 
 ```bash
-python3 scripts/software_english_lint.py FILE.md --record-lint-result clean --findings 0
+python3 scripts/software_english_lint.py FILE.md --force-inference --quiet-vocab
+# note the printed swe-lint-nonce value, then:
+python3 scripts/software_english_lint.py FILE.md --record-lint-result clean --findings 0 --nonce <value>
 ```
 
 Records a both-tier verdict for one named file in the commit check's
 ledger; see "The commit check" above. Standalone: lints nothing itself,
-needs no `data/` fetch, exits 0/2/3.
+needs no `data/` fetch, exits 0/2/3/4 (4: the nonce failed — "Proof
+that Step 3 ran" above has the reasons).
 
 ## Writing a skill's frontmatter
 
@@ -388,6 +492,19 @@ skill's own directory name exactly; the same test asserts it.
 - The commit check's ledger is never pruned either, and `.git/` is never
   cloned, so each clone of a repository starts with an empty ledger and
   needs its own `/swe:install-commit-hook` run.
+- The nonce a `--force-inference` pass mints proves that pass ran on
+  this exact content and its output reached the caller; it does not
+  prove Step 4's judgement happened, since that step is invisible to
+  the script by construction. Direct shell access can still write the
+  ledger or `lint-nonces.json` by hand, bypassing both. `lint-nonces.json`
+  holds at most one pending entry per file per worktree, so unlike the
+  other two state files, it stays bounded on its own.
+- The finding-shaped inference rule lines (claude-plugins#14) stop a
+  findings-shaped grep from silently discarding the block, so a
+  filtered run no longer looks clean when it is not. They do not, on
+  their own, prove Step 4 happened: a caller could still read the rule
+  lines and skip judging them. That boundary is the same one the nonce
+  above already accepts.
 - `git diff --cached --diff-filter=ACM` skips a pure rename (`R`), which
   is correct (the content was already judged), but a rename with edits
   is also reported as `R` and so slips through unchecked.

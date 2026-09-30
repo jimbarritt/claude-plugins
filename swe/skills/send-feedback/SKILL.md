@@ -16,6 +16,36 @@ confirms.
 This command makes GitHub API calls (`gh issue create`) once an item
 is confirmed. Reading and grouping the log makes no network call.
 
+## The issue tracker is public; the feedback log is not
+
+`/swe:feedback` writes each entry while the user works on their own
+project, which is often private code. So an entry's `quote` and `note`
+can hold employer and project names, service, domain and repository
+names, ticket ids, internal PR or issue numbers, and verbatim excerpts
+from internal documents. That is acceptable in the log, which can hold
+this detail. A GitHub issue is public, and a published issue cannot be
+fully withdrawn.
+
+So never pass an internal reference into an issue title or body:
+
+- no employer, client or project names;
+- no service, domain or repository names, other than the public
+  repository the issue is filed against;
+- no ticket ids, and no internal PR or issue numbers;
+- no verbatim excerpts from internal documents or private code.
+
+Describe the fault abstractly. Keep only what a maintainer needs to
+reproduce or judge it: the rule ID, the verdict, the grammatical or
+structural shape of the text that triggered (or missed) the rule, and
+the proposed fix direction. Where the issue needs an example sentence,
+write a new one with neutral subjects (for example "the service
+returns a list of orders") that shows the same shape. Do not quote the
+original, and do not lightly edit it.
+
+This applies to text from any source in the current session, not only
+the log entry: the session that runs this command can hold private
+context of its own.
+
 ## Step 1: Read the log
 
 ```
@@ -70,7 +100,9 @@ For each candidate from Step 2, cluster or singleton, in turn:
    rule fires", "add an exemption for X", "narrow the trigger phrase",
    or, for a `feature-request`, what the ask itself would look like
    built).
-3. Ask whether to file a GitHub issue for it.
+3. Ask whether to take it forward to a draft issue. This is not
+   approval to publish: Step 4 shows the draft for approval before
+   anything is filed.
 4. Wait for the answer before moving to the next item. Do not list
    every item up front. This project's own convention is one point at
    a time.
@@ -92,10 +124,20 @@ When the user confirms an item:
      the plugin's own tooling (a skill, a hook, the feedback loop) is
      almost always `jimbarritt/claude-plugins`; ask only when genuinely
      unclear.
-2. Draft a short issue title and body from the item's own detail (the
-   rule ID if any, the verdict, the representative quotes or note, the
-   proposed fix direction). Do not add any AI-assistance attribution.
-3. Ensure the `auto-fix-candidate` label exists on the target repo:
+2. Draft a short issue title and body under the rule in "The issue
+   tracker is public; the feedback log is not" above. Use the rule ID
+   if any, the verdict, an abstract description of the text's shape, a
+   neutral rewritten example where one is needed, and the proposed fix
+   direction. Do not copy `quote` or `note` text into the draft. Do not
+   add any AI-assistance attribution.
+3. Show the user the exact title and body, and the target repository,
+   that will be filed. Wait for approval. If the user asks for
+   changes, revise the draft, apply the redaction rule again, and show
+   the draft again. Run `gh issue create` only after the user approves
+   this text. The Step 3 answer approved the item, not the text. If the
+   user declines at this point, treat the item as declined: leave its
+   entries in the live log, and do not archive them.
+4. Ensure the `auto-fix-candidate` label exists on the target repo:
    `gh label create auto-fix-candidate --repo <owner/repo> --color
    ededed --description "Candidate for the supervised fix harness" 2>/dev/null`
    (a separate, supervised fix harness elsewhere reads issues by this
@@ -106,14 +148,15 @@ When the user confirms an item:
    For any other verdict, ask the user before applying the label if the
    issue reads as a design question rather than a concrete, scoped rule
    bug.
-4. Run `gh issue create --repo <owner/repo> --title "..." --body "..."
-   --label auto-fix-candidate` (omit `--label` per Step 3 above).
+5. Run `gh issue create --repo <owner/repo> --title "..." --body "..."
+   --label auto-fix-candidate` (omit `--label` per item 4 above), with
+   the title and body exactly as approved in item 3.
    A session scoped to a different repository fails this call with
    `Access denied: repository "..." is not configured for this
    session.` That is the session harness, not a real permissions
    problem: add the target repo to the session's scope (`add_repo`),
    then retry the same command.
-5. Move every log line belonging to this item's entries into an
+6. Move every log line belonging to this item's entries into an
    archive file: `~/.claude/swe/feedback-archive/{today's date, YYYY-MM-DD}.jsonl`. Rewrite the current log with those
    lines removed. Use a small Python script for this: read all lines,
    split into "belongs to this item" and "everything else," append

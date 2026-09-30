@@ -1,6 +1,6 @@
 {
   "name": "swe",
   "description": "Checks agent prose against Software English via three hooks, a selectable output style, on-demand check commands, and a git commit check.",
-  "version": "0.12.2",
+  "version": "0.16.2",
   "license": "Apache-2.0"
 }

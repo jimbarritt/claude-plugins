@@ -110,11 +110,11 @@ assert_eq "mcp-send-check.sh disabled: no stdout" "" "$OUT"
 #     fenced INFERENCE_ADVISED rules block from the rest of a hook's
 #     output ---
 
-BLOCK_OUTPUT="$(printf 'line one\n===INFERENCE_ADVISED===\n- rule-a: desc a\n- rule-b: desc b\n===END_INFERENCE_ADVISED===\nline two')"
+BLOCK_OUTPUT="$(printf 'line one\n===INFERENCE_ADVISED===\nt:0: [warning] [rule-a] inference pending: desc a\nt:0: [warning] [rule-b] inference pending: desc b\nt:0: [warning] [inference-pending] 2 inference rule(s) above need model judgement; this script does not judge them. Deterministic tier: 0 error(s), 0 warning(s).\n===END_INFERENCE_ADVISED===\nline two')"
 CLEAN="$(strip_advise_block "$BLOCK_OUTPUT")"
 RULES="$(extract_advise_rules "$BLOCK_OUTPUT")"
 assert_eq "strip_advise_block: block present, removed from report" "$(printf 'line one\nline two')" "$CLEAN"
-assert_eq "extract_advise_rules: block present, rules extracted" "$(printf -- '- rule-a: desc a\n- rule-b: desc b')" "$RULES"
+assert_eq "extract_advise_rules: block present, rules extracted" "$(printf -- 't:0: [warning] [rule-a] inference pending: desc a\nt:0: [warning] [rule-b] inference pending: desc b\nt:0: [warning] [inference-pending] 2 inference rule(s) above need model judgement; this script does not judge them. Deterministic tier: 0 error(s), 0 warning(s).')" "$RULES"
 
 NO_BLOCK_OUTPUT="$(printf 'line one\nline two')"
 CLEAN="$(strip_advise_block "$NO_BLOCK_OUTPUT")"

@@ -24,17 +24,47 @@ directly — as itself, with its own context, not an isolated call.
 mcp-send) only decides:
 gated by inference_eligible() below, plus the deterministic tier being
 clean this same invocation and --stop-hook-active not being true. When
-eligible, it prints an INFERENCE_ADVISED block (see main()) holding the
-applicable rules. The hook script reads that block and turns it into a
-non-blocking advisory hook response telling Claude to dispatch a
-subagent to read the source and judge it against those rules itself,
-then fix anything it finds. Nothing in that path ever re-invokes this
-script for the judging step.
+eligible, it prints an INFERENCE_ADVISED block (see format_inference_rules()
+and main()): one finding-shaped line per applicable rule
+(`label:0: [warning] [rule-id] inference pending: ...`), plus one
+`[inference-pending]` summary line stating how many rules are pending and
+the source's real deterministic counts. Finding-shaped, not free text, so a
+caller filtering output for finding lines (a `grep -E
+":\s*\[(error|warning)\]"`, the natural thing to do on a long file) still
+receives the rules rather than silently discarding the whole block
+(claude-plugins#14); always at line 0 and severity "warning" so a pending
+rule is never mistaken for a real finding at a real location. The hook
+script reads that block and turns it into a non-blocking advisory hook
+response telling Claude to dispatch a subagent to read the source and
+judge it against those rules itself, then fix anything it finds. Nothing
+in that path ever re-invokes this script for the judging step.
 
 --force-inference (used by /swe:lint-file) prints the same block
 unconditionally: no gate, no threshold, no throttle. It is the current
 session itself that then judges the file directly, right where the
 command was run, no subagent needed. It still skips on empty prose.
+For a single named file inside a git repository, it also mints and
+prints a single-use nonce bound to the file's exact git blob id (see
+--record-lint-result below), whether or not the block itself printed:
+a no-prose file and a deterministically-failed file both still need
+one to record a verdict later. Printed as the last line of output, so
+that piping this command's output through head, sed, or grep loses the
+nonce first, not silently. A findings-shaped grep now keeps the rules
+block itself even when it drops this nonce line.
+
+Neither flag can be combined with --count: --count returns its one-line
+summary before the inference block would print and before a nonce would
+mint, so the combination would always report "0 errors, 0 warnings" and
+exit 0 regardless of prose content, the same one-tier-reported-as-clean
+failure this issue is about. Rejected outright (exit 2) rather than
+silently ignored.
+
+The block's exit code still reflects the deterministic tier only: a
+pending inference rule is never itself a finding, and a shell pipeline
+like the one above reports the last command's (here, grep's) exit status
+regardless, so a distinct "block printed, not yet judged" exit code
+would not reach the caller this issue describes and was rejected for
+that reason.
 
 inference_eligible() throttles --advise-inference for a single named
 file (the only source with a stable identity across repeated edits):
@@ -84,6 +114,23 @@ keyed by path, and answers "is a fresh advisory pass worth it"; the
 ledger is per-repository, keyed by (path, blob), and answers "was this
 exact content judged, and what was the verdict". See
 swe/docs/agent-guide.md, "The commit check", for the full design.
+
+--record-lint-result fails with exit 4 without a valid nonce: one
+--force-inference minted for this exact file and blob, not already
+used to record a verdict. This is a third state file,
+<git-common-dir>/swe/lint-nonces.json, per-repository and short-lived
+(an entry is created by --force-inference and deleted the moment
+--record-lint-result consumes it, or superseded by a later
+--force-inference pass on the same file). Its purpose is narrow: prove
+that --force-inference ran on this exact content and its output
+reached the caller, closing the shortcut where a verdict gets recorded
+on an earlier, or wholly imagined, judgement of different content. It
+cannot prove the caller judged the file against the printed rules in
+Step 4; that step happens inside the model and is invisible to this
+script by construction. A "failed" verdict needs a nonce too, for the
+same reason: without that, a "failed" recording followed by "clean" on
+the same nonce would let the second recording through unjudged. See
+claude-plugins#10.
 """
 
 import argparse
@@ -91,7 +138,9 @@ import datetime
 import fnmatch
 import html.parser
 import json
+import os
 import re
+import secrets
 import subprocess
 import sys
 import tomllib
@@ -177,34 +226,33 @@ def _plugin_version():
         return None
 
 
-def record_lint_result(file_path, status, findings, recorded_by):
-    """Appends one NDJSON row to this repository's lint ledger, proving
-    that file_path's exact current content (its git blob id) was judged,
-    both tiers together, with this verdict. A commit staging that same
-    blob later is what the pre-commit hook checks this ledger for.
+NONCE_STORE_RELPATH = Path("swe") / "lint-nonces.json"
 
-    Prints a one-line result and returns a process exit code: 0 on a
-    successful record (including "nothing to record" cases such as the
-    file sitting outside a git repository, which need no ledger entry),
-    3 when the ledger itself could not be written. Unlike
-    save_inference_state(), a write failure here is never silent: a lost
-    row turns into a commit blocked with no visible cause."""
+
+def _repo_context(file_path):
+    """Resolves file_path's repository identity: the toplevel, its
+    repo-relative posix path, its current git blob id, the object-format
+    algorithm, and the absolute git-common directory (where both the
+    ledger and the nonce store live). Returns (ctx, None) on success, or
+    (None, reason) with a human-readable reason for a caller to print
+    ("...; nothing recorded." or "...; no nonce issued.", as it prefers)
+    and treat as a no-op, not an error: a file outside any git
+    repository, or outside its own repository's top level, is a case
+    both record_lint_result() and issue_lint_nonce() must accept
+    quietly, not fail on."""
     path = Path(file_path)
     toplevel = _git(["rev-parse", "--show-toplevel"], path.parent if path.parent.exists() else ".")
     if toplevel is None:
-        print(f"swe: {file_path} is not inside a git repository; nothing recorded.")
-        return 0
+        return None, f"{file_path} is not inside a git repository"
     try:
         rel = path.resolve().relative_to(Path(toplevel).resolve())
     except ValueError:
-        print(f"swe: {file_path} is outside its repository's top level; nothing recorded.")
-        return 0
+        return None, f"{file_path} is outside its repository's top level"
     rel_str = rel.as_posix()
 
     blob = _git(["hash-object", "--", rel_str], toplevel)
     if blob is None:
-        print(f"swe: could not compute a git blob id for {file_path}; nothing recorded.")
-        return 0
+        return None, f"could not compute a git blob id for {file_path}"
 
     algo = _git(["rev-parse", "--show-object-format"], toplevel) or "sha1"
     git_common_dir = _git(["rev-parse", "--git-common-dir"], toplevel) or ".git"
@@ -212,11 +260,132 @@ def record_lint_result(file_path, status, findings, recorded_by):
     if not git_common_path.is_absolute():
         git_common_path = Path(toplevel) / git_common_path
 
-    row = {
-        "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "path": rel_str,
+    return {
+        "toplevel": toplevel,
+        "rel": rel_str,
         "blob": blob,
         "algo": algo,
+        "git_common": git_common_path,
+    }, None
+
+
+def _load_nonces(store_path):
+    try:
+        with store_path.open() as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_nonces(store_path, nonces):
+    """Raises OSError on failure; callers decide how to report it."""
+    store_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = store_path.with_suffix(store_path.suffix + f".tmp{os.getpid()}")
+    with tmp_path.open("w") as f:
+        json.dump(nonces, f)
+    os.replace(tmp_path, store_path)
+
+
+def issue_lint_nonce(file_path):
+    """Mints a single-use nonce proving --force-inference ran on
+    file_path's exact current content, for --record-lint-result to
+    demand back later. Returns (nonce, None) on success, or (None,
+    reason) when none could be issued (outside a git repository, a
+    ledger-write-style failure saving the store): the caller prints
+    "no lint nonce issued" with that reason and moves on, since issuing
+    a nonce never blocks linting itself.
+
+    Any nonce already pending for this same (toplevel, rel) is dropped
+    first: only the newest Step 3 run for a file stays valid, so a
+    second --force-inference pass cannot be raced against a first."""
+    ctx, reason = _repo_context(file_path)
+    if ctx is None:
+        return None, reason
+
+    store_path = ctx["git_common"] / NONCE_STORE_RELPATH
+    nonces = _load_nonces(store_path)
+    nonces = {
+        n: entry
+        for n, entry in nonces.items()
+        if not (entry.get("toplevel") == ctx["toplevel"] and entry.get("path") == ctx["rel"])
+    }
+    nonce = secrets.token_hex(16)
+    nonces[nonce] = {
+        "path": ctx["rel"],
+        "toplevel": ctx["toplevel"],
+        "blob": ctx["blob"],
+        "algo": ctx["algo"],
+        "issued_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    try:
+        _save_nonces(store_path, nonces)
+    except OSError as exc:
+        return None, f"could not write the nonce store: {exc}"
+    return nonce, None
+
+
+def record_lint_result(file_path, status, findings, recorded_by, nonce):
+    """Appends one NDJSON row to this repository's lint ledger, proving
+    that file_path's exact current content (its git blob id) was judged,
+    both tiers together, with this verdict. A commit staging that same
+    blob later is what the pre-commit hook checks this ledger for.
+
+    Requires a nonce minted by a --force-inference run on this exact
+    content (see issue_lint_nonce()), for both "clean" and "failed"
+    verdicts: without this, --record-lint-result trusted its caller
+    completely, so an agent could record "clean" on a stale, or wholly
+    imagined, earlier judgement (claude-plugins#10). The nonce is
+    checked, then consumed (deleted from the store) before the ledger
+    row is appended, so a nonce is spent by its first use whether or
+    not the write that follows succeeds; a write failure after that
+    still needs a fresh --force-inference pass to retry, not a second
+    call with the same value.
+
+    Prints a one-line result and returns a process exit code: 0 on a
+    successful record (including "nothing to record" cases such as the
+    file sitting outside a git repository, which need no ledger entry
+    or nonce), 3 when the ledger itself could not be written, 4 when
+    the nonce is missing, unknown, already used, issued for a different
+    file, or stale against the file's current content. Unlike
+    save_inference_state(), a write failure here is never silent: a
+    lost row turns into a commit blocked with no visible cause."""
+    ctx, reason = _repo_context(file_path)
+    if ctx is None:
+        print(f"swe: {reason}; nothing recorded.")
+        return 0
+
+    store_path = ctx["git_common"] / NONCE_STORE_RELPATH
+    nonces = _load_nonces(store_path)
+
+    if nonce is None:
+        print(
+            f"swe: no --nonce given for {file_path}; run /swe:lint-file's "
+            "Step 3 (--force-inference) first and pass the nonce it prints."
+        )
+        return 4
+    entry = nonces.get(nonce)
+    if entry is None:
+        print(f"swe: nonce for {file_path} is unknown or already used; re-run /swe:lint-file.")
+        return 4
+    if entry.get("toplevel") != ctx["toplevel"] or entry.get("path") != ctx["rel"]:
+        print(f"swe: nonce given was issued for a different file than {file_path}.")
+        return 4
+    if entry.get("blob") != ctx["blob"]:
+        print(f"swe: {file_path} changed since its --force-inference pass; re-run /swe:lint-file.")
+        return 4
+
+    del nonces[nonce]
+    try:
+        _save_nonces(store_path, nonces)
+    except OSError as exc:
+        print(f"swe: could not write the nonce store: {exc}")
+        return 3
+
+    row = {
+        "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "path": ctx["rel"],
+        "blob": ctx["blob"],
+        "algo": ctx["algo"],
         "status": status,
         "tier": "both",
         "findings": findings,
@@ -225,7 +394,7 @@ def record_lint_result(file_path, status, findings, recorded_by):
         "recorded_by": recorded_by,
     }
 
-    log_path = git_common_path / LINT_LOG_RELPATH
+    log_path = ctx["git_common"] / LINT_LOG_RELPATH
     try:
         log_path.parent.mkdir(parents=True, exist_ok=True)
         with log_path.open("a") as f:
@@ -234,7 +403,7 @@ def record_lint_result(file_path, status, findings, recorded_by):
         print(f"swe: could not write the lint log: {exc}")
         return 3
 
-    print(f"swe: recorded {status} for {rel_str} (blob {blob[:12]}) in {log_path}")
+    print(f"swe: recorded {status} for {ctx['rel']} (blob {ctx['blob'][:12]}) in {log_path}")
     return 0
 
 
@@ -616,11 +785,33 @@ def count_words_sentences(text):
     return words, sentences
 
 
-def format_inference_rules(inference_rules):
-    """The applicable inference-based rules, one per line, for the caller
-    to judge the prose against directly. This script never judges them
-    itself."""
-    return "\n".join(f"- {rule_id}: {rule['description']}" for rule_id, rule in inference_rules.items())
+def format_inference_rules(label, inference_rules, det_errors, det_warnings):
+    """The applicable inference-based rules for one source, as finding-shaped
+    lines, for the caller to judge the prose against directly. This script
+    never judges them itself.
+
+    Finding-shaped (not "- rule-id: description") so a caller filtering
+    output for finding lines (a `grep -E ":\\s*\\[(error|warning)\\]"`, the
+    natural thing to do on a long file) still receives them instead of
+    silently discarding the whole block (claude-plugins#14). Always at line
+    0 and severity "warning", so a rule line is never mistaken for a real
+    finding at a real location: a pending rule is not itself a violation.
+    Where the catalogue's own severity differs, it is appended in
+    parentheses so the judging step still knows it."""
+    lines = []
+    for rule_id, rule in inference_rules.items():
+        desc = " ".join(rule["description"].split())
+        line = f"{label}:0: [warning] [{rule_id}] inference pending: {desc}"
+        severity = rule.get("severity", "warning")
+        if severity != "warning":
+            line += f" (severity on violation: {severity})"
+        lines.append(line)
+    lines.append(
+        f"{label}:0: [warning] [inference-pending] {len(inference_rules)} inference rule(s) "
+        f"above need model judgement; this script does not judge them. "
+        f"Deterministic tier: {det_errors} error(s), {det_warnings} warning(s)."
+    )
+    return lines
 
 
 def main():
@@ -634,21 +825,32 @@ def main():
     parser.add_argument("--transcript", help="path to the Stop hook transcript JSONL")
     parser.add_argument("--html-file", help="path to an HTML file; text nodes are extracted as prose")
     parser.add_argument("--source-label", default=None, help="label for --text's source in the report")
-    parser.add_argument("--advise-inference", action="store_true", help="prints an INFERENCE_ADVISED rules block, gated: only when the deterministic tier is clean this invocation, not already stop_hook_active, and eligible per inference_eligible(); never judges the prose itself")
-    parser.add_argument("--force-inference", action="store_true", help="prints the same block unconditionally: ignores the deterministic-clean gate, stop_hook_active, and the eligibility throttle (still skips on empty prose); never judges the prose itself")
+    parser.add_argument("--advise-inference", action="store_true", help="prints the applicable inference rules as finding-shaped `label:0: [warning] [rule-id] inference pending: ...` lines plus an `[inference-pending]` summary line, inside an INFERENCE_ADVISED block; gated: only when the deterministic tier is clean this invocation, not already stop_hook_active, and eligible per inference_eligible(); never judges the prose itself. Cannot be combined with --count.")
+    parser.add_argument("--force-inference", action="store_true", help="prints the same block unconditionally: ignores the deterministic-clean gate, stop_hook_active, and the eligibility throttle (still skips on empty prose); never judges the prose itself; for a single named file inside a git repository, also mints and prints a single-use swe-lint-nonce for --record-lint-result. Cannot be combined with --count.")
     parser.add_argument("--stop-hook-active", default="false", choices=["true", "false"])
     parser.add_argument("--quiet-vocab", action="store_true", help="omit vocabulary-membership lines from the printed report (they never block; this only reduces noise)")
     parser.add_argument("--cwd", default=None, help="project root .swe-ignore is read from (defaults to the current directory)")
-    parser.add_argument("--record-lint-result", choices=["clean", "failed"], default=None, help="record a both-tier verdict for one named file in this repository's lint ledger (<git-common-dir>/swe/lint-log.ndjson) and exit; lints nothing itself")
+    parser.add_argument("--record-lint-result", choices=["clean", "failed"], default=None, help="record a both-tier verdict for one named file in this repository's lint ledger (<git-common-dir>/swe/lint-log.ndjson) and exit; lints nothing itself; requires --nonce (exit 4 without a valid, matching one)")
     parser.add_argument("--findings", type=int, default=0, help="error-severity finding count to record with --record-lint-result")
     parser.add_argument("--recorded-by", default="lint-file", help="label for whoever judged the file, recorded with --record-lint-result")
+    parser.add_argument("--nonce", default=None, help="the swe-lint-nonce value a prior --force-inference run printed for this file's current content; required by --record-lint-result inside a git repository")
     args = parser.parse_args()
+
+    if args.count and (args.force_inference or args.advise_inference):
+        print(
+            "swe: --count cannot be combined with --force-inference or "
+            "--advise-inference: --count prints no inference rules and "
+            "mints no nonce, so the combination would report a two-tier "
+            "pass as clean with nothing to judge",
+            file=sys.stderr,
+        )
+        return 2
 
     if args.record_lint_result is not None:
         if len(args.files) != 1:
             print("swe: --record-lint-result takes exactly one file path", file=sys.stderr)
             return 2
-        return record_lint_result(args.files[0], args.record_lint_result, args.findings, args.recorded_by)
+        return record_lint_result(args.files[0], args.record_lint_result, args.findings, args.recorded_by, args.nonce)
 
     rules, exemptions = load_rule_catalogue()
     if rules is None:
@@ -737,15 +939,21 @@ def main():
 
     error_total = 0
     warning_total = 0
+    per_source_counts = {}
     for label, findings, _ in sources:
+        src_errors = 0
+        src_warnings = 0
         for number, severity, rule, detail in findings:
             if severity == "error":
                 error_total += 1
+                src_errors += 1
             else:
                 warning_total += 1
+                src_warnings += 1
             if args.quiet_vocab and rule == "vocabulary-membership":
                 continue
             print(f"{label}:{number}: [{severity}] [{rule}] {detail}")
+        per_source_counts[label] = (src_errors, src_warnings)
 
     stop_hook_active = args.stop_hook_active == "true"
 
@@ -767,9 +975,30 @@ def main():
                 if is_conversational:
                     inference_rules.update(plugin_rules)
                 print("===INFERENCE_ADVISED===")
-                print(format_inference_rules(inference_rules))
+                for label, _, prose in sources:
+                    if not prose.strip():
+                        continue
+                    src_errors, src_warnings = per_source_counts.get(label, (0, 0))
+                    for line in format_inference_rules(label, inference_rules, src_errors, src_warnings):
+                        print(line)
                 print("===END_INFERENCE_ADVISED===")
                 save_inference_state(inference_key, words, sentences)
+
+    # A nonce is minted for --force-inference on a single named file
+    # regardless of whether the block above printed: a no-prose file and
+    # a deterministically-failed file both still need one, to record
+    # "clean" or "failed" later. Printed last, deliberately: output
+    # piped through head/sed/grep loses this line first, so a truncated
+    # Step 3 fails Step 5 loudly instead of silently reading as complete
+    # (claude-plugins#10). The rules block above is now finding-shaped
+    # (claude-plugins#14), so a findings-shaped grep keeps it even when
+    # it still drops this nonce line.
+    if args.force_inference and inference_key is not None and sources and sources[0][0] == args.files[0]:
+        nonce, reason = issue_lint_nonce(args.files[0])
+        if nonce is not None:
+            print(f"swe-lint-nonce: {nonce}")
+        else:
+            print(f"swe: no lint nonce issued for {args.files[0]}: {reason}")
 
     if error_total and stop_hook_active:
         # Already re-running after a prior block this turn. Report, don't block again.

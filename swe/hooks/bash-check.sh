@@ -56,6 +56,8 @@ if [ "$STATUS" -eq 0 ] && [ -n "$ADVISE_RULES" ]; then
 
 $ADVISE_RULES
 
+Each line above names one rule to check (line 0 means the whole text, and \"inference pending\" means not yet judged); the last line is a summary, not a rule.
+
 Text:
 ---
 $TEXT
