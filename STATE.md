@@ -4,17 +4,7 @@ Last updated: 2026-09-30
 
 ## In progress
 
-[tasks/issue-14-inference-block-findings-shape.md](tasks/issue-14-inference-block-findings-shape.md)
-([#14](https://github.com/jimbarritt/claude-plugins/issues/14)): sixth real
-issue claimed by the self-maintaining-repo Routine. `--force-inference`'s
-rule block uses a different line shape from a deterministic finding, so a
-findings-shaped grep silently drops it, which is how a metaphor shipped
-undetected under #13. Plan from an Opus Plan subagent's read of the real
-code: rewrite the block to finding-shaped lines (`label:0: [warning]
-[rule-id] inference pending: ...`) plus a summary line, inside the existing
-fences so hooks are unaffected; reject `--count` combined with either
-inference flag (a second, related hole the plan found unprompted). Entirely
-within `claude-plugins`; no `software-english` change. Work starting next.
+None.
 
 ## Next
 
@@ -47,6 +37,50 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-14-inference-block-findings-shape.md](tasks/issue-14-inference-block-findings-shape.md)
+  ([#14](https://github.com/jimbarritt/claude-plugins/issues/14)): sixth
+  real issue worked end to end by the self-maintaining-repo Routine, single
+  pass, no escalation. `--force-inference`'s inference-rule block printed
+  free-text `- rule-id: description` lines, a different shape from a
+  deterministic finding, so a findings-shaped grep (the natural thing to
+  do on a long file) silently dropped the whole block; this is how a
+  metaphor shipped undetected under #13, and the two issues were filed
+  minutes apart by the same reporter. Plan from an Opus Plan subagent's
+  read of the real code, tests, and docs. Fixed: each applicable rule now
+  prints as `label:0: [warning] [rule-id] inference pending: description`
+  (line 0 and severity "warning" always, since a pending rule is not
+  itself a violation; a rule whose own catalogue severity differs gets
+  `(severity on violation: X)` appended), followed by one
+  `[inference-pending]` summary line naming the pending count and the
+  source's real deterministic counts, all inside the existing
+  `===INFERENCE_ADVISED===` fences so the three hooks' strip/extract
+  helpers and blocking decisions are unaffected. Also rejected `--count`
+  combined with either inference flag (exit 2): that combination returned
+  before the block printed and before a nonce minted, so it always
+  reported a clean two-tier pass regardless of content, the same failure
+  reached a different way, a hole the plan found unprompted while reading
+  the code rather than one the issue named. `swe/scripts/software_english_lint.py`,
+  `swe/hooks/_lib.sh` and its three callers (message wording only),
+  `swe/skills/lint-file/SKILL.md`, `swe/docs/agent-guide.md`, and both
+  `swe/tests/commit_check_test.sh` (16 new assertions, including a
+  `fixture-multiline` catalogue rule proving a multi-line TOML description
+  still prints as one grep-able line) and `swe/tests/hooks_test.sh`
+  (fixture updated to the new grammar) all updated; all five suites pass
+  (124 assertions, up from 108). Two implementation-time corrections not
+  in the plan: the plan's worked example assumed a zero-warning summary
+  line, but real prose with no seeded vocabulary trips
+  `vocabulary-membership` even on ordinary words, so test expectations
+  were written against the linter's actual output; three em dashes
+  introduced while writing this fix's own prose (one in `SKILL.md`, caught
+  by running `--force-inference` on the file itself; two in the linter's
+  own docstring and the `.swe-ignore`'d `agent-guide.md`, caught only by
+  grepping the diff directly, since neither is machine-checked) were fixed
+  before committing. Entirely within `claude-plugins`; no
+  `software-english` change. Version bumped `0.15.1` -> `0.16.0`. Shipped
+  on `main` at
+  [`337de79`](https://github.com/jimbarritt/claude-plugins/commit/337de79),
+  which closed the issue automatically, released as
+  [`swe-v0.16.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.16.0).
 - [tasks/issue-13-transport-metaphor-banned-words.md](tasks/issue-13-transport-metaphor-banned-words.md)
   ([#13](https://github.com/jimbarritt/claude-plugins/issues/13)): fifth
   real issue worked end to end by the self-maintaining-repo Routine, single

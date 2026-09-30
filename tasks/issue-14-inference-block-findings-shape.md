@@ -134,6 +134,35 @@ already redirects `2>&1`; weaker than option 1 per the issue itself).
 No `software-english` change: this issue is entirely in `claude-plugins`'
 own linter script and its callers.
 
-## Status
+## Outcome
 
-Plan complete. Implementation next.
+Shipped end to end, single pass, no escalation. Implemented per the plan
+above, with two adjustments found only during implementation:
+
+- The plan's worked example assumed a clean-vocabulary summary line
+  (`0 error(s), 0 warning(s)`); the real fixture (and any real file with
+  no seeded vocabulary list) trips `vocabulary-membership` on ordinary
+  words, so the summary line's true counts are non-zero even on
+  deterministically-clean prose. Test expectations were written against
+  the linter's actual output, not the plan's illustrative numbers.
+- Two em dashes introduced while writing this task's own prose (one in
+  `swe/skills/lint-file/SKILL.md`, caught by running `--force-inference`
+  on the file itself; two more in `swe/scripts/software_english_lint.py`'s
+  docstring and `swe/docs/agent-guide.md`, caught by grepping the diff
+  directly, since neither a Python docstring nor an `.swe-ignore`'d file
+  is machine-checked) were fixed before committing.
+
+`swe/tests/commit_check_test.sh` gained 16 new assertions (a
+`fixture-multiline` rule added to the fixture catalogue to prove a
+multi-line TOML description still prints as one grep-able line, plus
+coverage of the `--count` rejection and the hooks' `_lib.sh`
+strip/extract split); `swe/tests/hooks_test.sh`'s hand-written fixture
+block updated to the new grammar. All five suites pass (124 assertions,
+up from 108). `scripts/check-unshipped.sh` confirmed clean before and
+correctly flagged pending after the version bump.
+
+Version bumped `0.15.1` -> `0.16.0`. Shipped on `main` at
+[`337de79`](https://github.com/jimbarritt/claude-plugins/commit/337de79),
+which closed the issue automatically via its `closes #14` trailer,
+released as
+[`swe-v0.16.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.16.0).
