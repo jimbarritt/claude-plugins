@@ -24,12 +24,20 @@ directly — as itself, with its own context, not an isolated call.
 mcp-send) only decides:
 gated by inference_eligible() below, plus the deterministic tier being
 clean this same invocation and --stop-hook-active not being true. When
-eligible, it prints an INFERENCE_ADVISED block (see main()) holding the
-applicable rules. The hook script reads that block and turns it into a
-non-blocking advisory hook response telling Claude to dispatch a
-subagent to read the source and judge it against those rules itself,
-then fix anything it finds. Nothing in that path ever re-invokes this
-script for the judging step.
+eligible, it prints an INFERENCE_ADVISED block (see format_inference_rules()
+and main()): one finding-shaped line per applicable rule
+(`label:0: [warning] [rule-id] inference pending: ...`), plus one
+`[inference-pending]` summary line stating how many rules are pending and
+the source's real deterministic counts. Finding-shaped, not free text, so a
+caller filtering output for finding lines (a `grep -E
+":\s*\[(error|warning)\]"`, the natural thing to do on a long file) still
+receives the rules rather than silently discarding the whole block
+(claude-plugins#14); always at line 0 and severity "warning" so a pending
+rule is never mistaken for a real finding at a real location. The hook
+script reads that block and turns it into a non-blocking advisory hook
+response telling Claude to dispatch a subagent to read the source and
+judge it against those rules itself, then fix anything it finds. Nothing
+in that path ever re-invokes this script for the judging step.
 
 --force-inference (used by /swe:lint-file) prints the same block
 unconditionally: no gate, no threshold, no throttle. It is the current
@@ -41,7 +49,22 @@ prints a single-use nonce bound to the file's exact git blob id (see
 a no-prose file and a deterministically-failed file both still need
 one to record a verdict later. Printed as the last line of output, so
 that piping this command's output through head, sed, or grep loses the
-nonce first, not silently.
+nonce first, not silently. A findings-shaped grep now keeps the rules
+block itself even when it drops this nonce line.
+
+Neither flag can be combined with --count: --count returns its one-line
+summary before the inference block would print and before a nonce would
+mint, so the combination would always report "0 errors, 0 warnings" and
+exit 0 regardless of prose content, the same one-tier-reported-as-clean
+failure this issue is about. Rejected outright (exit 2) rather than
+silently ignored.
+
+The block's exit code still reflects the deterministic tier only: a
+pending inference rule is never itself a finding, and a shell pipeline
+like the one above reports the last command's (here, grep's) exit status
+regardless, so a distinct "block printed, not yet judged" exit code
+would not reach the caller this issue describes and was rejected for
+that reason.
 
 inference_eligible() throttles --advise-inference for a single named
 file (the only source with a stable identity across repeated edits):
@@ -762,11 +785,33 @@ def count_words_sentences(text):
     return words, sentences
 
 
-def format_inference_rules(inference_rules):
-    """The applicable inference-based rules, one per line, for the caller
-    to judge the prose against directly. This script never judges them
-    itself."""
-    return "\n".join(f"- {rule_id}: {rule['description']}" for rule_id, rule in inference_rules.items())
+def format_inference_rules(label, inference_rules, det_errors, det_warnings):
+    """The applicable inference-based rules for one source, as finding-shaped
+    lines, for the caller to judge the prose against directly. This script
+    never judges them itself.
+
+    Finding-shaped (not "- rule-id: description") so a caller filtering
+    output for finding lines (a `grep -E ":\\s*\\[(error|warning)\\]"`, the
+    natural thing to do on a long file) still receives them instead of
+    silently discarding the whole block (claude-plugins#14). Always at line
+    0 and severity "warning", so a rule line is never mistaken for a real
+    finding at a real location: a pending rule is not itself a violation.
+    Where the catalogue's own severity differs, it is appended in
+    parentheses so the judging step still knows it."""
+    lines = []
+    for rule_id, rule in inference_rules.items():
+        desc = " ".join(rule["description"].split())
+        line = f"{label}:0: [warning] [{rule_id}] inference pending: {desc}"
+        severity = rule.get("severity", "warning")
+        if severity != "warning":
+            line += f" (severity on violation: {severity})"
+        lines.append(line)
+    lines.append(
+        f"{label}:0: [warning] [inference-pending] {len(inference_rules)} inference rule(s) "
+        f"above need model judgement; this script does not judge them. "
+        f"Deterministic tier: {det_errors} error(s), {det_warnings} warning(s)."
+    )
+    return lines
 
 
 def main():
@@ -780,8 +825,8 @@ def main():
     parser.add_argument("--transcript", help="path to the Stop hook transcript JSONL")
     parser.add_argument("--html-file", help="path to an HTML file; text nodes are extracted as prose")
     parser.add_argument("--source-label", default=None, help="label for --text's source in the report")
-    parser.add_argument("--advise-inference", action="store_true", help="prints an INFERENCE_ADVISED rules block, gated: only when the deterministic tier is clean this invocation, not already stop_hook_active, and eligible per inference_eligible(); never judges the prose itself")
-    parser.add_argument("--force-inference", action="store_true", help="prints the same block unconditionally: ignores the deterministic-clean gate, stop_hook_active, and the eligibility throttle (still skips on empty prose); never judges the prose itself; for a single named file inside a git repository, also mints and prints a single-use swe-lint-nonce for --record-lint-result")
+    parser.add_argument("--advise-inference", action="store_true", help="prints the applicable inference rules as finding-shaped `label:0: [warning] [rule-id] inference pending: ...` lines plus an `[inference-pending]` summary line, inside an INFERENCE_ADVISED block; gated: only when the deterministic tier is clean this invocation, not already stop_hook_active, and eligible per inference_eligible(); never judges the prose itself. Cannot be combined with --count.")
+    parser.add_argument("--force-inference", action="store_true", help="prints the same block unconditionally: ignores the deterministic-clean gate, stop_hook_active, and the eligibility throttle (still skips on empty prose); never judges the prose itself; for a single named file inside a git repository, also mints and prints a single-use swe-lint-nonce for --record-lint-result. Cannot be combined with --count.")
     parser.add_argument("--stop-hook-active", default="false", choices=["true", "false"])
     parser.add_argument("--quiet-vocab", action="store_true", help="omit vocabulary-membership lines from the printed report (they never block; this only reduces noise)")
     parser.add_argument("--cwd", default=None, help="project root .swe-ignore is read from (defaults to the current directory)")
@@ -790,6 +835,16 @@ def main():
     parser.add_argument("--recorded-by", default="lint-file", help="label for whoever judged the file, recorded with --record-lint-result")
     parser.add_argument("--nonce", default=None, help="the swe-lint-nonce value a prior --force-inference run printed for this file's current content; required by --record-lint-result inside a git repository")
     args = parser.parse_args()
+
+    if args.count and (args.force_inference or args.advise_inference):
+        print(
+            "swe: --count cannot be combined with --force-inference or "
+            "--advise-inference: --count prints no inference rules and "
+            "mints no nonce, so the combination would report a two-tier "
+            "pass as clean with nothing to judge",
+            file=sys.stderr,
+        )
+        return 2
 
     if args.record_lint_result is not None:
         if len(args.files) != 1:
@@ -884,15 +939,21 @@ def main():
 
     error_total = 0
     warning_total = 0
+    per_source_counts = {}
     for label, findings, _ in sources:
+        src_errors = 0
+        src_warnings = 0
         for number, severity, rule, detail in findings:
             if severity == "error":
                 error_total += 1
+                src_errors += 1
             else:
                 warning_total += 1
+                src_warnings += 1
             if args.quiet_vocab and rule == "vocabulary-membership":
                 continue
             print(f"{label}:{number}: [{severity}] [{rule}] {detail}")
+        per_source_counts[label] = (src_errors, src_warnings)
 
     stop_hook_active = args.stop_hook_active == "true"
 
@@ -914,7 +975,12 @@ def main():
                 if is_conversational:
                     inference_rules.update(plugin_rules)
                 print("===INFERENCE_ADVISED===")
-                print(format_inference_rules(inference_rules))
+                for label, _, prose in sources:
+                    if not prose.strip():
+                        continue
+                    src_errors, src_warnings = per_source_counts.get(label, (0, 0))
+                    for line in format_inference_rules(label, inference_rules, src_errors, src_warnings):
+                        print(line)
                 print("===END_INFERENCE_ADVISED===")
                 save_inference_state(inference_key, words, sentences)
 
@@ -923,8 +989,10 @@ def main():
     # a deterministically-failed file both still need one, to record
     # "clean" or "failed" later. Printed last, deliberately: output
     # piped through head/sed/grep loses this line first, so a truncated
-    # Step 3 fails Step 5 loudly instead of the rules block silently
-    # going missing (claude-plugins#10).
+    # Step 3 fails Step 5 loudly instead of silently reading as complete
+    # (claude-plugins#10). The rules block above is now finding-shaped
+    # (claude-plugins#14), so a findings-shaped grep keeps it even when
+    # it still drops this nonce line.
     if args.force_inference and inference_key is not None and sources and sources[0][0] == args.files[0]:
         nonce, reason = issue_lint_nonce(args.files[0])
         if nonce is not None:

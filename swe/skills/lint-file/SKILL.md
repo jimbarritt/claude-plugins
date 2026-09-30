@@ -36,17 +36,26 @@ python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" <file-path> --for
 
 This prints the deterministic tier's findings, if any, the normal way.
 `--force-inference` additionally prints a fenced
-`===INFERENCE_ADVISED===`...`===END_INFERENCE_ADVISED===` block:
-the inference-based rules that apply here (`- rule-id: description`,
-one per line). The script never judges the file against them itself:
-it has no model access and never spawns one. It records this pass in
+`===INFERENCE_ADVISED===`...`===END_INFERENCE_ADVISED===` block: one
+line per inference-based rule that applies here, each shaped like a
+finding so it survives a findings-shaped filter, `<file>:0: [warning]
+[rule-id] inference pending: description` (a rule whose own catalogue
+severity is not `warning` adds `(severity on violation: <severity>)`),
+followed by one summary line, `<file>:0: [warning] [inference-pending]
+N inference rule(s) above need model judgement; this script does not
+judge them. Deterministic tier: E error(s), W warning(s).` The script
+never judges the file against them itself: it has no model access and
+never spawns one. It records this pass in
 `~/.claude/swe/inference-state.json`, so a hook-advised subagent's pass
 on the same file counts too, for the throttle `--advise-inference`
 applies.
 
 Do not filter or truncate this command's output (no `head`, `sed`,
 `tail`, or `grep`). Step 4 must judge against the rules printed here,
-in full, not a list recalled from earlier in the conversation.
+in full, not a list recalled from earlier in the conversation. A
+findings-shaped grep now keeps the rule and summary lines (they are
+line-0, `[warning]` lines like any other), but still drops the
+`swe-lint-nonce` line Step 5 needs, so filtering still loses something.
 
 The last line of output is `swe-lint-nonce: <value>`. Step 5 needs
 that value. It is valid for this file's exact current content only,
@@ -62,13 +71,16 @@ needs a `clean` row recorded in Step 5.
 
 ## Step 4: Judge the file against the inference rules yourself
 
-Read `<file-path>` (the `Read` tool). Using the rules from the block
-above, judge the file's own prose against each one directly, as part
-of your own reasoning. There is no separate call to make or process to
-wait on for this step. Note any violation as `<file-path>:<line>:
-[severity] [rule-id] detail`, matching the deterministic tier's own
-format. Severity comes from the rule's own catalogue entry
-(`data/core-rules.toml`).
+Read `<file-path>` (the `Read` tool). Using each `inference pending`
+line from Step 3, one rule per line, its id in brackets, its
+description after `inference pending:`, judge the file's own prose
+against each rule directly, as part of your own reasoning. Ignore the
+trailing `[inference-pending]` summary line; it is a count, not a rule.
+There is no separate call to make or process to wait on for this step.
+Note any violation as `<file-path>:<line>: [severity] [rule-id]
+detail`, matching the deterministic tier's own format. Severity is
+`warning` unless the rule's line ends `(severity on violation:
+<severity>)`, in which case use that.
 
 A judgement made earlier, in this session or any other, never applies
 to changed content. Even a one-token edit makes this a new file. Judge
@@ -120,6 +132,8 @@ Steps 3, 4, and 5 again on the file as it is now.
 ## Step 6: Report
 
 Print every finding, deterministic and inference-tier alike, one line
-each with severity. If there are none, say the file is clean, both
-tiers. Do not fix anything unless asked: this command is a check, not
-an edit.
+each with severity. This is the violations found in Step 4, not the
+`inference pending` lines or the `[inference-pending]` summary line
+from Step 3, which name rules to check, not findings. If there are
+none, say the file is clean, both tiers. Do not fix anything unless
+asked: this command is a check, not an edit.

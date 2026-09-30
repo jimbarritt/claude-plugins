@@ -133,10 +133,33 @@ it prints a fenced block:
 
 ```
 ===INFERENCE_ADVISED===
-- rule-id: description
-- rule-id: description
+doc.md:0: [warning] [anthropomorphism-paraphrase] inference pending: A paraphrase of anthropomorphic language ...
+doc.md:0: [warning] [no-metaphor-or-analogy] inference pending: State a fact or a mechanism directly ...
+doc.md:0: [warning] [inference-pending] 2 inference rule(s) above need model judgement; this script does not judge them. Deterministic tier: 0 error(s), 0 warning(s).
 ===END_INFERENCE_ADVISED===
 ```
+
+Each rule line is shaped like a deterministic finding (`label:line:
+[severity] [rule-id] detail`), deliberately: a caller filtering output
+for finding lines (a `grep -E ":\s*\[(error|warning)\]"`, the natural
+thing to do on a long file) used to drop this whole block silently, so
+a filtered `--force-inference` run read as a clean two-tier pass when
+the inference tier had never run at all (claude-plugins#14). Line
+number is always `0` (never used by a real finding, since `prose_lines()`
+counts from 1) and severity is always `warning` (a pending rule is not
+itself a violation), whatever the catalogue's own severity for that
+rule is; where that differs, the line ends `(severity on violation:
+<severity>)` so the judging step still has it. `[inference-pending]` is
+a reserved id, in neither catalogue, marking the one summary line,
+which restates the source's real deterministic counts so a caller
+counting `[warning]` lines is not misled by the added rule lines.
+
+Splitting a pending rule, the summary, and a real finding apart, by
+regex:
+
+- pending rule: `^.+:0: \[warning\] \[[a-z0-9-]+\] inference pending: `
+- summary: `\[inference-pending\]`
+- real finding: any finding-shaped line with a line number of 1 or more
 
 The hook script (`strip_advise_block()`/`extract_advise_rules()` and
 `advise_inference()` in [`../hooks/_lib.sh`](../hooks/_lib.sh)) splits
@@ -183,6 +206,27 @@ directly; no subagent is dispatched for that command. For a single
 named file inside a git repository, it also mints and prints a
 single-use nonce bound to the file's exact git blob id, whether or not
 the rules block printed — see "Proof that Step 3 ran" below.
+
+Neither `--advise-inference` nor `--force-inference` can be combined
+with `--count`: `--count` returns its one-line summary before the
+inference block would print and before a nonce would mint, so the
+combination would always report "0 errors, 0 warnings" and exit 0
+regardless of prose content, the same failure claude-plugins#14
+describes, just reached a different way. The combination exits 2
+rather than being silently accepted.
+
+The exit code still reflects the deterministic tier only, on both
+flags: a pending inference rule is never itself a finding, and a shell
+pipeline like the one in claude-plugins#14 reports the last command's
+(here, `grep`'s) exit status regardless, so a distinct "block printed,
+not yet judged" exit code would not reach the caller the issue
+describes. The finding-shaped rule lines are the fix for that case, not
+the exit code.
+
+The hooks strip the whole fenced block (`strip_advise_block()`) before
+they count `[error]`/`[warning]` lines for
+`report_and_maybe_block()`, so the added rule and summary lines never
+change a hook's own error/warning counts or its blocking decision.
 
 ## The commit check
 
@@ -356,6 +400,11 @@ when a fresh pass would be worth doing, gated as above. Add
 `--force-inference` to print the same block unconditionally instead: this is what `/swe:lint-file` does. Neither ever judges the prose
 itself; that is always the caller's own job. Add `--quiet-vocab` to
 omit `vocabulary-membership` lines; every hook does this by default.
+Counting `[warning]` lines in either flag's output includes the
+`inference pending` rule lines and the trailing `[inference-pending]`
+summary line, not just real warning findings; the summary line's own
+text states the source's real deterministic error/warning counts.
+Neither flag can be combined with `--count` (exits 2).
 
 Run `scripts/fetch-software-english-data.sh` once by hand first, if
 `data/` is empty — the hooks do this automatically, a manual run does
@@ -450,6 +499,12 @@ skill's own directory name exactly; the same test asserts it.
   ledger or `lint-nonces.json` by hand, bypassing both. `lint-nonces.json`
   holds at most one pending entry per file per worktree, so unlike the
   other two state files, it stays bounded on its own.
+- The finding-shaped inference rule lines (claude-plugins#14) stop a
+  findings-shaped grep from silently discarding the block, so a
+  filtered run no longer looks clean when it is not. They do not, on
+  their own, prove Step 4 happened: a caller could still read the rule
+  lines and skip judging them. That boundary is the same one the nonce
+  above already accepts.
 - `git diff --cached --diff-filter=ACM` skips a pure rename (`R`), which
   is correct (the content was already judged), but a rename with edits
   is also reported as `R` and so slips through unchecked.

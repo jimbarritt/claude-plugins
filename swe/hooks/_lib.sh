@@ -104,7 +104,13 @@ report_and_maybe_block() {
 # block when called with --advise-inference or --force-inference and a
 # fresh pass is worth doing (see software_english_lint.py's
 # inference_eligible()). It never judges the prose itself; the block
-# holds the applicable rules for whoever calls it to judge directly.
+# holds the applicable rules for whoever calls it to judge directly, one
+# per line as `label:0: [warning] [rule-id] inference pending: ...`, plus
+# one `[inference-pending]` summary line (claude-plugins#14: finding-shaped
+# so a caller filtering for finding lines still receives them). The fence
+# is what lets a hook split these out from the deterministic report below;
+# the finding shape is what keeps them from being silently dropped by a
+# caller that filters the unstripped output instead.
 #
 # Two separate extractions from $1, each a plain command substitution
 # (not a side-effect global: a bash function called inside $(...) runs

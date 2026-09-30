@@ -93,6 +93,15 @@ severity = "warning"
 id = "tone-judgement"
 check = "model-judgement"
 description = "Judge tone by hand."
+
+[[rules]]
+id = "fixture-multiline"
+check = "model-judgement"
+severity = "error"
+description = """
+A rule whose own description
+spans several lines in the TOML source,
+to prove the printed line stays one grep-able line."""
 TOML
 LINTER="$FIXTURE/scripts/software_english_lint.py"
 
@@ -145,6 +154,46 @@ STORE_BLOB="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))[sy
 assert "the nonce entry's blob matches git hash-object" "$([ "$STORE_BLOB" = "$EXPECT_BLOB" ]; echo $?)"
 STORE_PATH="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]]['path'])" "$NONCE_STORE" "$NONCE1" 2>/dev/null)"
 assert "the nonce entry's path is repo-relative" "$([ "$STORE_PATH" = "a.md" ]; echo $?)"
+
+# --- inference block is finding-shaped (claude-plugins#14) -----------------
+# A caller that filters output for finding-shaped lines used to silently
+# discard the whole INFERENCE_ADVISED block (both rules and description
+# text); that pipeline must now keep the rule lines and the summary line.
+
+GREP_FINDINGS="$(printf '%s\n' "$FI_OUT" | grep -E ':\s*\[(error|warning)\]')"
+assert "a findings-shaped grep over --force-inference output is not empty" "$([ -n "$GREP_FINDINGS" ]; echo $?)"
+case "$GREP_FINDINGS" in
+  *"a.md:0: [warning] [tone-judgement] inference pending: Judge tone by hand."*)
+    assert "the grep keeps the tone-judgement rule line" 0 ;;
+  *) assert "the grep keeps the tone-judgement rule line" 1 ;;
+esac
+case "$GREP_FINDINGS" in
+  *"a.md:0: [warning] [fixture-multiline] inference pending:"*"(severity on violation: error)"*)
+    assert "a multi-line description prints as one line, with its own severity noted" 0 ;;
+  *) assert "a multi-line description prints as one line, with its own severity noted" 1 ;;
+esac
+case "$GREP_FINDINGS" in
+  *"a.md:0: [warning] [inference-pending] 2 inference rule(s) above need model judgement"*"Deterministic tier: 0 error(s), 1 warning(s)."*)
+    assert "the summary line states the count and the real deterministic counts (vocabulary-membership counts even under --quiet-vocab)" 0 ;;
+  *) assert "the summary line states the count and the real deterministic counts (vocabulary-membership counts even under --quiet-vocab)" 1 ;;
+esac
+case "$FI_OUT" in
+  *"- tone-judgement:"*) assert "no line uses the old '- rule-id: description' format" 1 ;;
+  *) assert "no line uses the old '- rule-id: description' format" 0 ;;
+esac
+REAL_ERRORS="$(printf '%s\n' "$FI_OUT" | grep -E '^[^:]+:[1-9][0-9]*: \[error\]' | wc -l | tr -d ' ')"
+assert "no pending rule line is counted as a real error (at a line 1 or more)" "$([ "$REAL_ERRORS" -eq 0 ]; echo $?)"
+
+# --- --count rejects either inference flag (claude-plugins#14) -------------
+# --count returns before the inference block prints and before a nonce
+# mints, so combined with an inference flag it would always report
+# "0 errors, 0 warnings" and exit 0, the same one-tier-reported-as-clean
+# failure this issue is about, just reached a different way.
+
+(cd "$REPO" && python3 "$LINTER" a.md --count --force-inference >/dev/null 2>/dev/null)
+assert "--count with --force-inference exits 2" "$([ $? -eq 2 ]; echo $?)"
+(cd "$REPO" && python3 "$LINTER" a.md --count --advise-inference >/dev/null 2>/dev/null)
+assert "--count with --advise-inference exits 2" "$([ $? -eq 2 ]; echo $?)"
 
 # --- --record-lint-result: recording with a valid nonce --------------------
 
@@ -231,6 +280,10 @@ if [[ "$NONCE_EMPTY" =~ ^[0-9a-f]{32}$ ]]; then
 else
   assert "a no-prose file still gets a nonce" 1
 fi
+case "$FI_OUT" in
+  *":0: [warning]"*) assert "a no-prose file prints no pending-rule line" 1 ;;
+  *) assert "a no-prose file prints no pending-rule line" 0 ;;
+esac
 OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_EMPTY" empty.md 2>&1)"
 assert "a no-prose file's clean recording succeeds" "$([ $? -eq 0 ]; echo $?)"
 
@@ -239,6 +292,19 @@ git -C "$REPO" add dash.md
 FI_OUT="$(cd "$REPO" && python3 "$LINTER" dash.md --force-inference --quiet-vocab 2>&1)"
 FI_STATUS=$?
 assert "a deterministically-failing file exits the lint status (1)" "$([ "$FI_STATUS" -eq 1 ]; echo $?)"
+DASH_GREP="$(printf '%s\n' "$FI_OUT" | grep -E ':\s*\[(error|warning)\]')"
+case "$DASH_GREP" in
+  *"dash.md:1: [error] [no-em-dash]"*) assert "the grep keeps the real deterministic finding" 0 ;;
+  *) assert "the grep keeps the real deterministic finding" 1 ;;
+esac
+case "$DASH_GREP" in
+  *"dash.md:0: [warning] [tone-judgement] inference pending:"*) assert "the grep also keeps the pending rule line alongside the real finding" 0 ;;
+  *) assert "the grep also keeps the pending rule line alongside the real finding" 1 ;;
+esac
+case "$DASH_GREP" in
+  *"Deterministic tier: 1 error(s), 6 warning(s)."*) assert "the summary line reflects the deterministic failure count" 0 ;;
+  *) assert "the summary line reflects the deterministic failure count" 1 ;;
+esac
 NONCE_DASH="$(printf '%s\n' "$FI_OUT" | sed -n 's/^swe-lint-nonce: //p' | tail -1)"
 if [[ "$NONCE_DASH" =~ ^[0-9a-f]{32}$ ]]; then
   assert "a deterministically-failing file still gets a nonce" 0
@@ -296,6 +362,31 @@ OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 -
 assert "a ledger write failure exits 3" "$([ $? -eq 3 ]; echo $?)"
 OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_LF" ledgerfail.md 2>&1)"
 assert "the nonce is already spent after a failed write (no retry with the same value)" "$([ $? -eq 4 ]; echo $?)"
+
+# --- --advise-inference output still splits cleanly via hooks' _lib.sh ----
+# (claude-plugins#14: the rule and summary lines are now finding-shaped,
+# so a hook must still be able to strip them out before counting
+# [error]/[warning] lines, and still extract them separately.)
+
+ADVISE_TEXT="$(python3 -c "print('word ' * 80)")"
+ADVISE_OUT="$(printf '%s' "$ADVISE_TEXT" | python3 "$LINTER" --text --source-label t --advise-inference --quiet-vocab 2>&1)"
+source "$PLUGIN_ROOT/hooks/_lib.sh"
+STRIPPED="$(strip_advise_block "$ADVISE_OUT")"
+case "$STRIPPED" in
+  *":0:"*) assert "hooks' stripped output has no pending-rule line" 1 ;;
+  *) assert "hooks' stripped output has no pending-rule line" 0 ;;
+esac
+STRIPPED_WARN_COUNT="$(printf '%s\n' "$STRIPPED" | grep -c '\[warning\]')"
+assert "hooks' stripped output has zero warning-shaped lines (rule lines removed)" "$([ "$STRIPPED_WARN_COUNT" -eq 0 ]; echo $?)"
+EXTRACTED="$(extract_advise_rules "$ADVISE_OUT")"
+case "$EXTRACTED" in
+  *"t:0: [warning] [tone-judgement] inference pending: Judge tone by hand."*) assert "extract_advise_rules keeps the pending rule line" 0 ;;
+  *) assert "extract_advise_rules keeps the pending rule line" 1 ;;
+esac
+case "$EXTRACTED" in
+  *"[inference-pending]"*) assert "extract_advise_rules keeps the summary line" 0 ;;
+  *) assert "extract_advise_rules keeps the summary line" 1 ;;
+esac
 
 # --- install-commit-hook.sh -----------------------------------------------
 
