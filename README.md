@@ -19,3 +19,7 @@ Claude Code (`~/.claude/`).
 ## Contributing a plugin
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Licence
+
+Apache-2.0. See [LICENSE](./LICENSE).
