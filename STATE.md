@@ -1,10 +1,21 @@
 # State
 
-Last updated: 2026-09-30 (issue #15)
+Last updated: 2026-10-01 (plugin directory submission)
 
 ## In progress
 
 None.
+
+## Waiting on others
+
+- The Claude plugin directory's review of `swe`, which Jim submitted on
+  2026-10-01. See
+  [tasks/future-plugin-directory-listing.md](tasks/future-plugin-directory-listing.md).
+  A requested change to `plugin.json` needs a version bump and a release.
+- Jim's worked example for the API Design type, expected as a
+  `claude-plugins` issue. Checked on 2026-10-01: the newest issue is
+  #15, so it has not been filed. See
+  [tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md).
 
 ## Next
 
@@ -37,6 +48,27 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/future-plugin-directory-listing.md](tasks/future-plugin-directory-listing.md):
+  `swe` is submitted to the Claude plugin directory. The blocking
+  requirement was an open source license, which the policy article does
+  not state; it comes from the directory's submission process. Jim chose
+  Apache-2.0, matching `software-english`. Shipped on `claude-plugins`
+  `main`: `LICENSE`, then `license` and `author` fields in `swe`'s
+  `plugin.json`, then `icon.png` beside it, released as `swe-v0.16.2`,
+  `swe-v0.16.3`, and `swe-v0.16.4`. The icon ("swe" in white on black,
+  reviewed by Jim) is fixed from the first portal submission, so it does
+  not change later. A push collided with the Routine's commits (swe
+  0.12.1 to 0.16.1) and merged with one conflict, on the version line.
+  Outcome of the review is open.
+- `software-english` README, Document types section
+  ([`0abecc7`](https://github.com/jimbarritt/software-english/commit/0abecc7)):
+  the intro described only the sentence-level rules, and the
+  document-type catalogue appeared only as one row of the Structure
+  table. A new section before Structure now lists the fourteen types and
+  says Software English draws on and references canonical examples of
+  them. Jim softened an earlier draft's "does not redefine any of these
+  structures", since the Design and API Design types add content of their
+  own. README only, no release. No task file.
 - [tasks/issue-15-motion-idiom-abstract-subject.md](tasks/issue-15-motion-idiom-abstract-subject.md)
   ([#15](https://github.com/jimbarritt/claude-plugins/issues/15)): seventh
   real issue worked end to end by the self-maintaining-repo Routine, single

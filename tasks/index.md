@@ -25,3 +25,4 @@
 | [issue-11-commit-hook-success-line.md](issue-11-commit-hook-success-line.md) | [claude-plugins#11](https://github.com/jimbarritt/claude-plugins/issues/11) | Done — shipped on `main`, released as `swe-v0.14.0`, issue closed |
 | [issue-12-send-feedback-redaction.md](issue-12-send-feedback-redaction.md) | [claude-plugins#12](https://github.com/jimbarritt/claude-plugins/issues/12) | Done — shipped on `main`, released as `swe-v0.15.0`, issue closed |
 | [future-feedback-log-confidentiality.md](future-feedback-log-confidentiality.md) | none filed yet | Waiting for Jim's decision; not started |
+| [future-plugin-directory-listing.md](future-plugin-directory-listing.md) | none filed yet | Shipped: license, author, icon, released as `swe-v0.16.2` to `swe-v0.16.4`; submitted by Jim on 2026-10-01, review outcome open |
