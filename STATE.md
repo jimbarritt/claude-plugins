@@ -9,7 +9,7 @@ None.
 ## Waiting on others
 
 - The Claude plugin directory's review of `swe`, which Jim submitted on
-  2026-10-01. See
+  2026-10-01. Status: waiting for review. See
   [tasks/future-plugin-directory-listing.md](tasks/future-plugin-directory-listing.md).
   A requested change to `plugin.json` needs a version bump and a release.
 - Jim's worked example for the API Design type, expected as a

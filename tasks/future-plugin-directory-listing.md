@@ -81,8 +81,13 @@ but a merge that pulls in already-vetted markdown always repeats it.
 
 ## Open
 
-- The directory's review of the submission. Nothing is known yet.
-  Check the outcome when Jim reports it. A reviewer may ask for changes
+- The directory's review of the submission. Status on 2026-10-01, as
+  Jim reported it: waiting for review. The listing sits on Jim's manage
+  plugins page in the portal, which needs his sign-in, so a session
+  cannot read it (HTTP 403). Check the outcome when Jim reports it. A reviewer may ask for changes
   to `plugin.json`, the README, or the plugin's own documentation.
 - Any change to `plugin.json` needs a version bump and a release,
   per `CLAUDE.md`, or an installed copy does not pick it up.
+- Optional: `claude plugin validate .` warns that `marketplace.json` has
+  no description. A one-line fix outside `swe/`, so no release. Offered
+  to Jim on 2026-10-01, not yet answered.
