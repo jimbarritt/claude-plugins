@@ -8,6 +8,14 @@ None.
 
 ## Waiting on others
 
+- [Issue #16](https://github.com/jimbarritt/claude-plugins/issues/16):
+  a model-backed pre-action check for swe (OpenAPPA-style), escalated by
+  the self-maintaining-repo Routine on 2026-10-02. The issue's five open
+  questions are product decisions, and the proposal reverses a documented
+  design invariant (`agent-guide.md`: hooks "never spawn" a model). Asked
+  Jim on the issue whether to lift that constraint and, if so, what rule
+  scope and fail mode to use. Labelled `supervisor`. See
+  [tasks/issue-16-model-backed-check.md](tasks/issue-16-model-backed-check.md).
 - The Claude plugin directory's review of `swe`, which Jim submitted on
   2026-10-01. Status: waiting for review. See
   [tasks/future-plugin-directory-listing.md](tasks/future-plugin-directory-listing.md).
