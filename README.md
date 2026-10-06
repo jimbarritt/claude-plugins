@@ -15,6 +15,7 @@ Claude Code (`~/.claude/`).
 | Plugin | Description |
 |---|---|
 | [`swe`](swe/README.md) | Lints Claude Code output against [Software English](https://github.com/jimbarritt/software-english). |
+| [`tsk`](https://github.com/jimbarritt/tsk/tree/main/plugin) | Missions, threads and the ledger for Claude Code sessions, backed by the [tsk](https://github.com/jimbarritt/tsk) binary. The source lives in the tsk repo. |
 
 ## Contributing a plugin
 

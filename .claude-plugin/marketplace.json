@@ -7,6 +7,15 @@
     {
       "name": "swe",
       "source": "./swe"
+    },
+    {
+      "name": "tsk",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/jimbarritt/tsk",
+        "path": "plugin"
+      },
+      "description": "Missions, threads and the ledger for Claude Code sessions, backed by the tsk binary"
     }
   ]
 }
