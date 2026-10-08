@@ -1,7 +1,8 @@
 # State
 
-Last updated: 2026-10-02 (issue #16 escalation reclassified as a deferred
-future topic, at Jim's direction)
+Last updated: 2026-10-08 (self-maintaining-repo Routine run: nothing
+eligible to claim on `claude-plugins`; found a scope mismatch between
+that loop's design and `software-english`'s own issue tracker)
 
 ## In progress
 
@@ -17,6 +18,18 @@ None.
   `claude-plugins` issue. Checked on 2026-10-01: the newest issue is
   #15, so it has not been filed. See
   [tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md).
+- `claude-plugins` issue #16 stays `supervisor`-labelled: checked on
+  2026-10-08, no comment newer than the session's own last comment, so
+  the self-maintaining-repo Routine left it untouched again.
+- Nine open issues directly on `jimbarritt/software-english` (#1-4,
+  #6-10), all filed by `jimbarritt-pleo` via `/swe:send-feedback`
+  (which routes a rule-engine bug straight there, not to
+  `claude-plugins`). This contradicts the self-maintaining-repo
+  Routine's own design decision that `claude-plugins` stays the single
+  point of contact for filing, so the Routine's unattended claim step
+  does not currently reach them, and they are unprocessed. Needs Jim's
+  call: see the new "Open questions" entry in
+  [tasks/future-self-maintaining-repo.md](tasks/future-self-maintaining-repo.md).
 
 ## Next
 

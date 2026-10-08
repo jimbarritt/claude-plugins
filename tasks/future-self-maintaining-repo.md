@@ -517,4 +517,24 @@ Shipped as `swe-v0.13.0`.
 Escalation channel, cadence, the model split, the framework choice,
 and the `software-english` scope are settled (see Decisions above).
 The trusted-authors mechanism is proposed, not yet confirmed (see
-"Decisions still forming"). Nothing else is open.
+"Decisions still forming").
+
+Newly found, 2026-10-08: the "single point of contact" decision above
+(filing stays on `claude-plugins`, never a second tracker on the spec
+repo) does not hold in practice. `jimbarritt/software-english` now
+carries nine open issues (#1-4, #6-10), all opened directly there by
+`jimbarritt-pleo` via `/swe:send-feedback`, whose own Step 1 routes a
+rule-engine bug straight to `jimbarritt/software-english` rather than
+to `claude-plugins`. This run's Step 2 found zero qualifying issues on
+`claude-plugins` (the only open one, #16, stayed in `supervisor` state:
+no comment newer than the session's own last comment) and, reading
+"claim an issue" as scoped to `claude-plugins` (the only repo with the
+`agent:go`/`agent:working`/`agent:hold`/`supervisor` labelling this
+loop depends on, and the only repo any of the eight prior real runs
+ever claimed from), claimed nothing rather than start pulling directly
+from the software-english tracker on an unreviewed reading. Left
+untouched pending Jim's call: either `send-feedback` needs to stop
+filing on `software-english` directly (restoring the original
+decision), or this loop's claim step needs to cover that tracker too
+(and, if so, decide whether `agent:go`/`agent:working`/`agent:hold`
+need to exist there, since none of the nine issues carry them today).
