@@ -1,8 +1,8 @@
 # State
 
-Last updated: 2026-10-08 (self-maintaining-repo Routine run: nothing
-eligible to claim on `claude-plugins`; found a scope mismatch between
-that loop's design and `software-english`'s own issue tracker)
+Last updated: 2026-10-09 (self-maintaining-repo Routine run: nothing
+eligible to claim on `claude-plugins`; issue #16 still `supervisor`-labelled,
+no new trusted comment)
 
 ## In progress
 
@@ -19,8 +19,9 @@ None.
   #15, so it has not been filed. See
   [tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md).
 - `claude-plugins` issue #16 stays `supervisor`-labelled: checked on
-  2026-10-08, no comment newer than the session's own last comment, so
-  the self-maintaining-repo Routine left it untouched again.
+  2026-10-08 and again on 2026-10-09, no comment newer than the
+  session's own last comment, so the self-maintaining-repo Routine
+  left it untouched again.
 - Nine open issues directly on `jimbarritt/software-english` (#1-4,
   #6-10), all filed by `jimbarritt-pleo` via `/swe:send-feedback`
   (which routes a rule-engine bug straight there, not to
