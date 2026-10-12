@@ -93,4 +93,56 @@ text directly rather than retype it here.
 
 ## Status
 
-Planned. Proceeding to implementation on `main`.
+Done. Eighth real issue worked end to end by the self-maintaining-repo
+Routine, single pass, no escalation.
+
+`swe/skills/lint-file/SKILL.md`'s Step 4 now has two passes: the body,
+then every heading in the file as its own contiguous list, both judged
+against the same `inference pending` rules Step 3 prints (Step 6's
+summary line updated to say "both passes"; no step renumbered, since
+"Step 5"/"Step 6" are referenced elsewhere in SKILL.md,
+`agent-guide.md`, and a code comment in `software_english_lint.py`).
+`swe/output-styles/software-english.md` gained a matching "Headings"
+section at the end, after "Longer explanations and documents", so it
+can refer to "every rule above". No code change to
+`software_english_lint.py`: the deterministic tier already lints
+heading lines, because `prose_lines()` yields a `#` line like any
+other prose line, and the heading list for the new inference pass is
+built from the same `Read` output Pass 1 already uses, not a new flag.
+
+Two of the four faults the issue named already have a catalogue rule
+(`no-metaphor-or-analogy`, `no-contrastive-framing`, checked against
+the pinned `software-english` tag `v0.0.10`); the new step catches
+those once applied to headings. The other two — a rhetorical question
+in place of a claim, and a heading that withholds its content, plus
+the issue's own "inconsistent grammatical form across sibling
+headings" example — have no catalogue rule, and the issue states those
+are proposed separately against the spec repository, so the new text
+does not name them as faults to report (naming them would add a rule
+through the back door with no rule id to report under).
+`swe/docs/agent-guide.md` updated to match: the two-pass judgement
+noted where it describes `/swe:lint-file`'s inference tier, and a new
+"Known limits" bullet naming the two ruleless heading faults the pass
+does not catch.
+
+One implementation-time correction, not in the plan: a sentence in the
+`agent-guide.md` addition read "The script prints no heading list," a
+mild negative/contrastive statement against this repo's own prose
+rules; reworded to state the mechanism positively ("The agent builds
+the heading list itself, from the same `Read` output the body pass
+already used") before committing. Two stray hard-wrapped lines in
+Step 6 and its closing sentence, left over from the edit, were also
+tidied before committing.
+
+Verified directly: the deterministic tier reports zero findings
+against the edited `SKILL.md` itself, unchanged from before the edit;
+the new paragraphs and headings in both edited files, judged by hand
+against the inference-tier rules the linter printed for `SKILL.md`
+(the only one of the two files not `.swe-ignore`d), found nothing.
+All six test suites pass (142 assertions, unchanged — this is a
+prose-only change, no test added or needed; a test that greps for the
+new text would not verify any behaviour). Version bumped `0.16.4` ->
+`0.17.0`. Shipped on `main` at
+[`79ad2a8`](https://github.com/jimbarritt/claude-plugins/commit/79ad2a8),
+which closed the issue automatically, released as
+[`swe-v0.17.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.0).

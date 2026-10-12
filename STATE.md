@@ -1,17 +1,13 @@
 # State
 
-Last updated: 2026-10-12 (self-maintaining-repo Routine run: claimed
-[#17](https://github.com/jimbarritt/claude-plugins/issues/17), opened by
-`jimbarritt-pleo`; #16 stays `supervisor`-labelled, no comment newer than
-the session's own last comment, left untouched again)
+Last updated: 2026-10-12 (self-maintaining-repo Routine run: shipped
+[#17](https://github.com/jimbarritt/claude-plugins/issues/17) end to end,
+released as `swe-v0.17.0`; #16 stays `supervisor`-labelled, no comment
+newer than the session's own last comment, left untouched again)
 
 ## In progress
 
-- [tasks/issue-17-headings-as-prose.md](tasks/issue-17-headings-as-prose.md)
-  ([#17](https://github.com/jimbarritt/claude-plugins/issues/17)): claimed
-  by the self-maintaining-repo Routine. A two-pass heading check (body,
-  then headings as a contiguous list) added to `lint-file`'s Step 4 and
-  to the output style. Plan done; implementation in progress on `main`.
+None.
 
 ## Waiting on others
 
@@ -86,6 +82,33 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-17-headings-as-prose.md](tasks/issue-17-headings-as-prose.md)
+  ([#17](https://github.com/jimbarritt/claude-plugins/issues/17)): eighth
+  real issue worked end to end by the self-maintaining-repo Routine,
+  single pass, no escalation. The inference tier judged body prose only,
+  so a metaphor or contrastive frame used as a heading went unchecked
+  even once the body reached a clean state. `lint-file`'s Step 4 now has
+  two passes (body, then every heading as its own contiguous list,
+  against the same rules); the output style gets a matching "Headings"
+  section. No code change: the deterministic tier already lints heading
+  lines via `prose_lines()`, and the heading list is built from the same
+  `Read` output the body pass already uses. Two of the four faults named
+  already have a catalogue rule (`no-metaphor-or-analogy`,
+  `no-contrastive-framing`); the other two (a rhetorical heading, a
+  heading that withholds its content) have none, proposed separately
+  against `software-english` per the issue itself, so the new text does
+  not name them as faults to report. `agent-guide.md` updated to match,
+  including a "Known limits" bullet naming that gap. One
+  implementation-time correction: a sentence in the `agent-guide.md`
+  addition read as a mild negative/contrastive statement, reworded
+  positively before committing, this repo's own prose rules applied to
+  itself. All six test suites pass (142 assertions, unchanged — prose
+  only, no test needed); the deterministic tier reports zero findings
+  against the edited `SKILL.md`. Version bumped `0.16.4` -> `0.17.0`.
+  Shipped on `main` at
+  [`79ad2a8`](https://github.com/jimbarritt/claude-plugins/commit/79ad2a8),
+  which closed the issue automatically, released as
+  [`swe-v0.17.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.0).
 - [tasks/future-plugin-directory-listing.md](tasks/future-plugin-directory-listing.md):
   `swe` is submitted to the Claude plugin directory. The blocking
   requirement was an open source license, which the policy article does
