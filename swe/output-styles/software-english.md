@@ -69,3 +69,12 @@ named the plan or design.
 - Before writing a substantial document (an RFC, an ADR, a
   specification, a runbook), identify its type and follow that
   type's structure.
+
+## Headings
+
+When you write or change a document, check its headings as a separate
+step, after the body text. List the headings in document order, on
+their own, and check each heading as a sentence against every rule
+above. A heading is prose: a metaphor, or a statement of what a section
+does not cover, is the same fault in a heading as in a paragraph. Fix
+each fault, then check the list again.

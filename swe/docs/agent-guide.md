@@ -202,10 +202,17 @@ unconditionally: no gate, no threshold, no throttle. It still skips on
 empty prose, and still records the pass (word/sentence count, for the
 throttle above) whenever it prints the block. It is the current session
 itself, right where `/swe:lint-file` was run, that then judges the file
-directly; no subagent is dispatched for that command. For a single
-named file inside a git repository, it also mints and prints a
-single-use nonce bound to the file's exact git blob id, whether or not
-the rules block printed — see "Proof that Step 3 ran" below.
+directly; no subagent is dispatched for that command. That judgement
+has two passes (Step 4 of
+[`../skills/lint-file/SKILL.md`](../skills/lint-file/SKILL.md)): the
+body, then the file's headings as a separate list, against the same
+rules. The agent builds the heading list itself, from the same `Read`
+output the body pass already used. The deterministic tier already
+checks each heading line too, because `prose_lines()` yields a `#`
+line like any other prose line. For a single named file inside a git
+repository, it also mints and prints a single-use nonce bound to the
+file's exact git blob id, whether or not the rules block printed — see
+"Proof that Step 3 ran" below.
 
 Neither `--advise-inference` nor `--force-inference` can be combined
 with `--count`: `--count` returns its one-line summary before the
@@ -467,6 +474,12 @@ skill's own directory name exactly; the same test asserts it.
 - `bash-check.sh`'s quote-parsing is regex-based, not a real shell
   parser. A commit or PR body passed through a heredoc
   (`git commit -F - <<'EOF' ... EOF`) passes through unchecked.
+- `/swe:lint-file`'s heading pass judges headings only against the
+  catalogued inference rules. A heading phrased as a question in place
+  of a claim, a heading that withholds the section's content, and
+  inconsistent grammatical form across sibling headings have no
+  catalogue rule yet (proposed against `software-english`), so the
+  pass reports none of them.
 - HTML text-node extraction treats every node at or above the
   character threshold as prose, including a button label.
 - The Slack matcher in `hooks.json` is unverified: no Slack send tool

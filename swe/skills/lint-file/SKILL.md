@@ -71,6 +71,19 @@ needs a `clean` row recorded in Step 5.
 
 ## Step 4: Judge the file against the inference rules yourself
 
+Step 4 has two passes, in this order: the body, then the headings.
+Both passes use the same rules: the `inference pending` lines from
+Step 3.
+
+A judgement made earlier, in this session or any other, never applies
+to changed content. Even a one-token edit makes this a new file. Judge
+the content as it is now, in full, every time. The ledger is keyed by
+content for exactly this reason, and Step 5's nonce enforces it: a
+nonce issued before an edit no longer matches the file's blob, so
+Step 5 rejects it.
+
+### Pass 1: the body
+
 Read `<file-path>` (the `Read` tool). Using each `inference pending`
 line from Step 3, one rule per line, its id in brackets, its
 description after `inference pending:`, judge the file's own prose
@@ -82,12 +95,22 @@ detail`, matching the deterministic tier's own format. Severity is
 `warning` unless the rule's line ends `(severity on violation:
 <severity>)`, in which case use that.
 
-A judgement made earlier, in this session or any other, never applies
-to changed content. Even a one-token edit makes this a new file. Judge
-the content as it is now, in full, every time. The ledger is keyed by
-content for exactly this reason, and Step 5's nonce enforces it: a
-nonce issued before an edit no longer matches the file's blob, so
-Step 5 rejects it.
+### Pass 2: the headings, as a list
+
+After Pass 1, make a list of every heading in the file, in document
+order, each with its line number. A heading is a line that starts with
+one to six `#` characters and a space, outside a fenced code block.
+Make the list from the content you read in Pass 1.
+
+Judge each heading in the list as a sentence, against each
+`inference pending` rule from Step 3. A heading is prose: a metaphor or
+a contrastive frame in a heading is the same fault as in a paragraph.
+Note each violation at the heading's own line number, in the same
+format as Pass 1.
+
+Do Pass 2 even when Pass 1 found violations: Step 6 reports every
+finding from both passes. Skip Pass 2 for a file that is not Markdown,
+and for a Markdown file with no heading.
 
 ## Step 5: Record the verdict
 
@@ -132,8 +155,8 @@ Steps 3, 4, and 5 again on the file as it is now.
 ## Step 6: Report
 
 Print every finding, deterministic and inference-tier alike, one line
-each with severity. This is the violations found in Step 4, not the
-`inference pending` lines or the `[inference-pending]` summary line
-from Step 3, which name rules to check, not findings. If there are
-none, say the file is clean, both tiers. Do not fix anything unless
-asked: this command is a check, not an edit.
+each with severity. This is the violations found in Step 4, both
+passes, not the `inference pending` lines or the `[inference-pending]`
+summary line from Step 3, which name rules to check, not findings. If
+there are none, say the file is clean, both tiers. Do not fix
+anything unless asked: this command is a check, not an edit.
