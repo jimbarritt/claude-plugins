@@ -1,13 +1,17 @@
 # State
 
-Last updated: 2026-10-12 12:02 UTC (self-maintaining-repo Routine run:
-nothing eligible to claim on `claude-plugins`; only open issue is #16,
-still `supervisor`-labelled, no comment newer than the session's own
-last comment)
+Last updated: 2026-10-12 (self-maintaining-repo Routine run: claimed
+[#17](https://github.com/jimbarritt/claude-plugins/issues/17), opened by
+`jimbarritt-pleo`; #16 stays `supervisor`-labelled, no comment newer than
+the session's own last comment, left untouched again)
 
 ## In progress
 
-None.
+- [tasks/issue-17-headings-as-prose.md](tasks/issue-17-headings-as-prose.md)
+  ([#17](https://github.com/jimbarritt/claude-plugins/issues/17)): claimed
+  by the self-maintaining-repo Routine. A two-pass heading check (body,
+  then headings as a contiguous list) added to `lint-file`'s Step 4 and
+  to the output style. Plan done; implementation in progress on `main`.
 
 ## Waiting on others
 
