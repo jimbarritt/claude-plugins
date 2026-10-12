@@ -1,9 +1,9 @@
 # State
 
-Last updated: 2026-10-12 (self-maintaining-repo Routine run: shipped
-[#17](https://github.com/jimbarritt/claude-plugins/issues/17) end to end,
-released as `swe-v0.17.0`; #16 stays `supervisor`-labelled, no comment
-newer than the session's own last comment, left untouched again)
+Last updated: 2026-10-12 16:02 UTC (self-maintaining-repo Routine run: no
+open issue other than #16 qualified to claim; #16 stays
+`supervisor`-labelled, no comment newer than the session's own last
+comment, left untouched again)
 
 ## In progress
 
@@ -30,9 +30,9 @@ None.
   11:02 UTC, 12:02 UTC, 13:02 UTC, 14:01 UTC, 15:02 UTC, 16:02 UTC,
   17:02 UTC, 18:01 UTC, 19:02 UTC, 20:02 UTC, and 21:01 UTC), and again on
   2026-10-12 (06:02 UTC, 07:02 UTC, 08:02 UTC, 09:01 UTC, 10:02 UTC,
-  11:02 UTC, 12:02 UTC, 14:01 UTC, and 15:02 UTC), no comment newer than the
-  session's own last comment, so the self-maintaining-repo Routine left it
-  untouched again.
+  11:02 UTC, 12:02 UTC, 14:01 UTC, 15:02 UTC, and 16:02 UTC), no comment
+  newer than the session's own last comment, so the self-maintaining-repo
+  Routine left it untouched again.
 - Nine open issues directly on `jimbarritt/software-english` (#1-4,
   #6-10), all filed by `jimbarritt-pleo` via `/swe:send-feedback`
   (which routes a rule-engine bug straight there, not to
