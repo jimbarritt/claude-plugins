@@ -1,6 +1,6 @@
 # State
 
-Last updated: 2026-10-12 20:02 UTC (self-maintaining-repo Routine run: no
+Last updated: 2026-10-12 21:01 UTC (self-maintaining-repo Routine run: no
 open issue other than #16 qualified to claim; #16 stays
 `supervisor`-labelled, no comment newer than the session's own last
 comment, left untouched again)
@@ -31,17 +31,18 @@ None.
   17:02 UTC, 18:01 UTC, 19:02 UTC, 20:02 UTC, and 21:01 UTC), and again on
   2026-10-12 (06:02 UTC, 07:02 UTC, 08:02 UTC, 09:01 UTC, 10:02 UTC,
   11:02 UTC, 12:02 UTC, 14:01 UTC, 15:02 UTC, 16:02 UTC, 17:01 UTC,
-  18:01 UTC, 19:01 UTC, and 20:02 UTC), no comment newer than the
-  session's own last comment, so the self-maintaining-repo Routine left
-  it untouched again.
-- Nine open issues directly on `jimbarritt/software-english` (#1-4,
-  #6-10), all filed by `jimbarritt-pleo` via `/swe:send-feedback`
+  18:01 UTC, 19:01 UTC, 20:02 UTC, and 21:01 UTC), no comment newer than
+  the session's own last comment, so the self-maintaining-repo Routine
+  left it untouched again.
+- Eleven open issues directly on `jimbarritt/software-english` (#1-4,
+  #6-12, up from nine: #11 and #12 filed 2026-10-12 12:2x UTC, same
+  pattern), all filed by `jimbarritt-pleo` via `/swe:send-feedback`
   (which routes a rule-engine bug straight there, not to
   `claude-plugins`). This contradicts the self-maintaining-repo
   Routine's own design decision that `claude-plugins` stays the single
   point of contact for filing, so the Routine's unattended claim step
   does not currently reach them, and they are unprocessed. Needs Jim's
-  call: see the new "Open questions" entry in
+  call: see the "Open questions" entry in
   [tasks/future-self-maintaining-repo.md](tasks/future-self-maintaining-repo.md).
 
 ## Next
