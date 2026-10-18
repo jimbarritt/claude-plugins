@@ -1,6 +1,6 @@
 # State
 
-Last updated: 2026-10-17 21:08 UTC (self-maintaining-repo Routine run: no
+Last updated: 2026-10-18 06:08 UTC (self-maintaining-repo Routine run: no
 open issue other than #16 qualified to claim; #16 stays
 `supervisor`-labelled, no comment newer than the session's own last
 comment, left untouched again)
@@ -46,11 +46,12 @@ None.
   and 21:02 UTC), and again on 2026-10-17 (06:02 UTC, 07:08 UTC, 08:07
   UTC, 09:08 UTC, 10:08 UTC, 11:08 UTC, 12:07 UTC, 13:08 UTC, 14:09 UTC,
   15:08 UTC, 16:08 UTC, 17:08 UTC, 18:08 UTC, 19:08 UTC, 20:08 UTC, and
-  21:08 UTC), no comment newer than the session's own last comment, so
-  the self-maintaining-repo Routine left it untouched again.
-- Eleven open issues directly on `jimbarritt/software-english` (#1-4,
-  #6-12, up from nine: #11 and #12 filed 2026-10-12 12:2x UTC, same
-  pattern), all filed by `jimbarritt-pleo` via `/swe:send-feedback`
+  21:08 UTC), and again on 2026-10-18 (06:08 UTC), no comment newer than
+  the session's own last comment, so the self-maintaining-repo Routine
+  left it untouched again.
+- Twelve open issues directly on `jimbarritt/software-english` (#1-4,
+  #6-13, up from eleven: #13 filed since the last check), all filed by
+  `jimbarritt-pleo` via `/swe:send-feedback`
   (which routes a rule-engine bug straight there, not to
   `claude-plugins`). This contradicts the self-maintaining-repo
   Routine's own design decision that `claude-plugins` stays the single
