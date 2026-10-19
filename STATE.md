@@ -1,10 +1,16 @@
 # State
 
-Last updated: 2026-10-19 (#16 answered and parked)
+Last updated: 2026-10-19 (software-english#1 claimed, in progress)
 
 ## In progress
 
-None.
+- `software-english` #1, `no-metaphor-or-analogy` misses the
+  container-and-form family (`shape`, `layer`, `space`) applied to a
+  schema/type/API. Wording-only fix to the rule's description in
+  `rules/core-rules.toml` and `spec/SPEC.md` §5.5; no `banned.tsv`
+  change (those nouns have legitimate literal uses in the repo's own
+  templates). See
+  [tasks/software-english-issue-1-container-and-form-metaphor.md](tasks/software-english-issue-1-container-and-form-metaphor.md).
 
 ## Waiting on others
 
