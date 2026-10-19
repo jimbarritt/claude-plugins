@@ -59,10 +59,13 @@ Jim has confirmed six points, so these are fixed rather than open:
   `MAINTAINER-RUN.md`, and claim rules; reassessing that switch is a
   later task, not part of this one.
 - Scope: `software-english` changes stay in scope for an unattended
-  run, the same as for an attended one. Some issues on `claude-plugins`
-  are about the rules themselves, not the plugin code, and Jim wants
-  the plugin repository to stay the single point of contact for
-  filing them, rather than a second issue tracker on the spec repo.
+  run, the same as for an attended one. Decided 2026-10-19, replacing
+  the earlier "single point of contact" decision: the Routine claims
+  from both trackers, `claude-plugins` and `software-english`, as one
+  pool, oldest first. `/swe:send-feedback` files a finding on a core
+  rule straight to `software-english`, and the issue stays there, with
+  the spec it is about. `MAINTAINER-RUN.md` lists the per-tracker
+  release steps.
 
 ## Decisions still forming
 
@@ -538,3 +541,13 @@ filing on `software-english` directly (restoring the original
 decision), or this loop's claim step needs to cover that tracker too
 (and, if so, decide whether `agent:go`/`agent:working`/`agent:hold`
 need to exist there, since none of the nine issues carry them today).
+
+Resolved 2026-10-19: Jim chose the second option. The claim step now
+reads both trackers. The `agent:*` and `supervisor` labels on
+`software-english` are created on first use. By then the gap had kept
+twelve `software-english` issues unclaimed for eleven days, because
+the 2026-10-08 run recorded the question only here, and the Routine's
+"nothing eligible" summary did not mention it. Step 10 of
+`MAINTAINER-RUN.md` now puts any skipped issues and any blocking scope
+question in the report line. The Routine builds its push
+notification from that line.

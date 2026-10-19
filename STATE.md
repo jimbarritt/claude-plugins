@@ -1,9 +1,6 @@
 # State
 
-Last updated: 2026-10-19 16:08 UTC (self-maintaining-repo Routine run: no
-open issue other than #16 qualified to claim; #16 stays
-`supervisor`-labelled, no comment newer than the session's own last
-comment, left untouched again)
+Last updated: 2026-10-19 (Routine claims from both trackers)
 
 ## In progress
 
@@ -19,50 +16,12 @@ None.
   `claude-plugins` issue. Checked on 2026-10-01: the newest issue is
   #15, so it has not been filed. See
   [tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md).
-- `claude-plugins` issue #16 stays `supervisor`-labelled: checked on
-  2026-10-08, fourteen times on 2026-10-09 (06:02 UTC, 09:02 UTC,
-  10:02 UTC, 11:01 UTC, 12:02 UTC, 13:02 UTC, 14:02 UTC, 15:02 UTC,
-  16:02 UTC, 17:02 UTC, 18:01 UTC, 19:01 UTC, 20:02 UTC, and 21:01 UTC),
-  and fifteen times on 2026-10-10 (06:01 UTC, 07:02 UTC, 08:02 UTC, 09:01
-  UTC, 11:02 UTC, 12:02 UTC, 13:02 UTC, 14:02 UTC, 15:01 UTC, 16:01 UTC,
-  17:02 UTC, 18:01 UTC, 19:01 UTC, 20:01 UTC, and 21:02 UTC), and again on
-  2026-10-11 (06:02 UTC, 07:02 UTC, 08:02 UTC, 09:02 UTC, 10:01 UTC,
-  11:02 UTC, 12:02 UTC, 13:02 UTC, 14:01 UTC, 15:02 UTC, 16:02 UTC,
-  17:02 UTC, 18:01 UTC, 19:02 UTC, 20:02 UTC, and 21:01 UTC), and again on
-  2026-10-12 (06:02 UTC, 07:02 UTC, 08:02 UTC, 09:01 UTC, 10:02 UTC,
-  11:02 UTC, 12:02 UTC, 14:01 UTC, 15:02 UTC, 16:02 UTC, 17:01 UTC,
-  18:01 UTC, 19:01 UTC, 20:02 UTC, and 21:01 UTC), and again on
-  2026-10-13 (06:02 UTC, 07:03 UTC, 08:02 UTC, 09:02 UTC, 10:01 UTC, 11:02
-  UTC, 12:02 UTC, 13:02 UTC, 14:02 UTC, 15:02 UTC, 16:03 UTC, 17:02 UTC,
-  18:02 UTC, 19:01 UTC, 20:01 UTC, and 21:01 UTC), and again on 2026-10-14
-  (06:02 UTC, 07:02 UTC, 08:02 UTC, 09:01 UTC, 10:01 UTC, 11:02 UTC, 12:02
-  UTC, 13:02 UTC, 14:01 UTC, 15:02 UTC, 16:01 UTC, 17:01 UTC, 18:01 UTC,
-  19:02 UTC, 20:02 UTC, and 21:01 UTC), and again on 2026-10-15 (06:02 UTC,
-  07:02 UTC, 08:02 UTC, 09:02 UTC, 10:02 UTC, 11:01 UTC, 12:02 UTC, 13:02
-  UTC, 14:02 UTC, 15:02 UTC, 16:01 UTC, 17:03 UTC, 18:02 UTC, 19:02 UTC,
-  20:01 UTC, and 21:01 UTC), and again on 2026-10-16 (06:01 UTC, 07:02 UTC,
-  08:01 UTC, 09:01 UTC, 10:02 UTC, 11:01 UTC, 12:02 UTC, 13:02 UTC, 14:02
-  UTC, 15:02 UTC, 16:02 UTC, 17:02 UTC, 18:01 UTC, 19:02 UTC, 20:02 UTC,
-  and 21:02 UTC), and again on 2026-10-17 (06:02 UTC, 07:08 UTC, 08:07
-  UTC, 09:08 UTC, 10:08 UTC, 11:08 UTC, 12:07 UTC, 13:08 UTC, 14:09 UTC,
-  15:08 UTC, 16:08 UTC, 17:08 UTC, 18:08 UTC, 19:08 UTC, 20:08 UTC, and
-  21:08 UTC), and again on 2026-10-18 (06:08 UTC, 07:08 UTC, 08:07 UTC,
-  09:08 UTC, 10:09 UTC, 11:08 UTC, 12:08 UTC, 13:08 UTC, 14:08 UTC,
-  15:08 UTC, 16:08 UTC, 17:08 UTC, 18:08 UTC, 19:08 UTC, 20:08 UTC, and
-  21:08 UTC), and again on 2026-10-19 (06:08 UTC, 07:09 UTC, 08:07 UTC, 09:08
-  UTC, 10:08 UTC, 11:10 UTC, 12:18 UTC, 13:12 UTC, 14:09 UTC, 15:08 UTC, and
-  16:08 UTC), no comment newer than the session's own last comment, so the
-  self-maintaining-repo Routine left it untouched again.
-- Twelve open issues directly on `jimbarritt/software-english` (#1-4,
-  #6-13, unchanged since the last check), all filed by
-  `jimbarritt-pleo` via `/swe:send-feedback`
-  (which routes a rule-engine bug straight there, not to
-  `claude-plugins`). This contradicts the self-maintaining-repo
-  Routine's own design decision that `claude-plugins` stays the single
-  point of contact for filing, so the Routine's unattended claim step
-  does not currently reach them, and they are unprocessed. Needs Jim's
-  call: see the "Open questions" entry in
-  [tasks/future-self-maintaining-repo.md](tasks/future-self-maintaining-repo.md).
+- `claude-plugins` issue #16: Jim's answer. The Routine escalated it
+  on 2026-10-02 with one question: should `swe` drop its rule that a
+  hook never calls a model, and add a blocking `claude -p` check before
+  an action? If so, which rules, and does a timeout allow or block the
+  action? See
+  [tasks/issue-16-model-backed-check.md](tasks/issue-16-model-backed-check.md).
 
 ## Next
 
@@ -104,6 +63,25 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- `MAINTAINER-RUN.md`, issue routing. Twelve `software-english` issues
+  (#1 to #4, #6 to #13) sat unclaimed from 2026-09-20 to 2026-10-19.
+  `/swe:send-feedback` files a finding on a core rule on
+  `software-english`, and the Routine claimed only from
+  `claude-plugins`. A run on 2026-10-08 found the gap and recorded it
+  only in the design file, so nothing told Jim. Jim chose to keep the
+  issues where they are: the claim step now reads both trackers as one
+  pool, oldest first, with the release steps for a `software-english`
+  issue (its own `release.yml`, then a `swe` pin bump and release only
+  when `rules/core-rules.toml` or `vocabulary/` changed). A fix that
+  also resolves another open issue closes that one too
+  (`software-english` #2 and #13 ask the same thing, as do #10 and
+  #11). Two process fixes in the same edit: a run that claims nothing
+  writes nothing to `planning`, since empty runs had added 169 commits
+  of timestamps to this file since 2026-10-08; and the report line
+  names skipped issues and any blocking scope question, so it arrives
+  as a push notification. No release: `planning` only. No task file;
+  the decision is in
+  [tasks/future-self-maintaining-repo.md](tasks/future-self-maintaining-repo.md).
 - [tasks/issue-17-headings-as-prose.md](tasks/issue-17-headings-as-prose.md)
   ([#17](https://github.com/jimbarritt/claude-plugins/issues/17)): eighth
   real issue worked end to end by the self-maintaining-repo Routine,
