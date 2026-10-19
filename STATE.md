@@ -1,12 +1,21 @@
 # State
 
-Last updated: 2026-10-19 (software-english#1 shipped, closed)
+Last updated: 2026-10-19 (software-english#2 escalated to supervisor)
 
 ## In progress
 
 None.
 
 ## Waiting on others
+
+- `software-english` #2 (and the same blocker on #13): whether
+  `hold`/`holds` is a container metaphor to ban alongside
+  `carry`/`carries`, or approved literal vocabulary as the spec's own
+  `no-metaphor-or-analogy` worked example and `vocabulary/operations.tsv`
+  already treat it. Escalated by the self-maintaining-repo Routine on
+  2026-10-19: implementing the issue as asked means rewriting a worked
+  example Jim wrote in the spec's original design pass (`d406426`). See
+  [tasks/software-english-issue-2-holds-carries-metaphor.md](tasks/software-english-issue-2-holds-carries-metaphor.md).
 
 - The Claude plugin directory's review of `swe`, which Jim submitted on
   2026-10-01. Status: waiting for review. See
