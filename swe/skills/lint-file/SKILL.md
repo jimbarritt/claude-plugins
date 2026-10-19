@@ -16,7 +16,7 @@ exists for the case where you want the full check regardless.
 
 ## Step 1: Read the argument
 
-`$ARGUMENTS` holds one file path, relative to the current project unless
+`$ARGUMENTS` contains one file path, relative to the current project unless
 given as absolute. If empty, ask which file to check.
 
 ## Step 2: Fetch the rule data

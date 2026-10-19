@@ -9,7 +9,7 @@
   `no-perfect-tense-for-behaviour`, `anthropomorphism-paraphrase`,
   `vacuous-classification-property`, `no-process-narration`,
   `document-type-template`). A model checks them.
-- **Stop input**: the JSON a Stop hook receives. It holds
+- **Stop input**: the JSON a Stop hook receives. It contains
   `last_assistant_message`, `transcript_path` and `stop_hook_active`.
 
 ## Mechanism constraints
@@ -17,7 +17,7 @@
 1. The current Stop hook lints only lines that `git diff --unified=0 HEAD`
    reports. Untracked new files do not appear in that diff. A new markdown
    file is not linted until it is staged or committed.
-2. `last_assistant_message` holds only the final text block of the turn.
+2. `last_assistant_message` contains only the final text block of the turn.
    Text the model writes between tool calls (progress updates) is not in it.
    That text is in the transcript at `transcript_path`.
 3. All hooks that match one event run in parallel. A hook cannot read the
@@ -38,10 +38,10 @@
 
 | # | Output kind | Where it exists | D | I | Notes |
 |---|---|---|:-:|:-:|---|
-| 1 | Chat reply, final text of the turn | `last_assistant_message`; not on disk | ✓ | ✓ | Runs on every Stop event. The I tier runs only when the threshold check passes. Not checked today. The Stop input holds the reply at no cost, and it is the largest volume of prose a person reads. |
+| 1 | Chat reply, final text of the turn | `last_assistant_message`; not on disk | ✓ | ✓ | Runs on every Stop event. The I tier runs only when the threshold check passes. Not checked today. The Stop input contains the reply at no cost, and it is the largest volume of prose a person reads. |
 | 2 | Chat text between tool calls (progress updates) | Transcript only | ✓ | ✗ | Read from the transcript for the current turn. Short lines; the D tier is enough. Not checked today. |
 | 3 | Markdown files in the repo (docs, specs, READMEs, ADRs, plans) | Working tree; git diff | ✓ | ✓ | Today: D tier on added lines of tracked files only. Recommended: also cover untracked files, a real gap today. `document-type-template` runs only here. Persisted prose has the longest life. A repository with `/swe:install-commit-hook` run adds a further check at commit time: staged markdown gets the D tier as advisory feedback, and is blocked from committing unless it already has an I-tier verdict of `clean` recorded (via `/swe:lint-file`) for its exact staged content. See `docs/agent-guide.md`, "The commit check". |
-| 4 | Markdown files outside the repo (plan files, memory files, `~/.claude`) | Disk; not in any git diff of the project | ✓ | ✓ | Via `PostToolUse` on `Write` and `Edit` where `file_path` ends `.md`. The git diff cannot see these paths; the tool input holds the new text directly. Not checked today. |
+| 4 | Markdown files outside the repo (plan files, memory files, `~/.claude`) | Disk; not in any git diff of the project | ✓ | ✓ | Via `PostToolUse` on `Write` and `Edit` where `file_path` ends `.md`. The git diff cannot see these paths; the tool input contains the new text directly. Not checked today. |
 | 5 | Code comments | Source files; git diff | ✓ | ✓ | Added comment lines, extracted per language. Same I-tier threshold as #3. Comments are prose that persists, and most projects' own conventions limit them to cases needing judgement to write well: the same class of judgement the I tier checks. A comment extractor is a bounded addition to the script. Not checked today. |
 | 6 | Commit messages | Argument to `git commit` in a `Bash` call | ✓ | ✗ | Via `PreToolUse` on `Bash` matching `git commit`; extracts `-m` text and `-F` file content. The Stop hook never sees the message, and the message is short. Not checked today. |
 | 7 | PR titles and bodies, issue and PR comments | Argument to `gh pr create`, `gh pr comment`, `gh issue` in a `Bash` call | ✓ | ✓ | Same `PreToolUse` hook as #6, matcher on `gh pr` and `gh issue`. A PR body is often long enough for I-tier rules to matter. Not checked today. |

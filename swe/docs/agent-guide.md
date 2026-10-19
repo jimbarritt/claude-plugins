@@ -106,7 +106,7 @@ source, every time:
 `check = "model-judgement"`.
 
 **Plugin-owned.** [`../rules/plugin-rules.toml`](../rules/plugin-rules.toml)
-holds one rule, `one-point-at-a-time`: a reply with more than one point
+contains one rule, `one-point-at-a-time`: a reply with more than one point
 needing a decision states the count, then gives only the first point.
 This governs reply structure, not prose wording, so it stays out of the
 Software English spec. It runs only on a conversational source (a chat
@@ -283,7 +283,7 @@ caller completely: nothing stopped an agent recording `clean` on the
 strength of an earlier session's judgement of different content
 (claude-plugins#10). `--force-inference` now mints a single-use nonce
 for a single named file inside a git repository and stores it in
-`<git-common-dir>/swe/lint-nonces.json`, keyed by the nonce, holding
+`<git-common-dir>/swe/lint-nonces.json`, keyed by the nonce, with
 the file's repo-relative path, its worktree toplevel, and its blob id
 at mint time. `--record-lint-result` requires that nonce back
 (`--nonce`), for `clean` and `failed` alike, and checks it in order:
@@ -382,7 +382,7 @@ copy in this repository.
 
 If the fetch cannot connect to GitHub and no cache exists, the hook
 prints a warning and does not block the turn. An existing cache from an
-earlier fetch is used when a later fetch fails. This holds even if a
+earlier fetch is used when a later fetch fails. This applies even if a
 hook calls the linter without checking the fetch script's own exit code:
 `load_rule_catalogue()` returns `(None, None)` when
 `data/core-rules.toml` is still missing, and `main()` prints a skip
@@ -434,7 +434,7 @@ A `SKILL.md` frontmatter value must be valid YAML under a **strict**
 parser, not just under Claude Code's own. Two rules, both enforced by
 [`../tests/skill_frontmatter_test.sh`](../tests/skill_frontmatter_test.sh):
 
-- An unquoted value must not hold `": "` (a colon then a space). YAML
+- An unquoted value must not contain `": "` (a colon then a space). YAML
   reads that as a second mapping separator and rejects the whole
   document. Use a comma instead. Quoting also parses, but a harness
   that splits on the first colon then shows the quote marks in the
@@ -492,14 +492,14 @@ skill's own directory name exactly; the same test asserts it.
 - `bash-check.sh` and `mcp-send-check.sh` advise inference only after
   already letting the underlying tool call proceed unblocked: a commit
   can be amended once a finding comes back, but a sent message cannot
-  be un-sent. This is the accepted cost of not holding up either tool
+  be un-sent. This is the accepted cost of not delaying either tool
   call for the judgement.
 - The growth-since-last-pass throttle (`inference_eligible()`) only
   applies to a single named file. A commit/PR message or an outbound
   MCP message has no identity across separate tool calls, so each one
   is still judged solely against the plain absolute threshold, same as
   before this rework.
-- `~/.claude/swe/inference-state.json` is never pruned. It holds a
+- `~/.claude/swe/inference-state.json` is never pruned. It contains a
   small amount of text per file ever checked; it is not cleaned up
   automatically yet.
 - The commit check's ledger is never pruned either, and `.git/` is never
@@ -510,7 +510,7 @@ skill's own directory name exactly; the same test asserts it.
   prove Step 4's judgement happened, since that step is invisible to
   the script by construction. Direct shell access can still write the
   ledger or `lint-nonces.json` by hand, bypassing both. `lint-nonces.json`
-  holds at most one pending entry per file per worktree, so unlike the
+  contains at most one pending entry per file per worktree, so unlike the
   other two state files, it stays bounded on its own.
 - The finding-shaped inference rule lines (claude-plugins#14) stop a
   findings-shaped grep from silently discarding the block, so a

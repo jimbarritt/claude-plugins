@@ -20,9 +20,9 @@ is confirmed. Reading and grouping the log makes no network call.
 
 `/swe:feedback` writes each entry while the user works on their own
 project, which is often private code. So an entry's `quote` and `note`
-can hold employer and project names, service, domain and repository
+can contain employer and project names, service, domain and repository
 names, ticket ids, internal PR or issue numbers, and verbatim excerpts
-from internal documents. That is acceptable in the log, which can hold
+from internal documents. That is acceptable in the log, which can contain
 this detail. A GitHub issue is public, and a published issue cannot be
 fully withdrawn.
 
@@ -43,7 +43,7 @@ returns a list of orders") that shows the same shape. Do not quote the
 original, and do not lightly edit it.
 
 This applies to text from any source in the current session, not only
-the log entry: the session that runs this command can hold private
+the log entry: the session that runs this command can have private
 context of its own.
 
 ## Step 1: Read the log

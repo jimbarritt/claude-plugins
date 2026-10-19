@@ -51,8 +51,8 @@ the hook itself, which can stall a tool call on a slow or failed model
 response, the hook only advises Claude that a fresh pass is worth
 doing; Claude dispatches it as a subagent, then fixes anything it
 reports. The underlying command or send already went through by the
-time the subagent's report comes back, since the hook does not hold it
-up for a model call. A commit can be amended after the fact if
+time the subagent's report comes back, since the hook does not delay
+it for a model call. A commit can be amended after the fact if
 something turns up; an already-sent message stays sent regardless.
 Publishing the same artefact
 file repeatedly does not trigger a fresh deep pass on every single
@@ -149,7 +149,7 @@ across the log, it proposes a fix direction and asks whether to file a
 
 Before it files anything, it shows the exact issue title and body and
 waits for your approval. The issue is public, so the draft describes
-the fault in general terms. It does not quote your log, which can hold
+the fault in general terms. It does not quote your log, which can contain
 names, ticket ids, or excerpts from private work.
 
 ## What happens to an issue filed here
@@ -173,7 +173,7 @@ This Routine is part of the repository's own maintenance, not
 behaviour the plugin installs.
 
 `tasks/future-self-maintaining-repo.md` on the `planning` branch
-holds the full design. It states the labels, the trusted-account
+contains the full design. It states the labels, the trusted-account
 rule, the model split, and the escalation path.
 
 ## Exempt a whole file from every check
