@@ -1,6 +1,6 @@
 # State
 
-Last updated: 2026-10-19 (software-english#2 and #13 shipped, closed)
+Last updated: 2026-10-19 (software-english#3 shipped, closed)
 
 ## In progress
 
