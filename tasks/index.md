@@ -26,3 +26,4 @@
 | [issue-12-send-feedback-redaction.md](issue-12-send-feedback-redaction.md) | [claude-plugins#12](https://github.com/jimbarritt/claude-plugins/issues/12) | Done — shipped on `main`, released as `swe-v0.15.0`, issue closed |
 | [future-feedback-log-confidentiality.md](future-feedback-log-confidentiality.md) | none filed yet | Waiting for Jim's decision; not started |
 | [future-plugin-directory-listing.md](future-plugin-directory-listing.md) | none filed yet | Shipped: license, author, icon, released as `swe-v0.16.2` to `swe-v0.16.4`; submitted by Jim on 2026-10-01, review outcome open |
+| [software-english-issue-1-container-and-form-metaphor.md](software-english-issue-1-container-and-form-metaphor.md) | [software-english#1](https://github.com/jimbarritt/software-english/issues/1) | Done — shipped on `software-english` `main`, released as `v0.0.11`, `swe` pin bumped and released as `swe-v0.17.1`, issue closed |

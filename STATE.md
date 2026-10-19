@@ -1,16 +1,10 @@
 # State
 
-Last updated: 2026-10-19 (software-english#1 claimed, in progress)
+Last updated: 2026-10-19 (software-english#1 shipped, closed)
 
 ## In progress
 
-- `software-english` #1, `no-metaphor-or-analogy` misses the
-  container-and-form family (`shape`, `layer`, `space`) applied to a
-  schema/type/API. Wording-only fix to the rule's description in
-  `rules/core-rules.toml` and `spec/SPEC.md` §5.5; no `banned.tsv`
-  change (those nouns have legitimate literal uses in the repo's own
-  templates). See
-  [tasks/software-english-issue-1-container-and-form-metaphor.md](tasks/software-english-issue-1-container-and-form-metaphor.md).
+None.
 
 ## Waiting on others
 
@@ -62,6 +56,18 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- `software-english` #1, `no-metaphor-or-analogy` missed the
+  container-and-form family (`shape`, `layer`, `space` applied to a
+  schema/type/API) — the first `software-english` issue the Routine has
+  claimed since the pool-of-two-trackers fix below. Wording-only fix:
+  worked examples added to the rule's description in
+  `rules/core-rules.toml` and to `spec/SPEC.md` §5.5; no `banned.tsv`
+  change, since those nouns have legitimate literal uses in the repo's
+  own templates. Shipped on `software-english` `main` at `866bf42`,
+  released as `v0.0.11`, issue closed. Because the change touched
+  `rules/core-rules.toml`, also bumped and released `swe`'s pin:
+  `claude-plugins` `main` at `b15a955`, released as `swe-v0.17.1`. See
+  [tasks/software-english-issue-1-container-and-form-metaphor.md](tasks/software-english-issue-1-container-and-form-metaphor.md).
 - `claude-plugins` #16, a model-backed check before an outbound
   action: Jim's answer is no. A `swe` hook never starts a model
   process, so the documented rule stays. The wider topic is parked in

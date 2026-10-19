@@ -127,4 +127,35 @@ bump and release, per `MAINTAINER-RUN.md` step 7.
 
 ## Outcome
 
-Pending — recorded before starting Step 5 (Work).
+Done in one pass, no escalation. Implemented the plan as written above,
+verbatim. Ran the deterministic tier (`software_english_lint.py
+--force-inference --quiet-vocab`) against `spec/SPEC.md` before and after
+the edit: the error count is unchanged (12), and the new paragraph (lines
+286-298) produces zero findings of its own — no self-trip of `banned-word`
+or anything else, unlike the precedent in `issue-13-transport-metaphor...`
+where the first attempt did trip the lint on itself. All six
+`claude-plugins/swe` test suites pass (unchanged). `scripts/check-unshipped.sh`
+clean both before and after the plugin version bump.
+
+Shipped on `software-english`'s `main` at
+[`866bf42`](https://github.com/jimbarritt/software-english/commit/866bf42),
+released as
+[`v0.0.11`](https://github.com/jimbarritt/software-english/releases/tag/v0.0.11),
+closing issue #1 (commit trailer plus an explicit close/comment, since the
+Routine's own close call races the commit-trailer auto-close slightly —
+both landed fine).
+
+Because the change touched `rules/core-rules.toml`, also bumped and
+released `swe`'s pin per MAINTAINER-RUN.md step 7: `claude-plugins` pin
+bump and `swe` version bump (`0.17.0` -> `0.17.1`) on `main` at
+[`b15a955`](https://github.com/jimbarritt/claude-plugins/commit/b15a955),
+released as
+[`swe-v0.17.1`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.1).
+Confirmed via a real `fetch-software-english-data.sh` run against the new
+tag that the deployed plugin data now contains the fix, before committing
+the pin bump.
+
+Checked for overlap with other open issues before closing: none of the
+remaining open `software-english` issues (#2-4, #6-13) ask for anything
+this change also fixes — #2/#13 are the unrelated `hold`/`carry`
+banned-word pairing, not touched here.
