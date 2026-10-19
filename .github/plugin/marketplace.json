@@ -1,0 +1,21 @@
+{
+  "name": "jimbarritt-claude-plugins",
+  "owner": {
+    "name": "Jim Barritt"
+  },
+  "plugins": [
+    {
+      "name": "swe",
+      "source": "./swe"
+    },
+    {
+      "name": "tsk",
+      "source": {
+        "source": "github",
+        "repo": "jimbarritt/tsk",
+        "path": "plugin"
+      },
+      "description": "Missions, threads and the ledger for Claude Code sessions, backed by the tsk binary"
+    }
+  ]
+}

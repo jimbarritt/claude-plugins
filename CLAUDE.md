@@ -39,6 +39,24 @@ claude-plugins/
    ```json
    { "name": "<plugin-name>", "source": "./<plugin-name>" }
    ```
+4. Add the same entry to
+   [`.github/plugin/marketplace.json`](.github/plugin/marketplace.json).
+   GitHub Copilot CLI reads this file before `.claude-plugin/`. Claude
+   Code reads only `.claude-plugin/marketplace.json`.
+
+The two files differ only for a plugin whose source is in another
+repository. Claude Code takes a `git-subdir` source, which Copilot CLI
+rejects with `plugins.N.source: Invalid input`. Copilot CLI takes a
+`github` source with `path`. Claude Code's `github` source takes only
+`repo`, `ref` and `sha`:
+
+```json
+{ "source": "git-subdir", "url": "https://github.com/<owner>/<repo>", "path": "<dir>" }
+{ "source": "github", "repo": "<owner>/<repo>", "path": "<dir>" }
+```
+
+The first line goes in `.claude-plugin/marketplace.json`, the second in
+`.github/plugin/marketplace.json`.
 
 ## Releasing a change
 
