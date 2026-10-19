@@ -1,6 +1,6 @@
 # State
 
-Last updated: 2026-10-19 (software-english#3 shipped, closed)
+Last updated: 2026-10-19 (software-english#4 shipped, closed)
 
 ## In progress
 
@@ -56,6 +56,74 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-4-catch-all-verb-clipped-sentences.md](tasks/software-english-issue-4-catch-all-verb-clipped-sentences.md)
+  ([#4](https://github.com/jimbarritt/software-english/issues/4)): a
+  repeated catch-all verb, an unvaried run of short sentences, and a
+  shifting pronoun chain compounded into machine-written-sounding
+  prose that no existing rule caught, since the fault is the paragraph
+  as a whole. Two new inference-tier rules: `no-clipped-sentence-run`
+  (SPEC §3.6, a run of three or more short sentences splitting one
+  fact into clipped pieces joined by a shifting pronoun chain) and
+  `no-catch-all-verb` (SPEC §5.9, one verb repeated in a paragraph to
+  name different relations). The pronoun-chain fault is folded into
+  the first rule as a required test, not given its own rule. Two
+  factual corrections made to the issue's own example along the way,
+  found only by actually counting: "states" occurs three times, not
+  four, and the sentence lengths are 8/5/4/19/7, not uniform, so a
+  length-only test would miss the example and fire on the reporter's
+  own rewrite; the reporter's rewrite also drops facts §3.1 requires
+  kept, so a fact-preserving rewrite was used as the worked fix
+  instead. Verified directly against the real linter throughout, not
+  just reasoned about: both rules load into the inference block, the
+  deterministic tier is unchanged on the edited SPEC.md (diffed by
+  content against the pre-edit file), and manually judging both the
+  fault text and the fix text against each rule's printed description
+  confirms each fires only on the fault. One self-check catch during
+  implementation: a cross-reference sentence this fix added used
+  "holds" as a truth-metaphor, caught only by re-running the real
+  lint, not by reading the prose back, and reworded. All six
+  `claude-plugins` test suites pass (142 assertions, unchanged).
+  Shipped on `software-english`'s `main` at
+  [`8aa442a`](https://github.com/jimbarritt/software-english/commit/8aa442a),
+  released as
+  [`v0.0.14`](https://github.com/jimbarritt/software-english/releases/tag/v0.0.14),
+  closing the issue automatically. `claude-plugins` pin bumped and
+  `swe` version bumped (`0.17.4` -> `0.17.5`) on `main` at
+  [`02dafb5`](https://github.com/jimbarritt/claude-plugins/commit/02dafb5),
+  released as
+  [`swe-v0.17.5`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.5).
+  Along the way, found `claude-plugins` `main` one commit behind
+  `origin/main`: a prior session had already shipped and released
+  [`63ebe0c`](https://github.com/jimbarritt/claude-plugins/commit/63ebe0c)
+  (`swe-v0.17.4`, rewording 19 uses of `hold`/`holds`/`holding` in the
+  plugin's own docs that `software-english`#2/#13's ban made
+  non-compliant); pulled in before bumping the pin again on top of it.
+- [tasks/software-english-issue-3-undeclared-state-verb.md](tasks/software-english-issue-3-undeclared-state-verb.md)
+  ([#3](https://github.com/jimbarritt/software-english/issues/3)): an
+  invented state verb ("settles") passed every tier while the document
+  declared an explicit status set that named no such value. Three
+  candidate rules named in the issue each missed it for a distinct
+  reason (not anthropomorphic, not a listed metaphor, not an undefined
+  term — it substitutes for values the document already names). New
+  §5.8 "No undeclared state verb" in `spec/SPEC.md` and a matching
+  `no-undeclared-state-verb` entry in `rules/core-rules.toml`,
+  `inference-based`/`model-judgement`/`warning`. Verified the new rule
+  surfaces in the real linter's `--force-inference` block against the
+  issue's own example; full lint of the edited SPEC.md found only
+  pre-existing findings outside the new section. All six
+  `claude-plugins` test suites pass. Shipped on `software-english`'s
+  `main` at
+  [`b21056b`](https://github.com/jimbarritt/software-english/commit/b21056b),
+  released as
+  [`v0.0.13`](https://github.com/jimbarritt/software-english/releases/tag/v0.0.13),
+  closing the issue automatically. `claude-plugins` pin bumped and
+  `swe` version bumped (`0.17.2` -> `0.17.3`) on `main` at
+  [`704f0a0`](https://github.com/jimbarritt/claude-plugins/commit/704f0a0),
+  released as
+  [`swe-v0.17.3`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.3).
+  Single pass, no escalation. (This entry was missing from this list
+  until the next run added it; the task file and the commits were
+  already shipped.)
 - [tasks/software-english-issue-2-13-holds-carries-metaphor.md](tasks/software-english-issue-2-13-holds-carries-metaphor.md)
   ([#2](https://github.com/jimbarritt/software-english/issues/2),
   [#13](https://github.com/jimbarritt/software-english/issues/13)):
