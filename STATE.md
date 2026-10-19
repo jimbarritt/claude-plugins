@@ -1,21 +1,12 @@
 # State
 
-Last updated: 2026-10-19 (software-english#2 escalated to supervisor)
+Last updated: 2026-10-19 (software-english#2 and #13 shipped, closed)
 
 ## In progress
 
 None.
 
 ## Waiting on others
-
-- `software-english` #2 (and the same blocker on #13): whether
-  `hold`/`holds` is a container metaphor to ban alongside
-  `carry`/`carries`, or approved literal vocabulary as the spec's own
-  `no-metaphor-or-analogy` worked example and `vocabulary/operations.tsv`
-  already treat it. Escalated by the self-maintaining-repo Routine on
-  2026-10-19: implementing the issue as asked means rewriting a worked
-  example Jim wrote in the spec's original design pass (`d406426`). See
-  [tasks/software-english-issue-2-holds-carries-metaphor.md](tasks/software-english-issue-2-holds-carries-metaphor.md).
 
 - The Claude plugin directory's review of `swe`, which Jim submitted on
   2026-10-01. Status: waiting for review. See
@@ -65,6 +56,47 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-2-13-holds-carries-metaphor.md](tasks/software-english-issue-2-13-holds-carries-metaphor.md)
+  ([#2](https://github.com/jimbarritt/software-english/issues/2),
+  [#13](https://github.com/jimbarritt/software-english/issues/13)):
+  `carry`/`carries`' own suggested replacement recommended `hold`/
+  `holds`, trading one possession metaphor for another that nothing
+  then caught. Escalated first: implementing the ask as written meant
+  rewriting `no-metaphor-or-analogy`'s own worked "correct" example
+  (`"The retry queue holds a failed request"`, written by Jim himself
+  in the spec's original design commit `d406426`) and reclassifying
+  `hold` against `vocabulary/operations.tsv`'s existing treatment of it
+  as a concrete domain operation. Jim's answer, given directly in the
+  escalating session rather than via a GitHub comment: ban `hold`/
+  `holds`/`holding`/`held` too, the same way `carry`/`carries` already
+  is — a system, a structure, or an abstract concept has no hands.
+  `vocabulary/banned.tsv` gained a new "Possession metaphor" group;
+  `no-metaphor-or-analogy`'s description and `spec/SPEC.md` §5.5's
+  worked examples rewritten to use `contain`/`have`/`save` instead of
+  `hold`; seven vocabulary-file definitions that used `hold`/`holds`/
+  `holding` to define another word rewritten (`qualities.tsv`
+  `empty`/`full`/`stale`/`fresh`, `structure.tsv` `cache`,
+  `operations.tsv` `contain`/`be`). Verified against the real linter
+  throughout, not just reasoned about: the issue's own flagged sentence
+  now fires, every new/rewritten line is itself clean, and SPEC.md's
+  full finding count diffed before/after (14 -> 24, exactly the ten
+  deliberately-left-alone `hold`/`holds` lines in SPEC's own general
+  prose — out of scope for this fix, named as a follow-up candidate).
+  Also flagged, not fixed: ~22 uses of `hold`/`holds`/`holding` in
+  `claude-plugins/swe`'s own docs will now trip `banned-word` once
+  linted, since that's a different repo's files this run didn't touch.
+  All six `claude-plugins/swe` test suites pass (142 assertions,
+  unchanged), confirmed against both a local-checkout fixture and a
+  real fetch of the released tag. Shipped on `software-english`'s
+  `main` at
+  [`321718e`](https://github.com/jimbarritt/software-english/commit/321718e),
+  released as
+  [`v0.0.12`](https://github.com/jimbarritt/software-english/releases/tag/v0.0.12),
+  closing both issues. `claude-plugins` pin bumped and `swe` version
+  bumped (`0.17.1` -> `0.17.2`) on `main` at
+  [`b4af78a`](https://github.com/jimbarritt/claude-plugins/commit/b4af78a),
+  released as
+  [`swe-v0.17.2`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.2).
 - `software-english` #1, `no-metaphor-or-analogy` missed the
   container-and-form family (`shape`, `layer`, `space` applied to a
   schema/type/API) — the first `software-english` issue the Routine has
