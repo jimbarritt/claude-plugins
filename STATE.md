@@ -1,6 +1,6 @@
 # State
 
-Last updated: 2026-10-19 (Routine claims from both trackers)
+Last updated: 2026-10-19 (#16 answered and parked)
 
 ## In progress
 
@@ -16,13 +16,6 @@ None.
   `claude-plugins` issue. Checked on 2026-10-01: the newest issue is
   #15, so it has not been filed. See
   [tasks/future-api-design-doc-template.md](tasks/future-api-design-doc-template.md).
-- `claude-plugins` issue #16: Jim's answer. The Routine escalated it
-  on 2026-10-02 with one question: should `swe` drop its rule that a
-  hook never calls a model, and add a blocking `claude -p` check before
-  an action? If so, which rules, and does a timeout allow or block the
-  action? See
-  [tasks/issue-16-model-backed-check.md](tasks/issue-16-model-backed-check.md).
-
 ## Next
 
 [tasks/future-model-backed-pre-action-check.md](tasks/future-model-backed-pre-action-check.md)
@@ -63,6 +56,12 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- `claude-plugins` #16, a model-backed check before an outbound
+  action: Jim's answer is no. A `swe` hook never starts a model
+  process, so the documented rule stays. The wider topic is parked in
+  [tasks/future-model-backed-pre-action-check.md](tasks/future-model-backed-pre-action-check.md).
+  The issue now has `agent:hold` in place of `supervisor`, with the
+  answer in a comment.
 - `MAINTAINER-RUN.md`, issue routing. Twelve `software-english` issues
   (#1 to #4, #6 to #13) sat unclaimed from 2026-09-20 to 2026-10-19.
   `/swe:send-feedback` files a finding on a core rule on

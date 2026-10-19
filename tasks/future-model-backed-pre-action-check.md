@@ -2,6 +2,10 @@
 
 Status: deferred. Discuss with Jim at a later date, not urgent.
 
+Constraint, decided by Jim on 2026-10-19: a `swe` hook never starts a
+model process (`claude -p` or any other). Any later design for a check
+before the action works inside that constraint.
+
 ## Origin
 
 [Issue #16](https://github.com/jimbarritt/claude-plugins/issues/16),

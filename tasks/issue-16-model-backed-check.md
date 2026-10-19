@@ -1,6 +1,6 @@
 # Issue #16: run a model-backed check before the action, within fixed limits
 
-Status: escalated to supervisor.
+Status: answered and parked, 2026-10-19. Labelled `agent:hold`.
 
 ## The ask, verbatim
 
@@ -103,3 +103,14 @@ This is not committed to; it depends entirely on Jim's answer below.
 
 Escalated. `agent:working` swapped for `supervisor`. Waiting on Jim's
 answer on the issue thread.
+
+## Jim's answer, 2026-10-19
+
+No. A `swe` hook never starts a model process, `claude -p` or any
+other. The rule in `swe/docs/agent-guide.md` ("When the inference tier
+runs") stays as it is, so the follow-up scope above does not apply.
+
+The wider question, how to catch a judgement-tier fault before an
+outbound action, is parked for a later discussion. `supervisor` was
+swapped for `agent:hold` before the answer was posted, so the Routine
+does not read the answer as a cue to resume the work.
