@@ -1,6 +1,6 @@
 # State
 
-Last updated: 2026-10-19 (software-english#4 shipped, closed)
+Last updated: 2026-10-19 (software-english#6 shipped, closed)
 
 ## In progress
 
@@ -56,6 +56,51 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-6-work-breakdown-tracker-pointer.md](tasks/software-english-issue-6-work-breakdown-tracker-pointer.md)
+  ([#6](https://github.com/jimbarritt/software-english/issues/6)):
+  `no-planning-content-in-reference`'s Design exemption was too broad:
+  a design document could carry a work-breakdown sentence (dividing the
+  subject into "this piece of work" vs. "a later piece of work") and a
+  bare issue-tracker id as the pointer to that later work, and neither
+  fired, since the rule is conditional on document type Reference and
+  fully exempts Design. New rule `no-work-breakdown-or-tracker-pointer`
+  (SPEC §7.14), unconditional on document type, Design and API Design
+  included; the open-questions and future-extension sections stay
+  exempt as before, since neither names a unit of work or a tracker id.
+  An entry in a section headed References/Bibliography may still cite
+  an issue or PR by its id and title, as a source; a Lab Notebook entry
+  naming its own task, or a Portfolio Journal entry recording work
+  already done, is not this fault either. Took the issue's "every
+  document type" literally, including RFC/ADR, a narrower reading than
+  the existing rule's own rationale (planning content generally is
+  correct there) but explicit in the issue's own direction. Three
+  self-check catches during implementation, all found only by running
+  the real linter against the drafted prose: "is scheduling" tripped
+  `no-continuous-tense` in both `SPEC.md` and the TOML rule's own
+  description (reworded to "a scheduling choice"); two em dashes and
+  one banned word ("carries") in a new `COLOPHON.md` section; three
+  sentences across `templates/design.md` and `templates/reference.md`
+  exceeded the 20-word ceiling once old and new text combined onto one
+  line. `--diff --added-only` reports zero errors/warnings on every
+  changed line across all five Markdown files; `rules/core-rules.toml`
+  needed a separate full-file check since `--diff` mode only tracks
+  Markdown files. All six `claude-plugins` test suites pass (142
+  assertions, unchanged). Shipped on `software-english`'s `main` at
+  [`2556a26`](https://github.com/jimbarritt/software-english/commit/2556a26),
+  released as
+  [`v0.0.15`](https://github.com/jimbarritt/software-english/releases/tag/v0.0.15),
+  closing the issue automatically. `claude-plugins` pin bumped and
+  `swe` version bumped (`0.17.5` -> `0.17.6`) on `main` at
+  [`6859d31`](https://github.com/jimbarritt/claude-plugins/commit/6859d31),
+  released as
+  [`swe-v0.17.6`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.6).
+  Single pass, no escalation. One process mistake caught before
+  pushing, not after: the first `claude-plugins` pin-bump commit had a
+  shell heredoc closed in the wrong place, folding a nonsensical
+  `closes software-english#6` line into the subject and dropping the
+  attribution footer from both commits on the first attempt; caught by
+  reading each commit back with `git show` before `git push`, fixed
+  with `git commit --amend` since neither had been pushed yet.
 - [tasks/software-english-issue-4-catch-all-verb-clipped-sentences.md](tasks/software-english-issue-4-catch-all-verb-clipped-sentences.md)
   ([#4](https://github.com/jimbarritt/software-english/issues/4)): a
   repeated catch-all verb, an unvaried run of short sentences, and a
