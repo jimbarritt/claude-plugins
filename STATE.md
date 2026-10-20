@@ -1,15 +1,10 @@
 # State
 
-Last updated: 2026-10-20 (software-english#7 in progress)
+Last updated: 2026-10-20 (software-english#7 shipped, closed)
 
 ## In progress
 
-- [tasks/software-english-issue-7-unanchored-reference-headings.md](tasks/software-english-issue-7-unanchored-reference-headings.md)
-  ([#7](https://github.com/jimbarritt/software-english/issues/7)):
-  `no-unanchored-reference`'s rule description (the whole rule, for the
-  inference tier) gave only body-prose examples, so a question-shaped
-  heading ("What this costs", "Which process owns the cache") escaped
-  it. Plan drafted by an Opus Plan subagent; applying now.
+None.
 
 ## Waiting on others
 
@@ -61,6 +56,33 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-7-unanchored-reference-headings.md](tasks/software-english-issue-7-unanchored-reference-headings.md)
+  ([#7](https://github.com/jimbarritt/software-english/issues/7)):
+  `no-unanchored-reference`'s rule description is the whole rule for
+  the inference tier (`lint-file` passes it to the judging model
+  verbatim), and it gave only body-prose examples, so a question-shaped
+  heading ("What this costs", "Which process owns the cache") escaped
+  it. Widened the description to put every heading in scope, kept the
+  existing definite-noun heading example, and added the question shape
+  ("What this `<verb>`", "Which `<noun>` `<verb>`") with the issue's
+  four headings as worked examples, plus a policy that a bare
+  `this`/`that`/`it` in a heading is a fault even under a parent
+  heading that names a subject, since a heading is also read alone.
+  Matching worked example added to `spec/SPEC.md` §7.5. Also dropped an
+  em dash the old description had, which broke this repo's own
+  `no-em-dash`. Plan drafted by an Opus Plan subagent, applied as
+  planned with no deviation. `/swe:lint-file`'s deterministic tier on
+  `spec/SPEC.md` found 19 pre-existing errors unrelated to the new
+  lines (banned words like "holds", "the reader" scattered through the
+  rest of the document); none in the new text, out of scope for this
+  issue, recorded honestly in the lint ledger as `failed` rather than
+  papered over as `clean`. Released as
+  [v0.0.16](https://github.com/jimbarritt/software-english/releases/tag/v0.0.16)
+  (commit f7890c2). Since the change touched `rules/core-rules.toml`,
+  also bumped `claude-plugins`' `swe` plugin's pinned tag and released
+  it as
+  [swe-v0.17.7](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.7)
+  (commit e9a73b3). Single pass, no escalation.
 - [tasks/software-english-issue-6-work-breakdown-tracker-pointer.md](tasks/software-english-issue-6-work-breakdown-tracker-pointer.md)
   ([#6](https://github.com/jimbarritt/software-english/issues/6)):
   `no-planning-content-in-reference`'s Design exemption was too broad:

@@ -89,3 +89,56 @@ run by hand. No version file exists to bump.
 Full plan detail (verbatim TOML/SPEC.md text) came from an Opus Plan
 subagent dispatched during this run; the text above is this session's
 own summary of it, not a verbatim copy.
+
+## Outcome
+
+Applied the plan as drafted, no deviation. Edited `rules/core-rules.toml`
+line 130 (description, widened as planned, em dash dropped) and
+`spec/SPEC.md` §7.5 (second Fault/Fix block added after the existing
+one). Verified: TOML parses; no em dash in the new description;
+`git diff --stat` touched only the two intended files.
+
+Ran `/swe:lint-file`'s underlying script (`--diff spec/SPEC.md
+--force-inference --quiet-vocab`) directly, since the `swe` plugin
+is not installed as a skill in this session. Deterministic tier: 19
+pre-existing errors elsewhere in `SPEC.md` (banned words: "holds",
+"the reader", "carry", "load-bearing", "live"; one `no-continuous-tense`
+hit), none in the new lines — out of scope for this issue, not fixed.
+Inference tier: judged the new text by hand against all 16
+`inference pending` rules Step 3 printed; found no violation in the
+new text (no banned-word hits, no pronoun-chained clipped-sentence
+run, no catch-all-verb reuse, the heading-pattern `this` occurrences
+are inside backtick code spans quoting the pattern itself, matching
+the existing 7.5 passage's own style). Recorded the ledger row
+honestly as `failed` with `--findings 19` (the deterministic tier's
+real, pre-existing total for this file), not `clean` — no commit
+hook is installed in this environment, so nothing was blocked by
+that choice.
+
+Committed on `main`: `f7890c2`, message ends `closes #7`. Pushed. No
+version bump (no version file in this repo). Released:
+`release.yml` run with `version: 0.0.16` (newest prior tag was
+v0.0.15) — run
+[39379460663](https://github.com/jimbarritt/software-english/actions/runs/39379460663),
+success, tag
+[v0.0.16](https://github.com/jimbarritt/software-english/releases/tag/v0.0.16).
+
+Because the change touched `rules/core-rules.toml` (a file `swe`
+fetches): bumped `swe/software-english.json`'s `tag` to `v0.0.16` and
+`swe`'s own `plugin.json` version `0.17.6` → `0.17.7`, commit
+`e9a73b3` on `claude-plugins` `main` ("swe: bump pinned
+software-english tag to v0.0.16"), pushed, ran `release-plugin.yml`
+with `plugin: swe` — run
+[39379580040](https://github.com/jimbarritt/claude-plugins/actions/runs/39379580040),
+success, tag
+[swe-v0.17.7](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.7).
+Confirmed with `scripts/check-unshipped.sh` before and after the bump
+(after fetching tags, since local tags lagged the earlier release).
+
+Commented on #7 with the commit and release links. Issue auto-closed
+by the `closes #7` commit before the comment landed (`closed_by:
+jimbarritt`, `state_reason: completed`). Removed the `agent:working`
+label, kept `auto-fix-candidate`. No other open issue, on either
+tracker, is resolved by this change.
+
+Single pass, no escalation.
