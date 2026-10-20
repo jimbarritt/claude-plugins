@@ -135,7 +135,9 @@ it prints a fenced block:
 ===INFERENCE_ADVISED===
 doc.md:0: [warning] [anthropomorphism-paraphrase] inference pending: A paraphrase of anthropomorphic language ...
 doc.md:0: [warning] [no-metaphor-or-analogy] inference pending: State a fact or a mechanism directly ...
-doc.md:0: [warning] [inference-pending] 2 inference rule(s) above need model judgement; this script does not judge them. Deterministic tier: 0 error(s), 0 warning(s).
+doc.md:0: [warning] [no-cadence-device] inference pending: A cadence device is a sentence written for rhythm ...
+doc.md:0: [warning] [no-cadence-device] candidate at line 42: verbless sentence "No silent drops." follows a 19-word sentence; judge whether it states a fact that sentence does not.
+doc.md:0: [warning] [inference-pending] 3 inference rule(s) above need model judgement; this script does not judge them. Deterministic tier: 0 error(s), 0 warning(s). 1 located candidate(s) above are not findings.
 ===END_INFERENCE_ADVISED===
 ```
 
@@ -154,10 +156,40 @@ a reserved id, in neither catalogue, marking the one summary line,
 which restates the source's real deterministic counts so a caller
 counting `[warning]` lines is not misled by the added rule lines.
 
-Splitting a pending rule, the summary, and a real finding apart, by
-regex:
+Directly after a rule's own `inference pending` line,
+`find_register_candidates()` (claude-plugins#18) can add one or more
+`candidate at line N: ...` lines for that same rule: a located
+structural signal, never a decision that the fault is real. Two rules
+get this today. `no-cadence-device`: a verbless sentence right after a
+sentence of 15 or more words, in the same paragraph (a fragment that is
+its own paragraph is not detected, since nothing in the line structure
+then tells it apart from a caption or a label); and two adjacent
+sentences, 4-12 words each, with an identical sequence of word classes
+(determiner/verb/noun/quality/other, from the vocabulary data) and at
+least one verb between them. `no-mechanical-repetition`: a run of three
+or more markdown lists, not broken by a non-qualifying list (a
+paragraph or heading between qualifying lists does not break the run),
+where every list has at least two top-level bullets and every bullet
+opens with a bold span followed by real text. A single such list does
+not fire, since several of this repo's own templates use one
+deliberately for a defined term or a named set of required sections,
+exactly the catalogue's own exclusion. Each detector reads a closed,
+stdlib-only verb/auxiliary list (`load_verb_lexicon()`), not real
+part-of-speech tagging, so a verb outside that list can still produce
+an extra candidate, and a word `vocabulary/operations.tsv` also uses as
+a noun can still miss one; see "Known limits" below. Candidates are
+capped at 20 per rule per source (a further line names the count
+omitted past the cap) and, like a pending rule, never affect
+`error_total`, `--count`, or the exit code. The judging step still
+reads the whole source: a candidate names one place to check first, not
+every instance of the fault. `--html-file` gets no candidates, since
+adjacent extracted text nodes are not adjacent prose lines.
+
+Splitting a pending rule, a candidate, the summary, and a real finding
+apart, by regex:
 
 - pending rule: `^.+:0: \[warning\] \[[a-z0-9-]+\] inference pending: `
+- candidate: `^.+:0: \[warning\] \[[a-z0-9-]+\] candidate at line [0-9]+: `
 - summary: `\[inference-pending\]`
 - real finding: any finding-shaped line with a line number of 1 or more
 
@@ -408,10 +440,11 @@ when a fresh pass would be worth doing, gated as above. Add
 itself; that is always the caller's own job. Add `--quiet-vocab` to
 omit `vocabulary-membership` lines; every hook does this by default.
 Counting `[warning]` lines in either flag's output includes the
-`inference pending` rule lines and the trailing `[inference-pending]`
-summary line, not just real warning findings; the summary line's own
-text states the source's real deterministic error/warning counts.
-Neither flag can be combined with `--count` (exits 2).
+`inference pending` rule lines, any `candidate at line N` lines under
+them, and the trailing `[inference-pending]` summary line, not just
+real warning findings; the summary line's own text states the source's
+real deterministic error/warning counts. Neither flag can be combined
+with `--count` (exits 2).
 
 Run `scripts/fetch-software-english-data.sh` once by hand first, if
 `data/` is empty — the hooks do this automatically, a manual run does
@@ -499,6 +532,18 @@ skill's own directory name exactly; the same test asserts it.
   MCP message has no identity across separate tool calls, so each one
   is still judged solely against the plain absolute threshold, same as
   before this rework.
+- The register-rule candidate detectors (claude-plugins#18) read a
+  closed, stdlib-only verb/auxiliary list, not real part-of-speech
+  tagging: a verb outside that list can produce an extra
+  `no-cadence-device` candidate, and a word `vocabulary/operations.tsv`
+  also uses as a noun elsewhere can still miss one.
+- The verbless-fragment candidate only looks within one paragraph. A
+  fragment set as its own paragraph (no blank line, just a one-line
+  paragraph after the long sentence's own) is not detected: nothing in
+  the line structure alone tells it apart from a caption or a label.
+- `--html-file` gets no register-rule candidates: adjacent extracted
+  text nodes are not adjacent prose lines, so the adjacency the
+  detectors need does not hold.
 - `~/.claude/swe/inference-state.json` is never pruned. It contains a
   small amount of text per file ever checked; it is not cleaned up
   automatically yet.

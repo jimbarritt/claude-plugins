@@ -41,6 +41,17 @@ response telling Claude to dispatch a subagent to read the source and
 judge it against those rules itself, then fix anything it finds. Nothing
 in that path ever re-invokes this script for the judging step.
 
+Right after a rule's own line, find_register_candidates() (claude-plugins#18)
+can add `label:0: [warning] [rule-id] candidate at line N: ...` lines: a
+cheap structural signal for no-cadence-device (a verbless fragment right
+after a long sentence; two adjacent sentences with matching word-class
+shape) or no-mechanical-repetition (a run of bold-lead-in bullet lists),
+located without deciding whether the fault is real. Also at line 0, never
+counted as a finding, and capped per rule per source; the
+`[inference-pending]` summary line names the total when any exist. The
+judging step above still reads the whole source: a candidate names one
+place to check first, not every instance of the fault.
+
 --force-inference (used by /swe:lint-file) prints the same block
 unconditionally: no gate, no threshold, no throttle. It is the current
 session itself that then judges the file directly, right where the
@@ -485,6 +496,68 @@ COMMENT_PREFIXES = {
     ".bash": "#",
 }
 
+# --- register-rule candidate detectors (claude-plugins#18) -----------------
+#
+# These locate structural signals for two inference-based (model-judgement)
+# rules, no-cadence-device and no-mechanical-repetition, without deciding
+# the fault themselves: see find_register_candidates() and its callers.
+
+BULLET = re.compile(r"^(\s*)(?:[-*+]|\d+[.)])\s+(.*)$")
+HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
+TABLE_ROW = re.compile(r"^\s*\|")
+HR_LINE = re.compile(r"^\s*([-*_])(?:\s*\1){2,}\s*$")
+
+# A sentence boundary: punctuation, optional closing quote/bracket, then
+# whitespace, only where the next sentence starts with a capital (through
+# an optional opening quote/bracket/emphasis marker first). The capital
+# requirement is what keeps "e.g. this", "SPEC §8. states", and similar
+# abbreviation- or reference-like periods from being read as a boundary.
+SENTENCE_BREAK = re.compile(r"(?<=[.!?])[\"')\]]*\s+(?=[\"'(\[*_]*[A-Z])")
+
+CONTRACTION_SUFFIX = re.compile(r"(n't|'s|'re|'ll|'ve|'d|'m)$", re.IGNORECASE)
+
+AUXILIARY_VERBS = {
+    "be", "is", "are", "was", "were", "am", "been", "being",
+    "have", "has", "had", "do", "does", "did",
+    "will", "would", "shall", "should", "can", "could", "may", "might", "must", "cannot",
+}
+
+# Base-form verbs common in this repo's own technical prose but absent from
+# vocabulary/operations.tsv (which lists domain operations, not every verb
+# English has). Without this set, a closed-list verb check false-positives
+# on ordinary sentences ("A PR description states those facts."), since
+# operations.tsv plus AUXILIARY_VERBS alone misses "states". Calibrated
+# against this repo's and software-english's own real prose (claude-plugins#18).
+COMMON_VERBS = frozenset({
+    "see", "state", "name", "live", "know", "exit", "take", "make", "hold", "keep",
+    "cover", "define", "record", "mean", "apply", "follow", "describe", "give",
+    "go", "come", "list", "mark", "own", "print", "pass", "block", "skip", "cost",
+    "emit", "produce", "handle", "appear", "belong", "become", "stay", "govern",
+    "lose", "leave", "let", "put", "say", "tell", "ask", "answer", "point", "refer",
+    "work", "look", "seem", "exist", "happen", "get", "turn", "move", "form",
+})
+
+# A word that is also a common verb reads as a noun right after one of
+# these (lemma_candidates() already handles -s/-es/-ed/-ies on the word
+# itself): "No retries.", "a read", "each write".
+NOUN_DETERMINERS = {
+    "a", "an", "the", "no", "each", "every", "zero", "any", "some", "all",
+    "this", "that", "these", "those", "its", "their", "your", "one", "two", "three",
+}
+
+# A bullet item whose first line opens with a bold span and has real text
+# after it closes: "**Fast startup.** The service starts in 200 ms." A
+# bullet that is wholly bold ("**Fast startup.**") is not a lead-in.
+BOLD_LEAD = re.compile(r"^(\*\*|__)(?=\S)(.+?)(?<=\S)\1\s*[:.\-–]?\s*\S")
+
+CADENCE_MIN_PRECEDING_WORDS = 15
+CADENCE_MAX_FRAGMENT_WORDS = 6
+BOLD_LIST_MIN_BULLETS = 2
+BOLD_LIST_RUN_MIN = 3
+PAIR_MIN_WORDS = 4
+PAIR_MAX_WORDS = 12
+MAX_CANDIDATES_PER_RULE = 20
+
 
 def load_config():
     with CONFIG_PATH.open() as f:
@@ -531,9 +604,9 @@ def load_vocabulary():
     return words
 
 
-def load_structure_nouns():
+def load_tsv_words(name):
     words = set()
-    path = DATA / "structure.tsv"
+    path = DATA / name
     if not path.exists():
         return words
     for raw in path.read_text().splitlines()[1:]:
@@ -543,6 +616,18 @@ def load_structure_nouns():
         if word:
             words.add(word)
     return words
+
+
+def load_structure_nouns():
+    return load_tsv_words("structure.tsv")
+
+
+def load_verb_lexicon():
+    """Base-form verbs for sentence_has_verb(): vocabulary/operations.tsv's
+    domain operations, plus AUXILIARY_VERBS and COMMON_VERBS (see their own
+    comments). Not a part-of-speech tagger: a word also used as a noun
+    elsewhere (cache, log, test) is still counted a verb here."""
+    return load_tsv_words("operations.tsv") | AUXILIARY_VERBS | COMMON_VERBS
 
 
 def load_banned():
@@ -681,6 +766,330 @@ def lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions
     return findings
 
 
+def register_blocks(numbered_lines):
+    """Groups prose_lines()'s unfiltered (number, line) pairs into
+    paragraph/list/heading/table/hr blocks, so the register-rule candidate
+    detectors below can see multi-line structure that check_line()'s
+    one-line-at-a-time view cannot: wrapped prose puts one sentence across
+    several lines, and "consecutive lists" and "a sentence right after a
+    long one" are both multi-line questions.
+
+    A gap between consecutive numbers (prose_lines() skipped a fence, a
+    blockquote, an indented block, or a skip-marker line) always closes the
+    current paragraph; inside a list it is read as part of a nested block
+    within the current item, not a break.
+
+    Returns a list of ("paragraph", [(n, line), ...]), ("list", {"items":
+    [(n, first_line_text), ...], "lines": [n, ...]}), ("heading", n),
+    ("table", [n, ...]), or ("hr", n)."""
+    blocks = []
+    current_list = None
+    current_para = None
+    prev_number = None
+    prev_blank = True
+
+    def close_list():
+        nonlocal current_list
+        if current_list is not None:
+            blocks.append(("list", current_list))
+            current_list = None
+
+    def close_para():
+        nonlocal current_para
+        if current_para:
+            blocks.append(("paragraph", current_para))
+        current_para = None
+
+    for number, line in numbered_lines:
+        gapped = prev_number is not None and number != prev_number + 1
+        stripped = line.strip()
+
+        if not stripped:
+            close_para()
+            prev_number = number
+            prev_blank = True
+            continue
+
+        if HR_LINE.match(line):
+            close_list()
+            close_para()
+            blocks.append(("hr", number))
+            prev_number = number
+            prev_blank = True
+            continue
+
+        if HEADING.match(line):
+            close_list()
+            close_para()
+            blocks.append(("heading", number))
+            prev_number = number
+            prev_blank = True
+            continue
+
+        if TABLE_ROW.match(line):
+            close_list()
+            close_para()
+            if blocks and blocks[-1][0] == "table":
+                blocks[-1][1].append(number)
+            else:
+                blocks.append(("table", [number]))
+            prev_number = number
+            prev_blank = False
+            continue
+
+        bm = BULLET.match(line)
+        if bm:
+            indent = len(bm.group(1))
+            text = bm.group(2)
+            close_para()
+            if current_list is None:
+                current_list = {"indent": indent, "items": [(number, text)], "lines": [number]}
+            elif indent <= current_list["indent"]:
+                current_list["items"].append((number, text))
+                current_list["lines"].append(number)
+            else:
+                current_list["lines"].append(number)
+            prev_number = number
+            prev_blank = False
+            continue
+
+        if current_list is not None:
+            is_indented = line[:1] in (" ", "\t")
+            if is_indented or not prev_blank:
+                current_list["lines"].append(number)
+                prev_number = number
+                prev_blank = False
+                continue
+            close_list()
+
+        if gapped or current_para is None:
+            close_para()
+            current_para = [(number, line)]
+        else:
+            current_para.append((number, line))
+        prev_number = number
+        prev_blank = False
+
+    close_list()
+    close_para()
+    return blocks
+
+
+def split_sentences(paragraph):
+    """Splits one paragraph block's (n, line) pairs into [(start_line,
+    sentence_text), ...] on SENTENCE_BREAK, joining wrapped lines with a
+    single space first so a sentence split across lines reads as one."""
+    joined_parts = []
+    offsets = []
+    pos = 0
+    for n, line in paragraph:
+        if joined_parts:
+            joined_parts.append(" ")
+            pos += 1
+        offsets.append((pos, n))
+        joined_parts.append(line)
+        pos += len(line)
+    full = "".join(joined_parts)
+
+    def line_at(offset):
+        result = offsets[0][1]
+        for start, n in offsets:
+            if start <= offset:
+                result = n
+            else:
+                break
+        return result
+
+    sentences = []
+    start = 0
+    for m in SENTENCE_BREAK.finditer(full):
+        sentence = full[start:m.start()].strip()
+        if sentence:
+            sentences.append((line_at(start), sentence))
+        start = m.end()
+    tail = full[start:].strip()
+    if tail:
+        sentences.append((line_at(start), tail))
+    return sentences
+
+
+def sentence_has_verb(sentence, verbs):
+    """True when sentence has a word a stdlib-only linter can read as a
+    verb: a contraction ("doesn't", "it's"), an auxiliary, or a word in
+    verbs, unless a determiner right before it (NOUN_DETERMINERS) marks it
+    read as a noun instead ("No retries.", "a read")."""
+    words = WORD.findall(sentence)
+    for i, word in enumerate(words):
+        if CONTRACTION_SUFFIX.search(word):
+            return True
+        candidates = list(lemma_candidates(word.lower()))
+        if any(c in AUXILIARY_VERBS for c in candidates):
+            return True
+        if any(c in verbs for c in candidates):
+            prev = words[i - 1].lower() if i > 0 else None
+            if prev in NOUN_DETERMINERS:
+                continue
+            return True
+    return False
+
+
+def find_cadence_fragments(blocks, verbs):
+    """Locates candidates for no-cadence-device's first shape: a verbless
+    fragment set as its own sentence right after a sentence of
+    CADENCE_MIN_PRECEDING_WORDS or more words, within the same paragraph.
+    Never decides the fault: whether the fragment states a fact the
+    preceding sentence does not is left to the judging model."""
+    results = []
+    for kind, data in blocks:
+        if kind != "paragraph":
+            continue
+        sentences = split_sentences(data)
+        for i in range(1, len(sentences)):
+            _, prev_text = sentences[i - 1]
+            frag_line, frag_text = sentences[i]
+            if prev_text.endswith("?"):
+                continue
+            prev_words = WORD.findall(prev_text)
+            if len(prev_words) < CADENCE_MIN_PRECEDING_WORDS:
+                continue
+            if not frag_text or frag_text[-1] not in (".", "!"):
+                continue
+            frag_words = WORD.findall(frag_text)
+            if not (1 <= len(frag_words) <= CADENCE_MAX_FRAGMENT_WORDS):
+                continue
+            if sentence_has_verb(frag_text, verbs):
+                continue
+            detail = (
+                f'verbless sentence "{frag_text}" follows a {len(prev_words)}-word '
+                "sentence; judge whether it states a fact that sentence does not."
+            )
+            results.append((frag_line, detail, {frag_line}))
+    return results
+
+
+def word_class(word, verbs, connectives, structure_nouns, qualities):
+    lw = word.lower()
+    if lw in connectives:
+        return "D"
+    candidates = list(lemma_candidates(lw))
+    if lw in AUXILIARY_VERBS or any(c in verbs for c in candidates):
+        return "V"
+    if any(c in structure_nouns for c in candidates):
+        return "N"
+    if any(c in qualities for c in candidates):
+        return "Q"
+    return "O"
+
+
+def find_matched_pairs(blocks, verbs, connectives, structure_nouns, qualities):
+    """Locates candidates for no-cadence-device's second shape: two
+    adjacent sentences, in the same paragraph, with an identical sequence
+    of word classes (determiner/verb/noun/quality/other) and at least one
+    verb, each PAIR_MIN_WORDS to PAIR_MAX_WORDS words, neither starting
+    with quoted material. Never decides whether the second restates the
+    first, only that the shapes match."""
+    results = []
+    for kind, data in blocks:
+        if kind != "paragraph":
+            continue
+        sentences = split_sentences(data)
+        for i in range(1, len(sentences)):
+            a_line, a_text = sentences[i - 1]
+            b_line, b_text = sentences[i]
+            if not a_text or not b_text:
+                continue
+            if a_text[0] in ("\"", "'", "(") or b_text[0] in ("\"", "'", "("):
+                continue
+            a_words = WORD.findall(a_text)
+            b_words = WORD.findall(b_text)
+            if not (PAIR_MIN_WORDS <= len(a_words) <= PAIR_MAX_WORDS):
+                continue
+            if not (PAIR_MIN_WORDS <= len(b_words) <= PAIR_MAX_WORDS):
+                continue
+            a_classes = [word_class(w, verbs, connectives, structure_nouns, qualities) for w in a_words]
+            b_classes = [word_class(w, verbs, connectives, structure_nouns, qualities) for w in b_words]
+            if a_classes != b_classes or "V" not in a_classes:
+                continue
+            detail = (
+                f'sentence "{b_text}" has the same word-class shape as the sentence '
+                f"before it (line {a_line}); judge whether it restates that sentence."
+            )
+            results.append((b_line, detail, {a_line, b_line}))
+    return results
+
+
+def find_bold_list_runs(blocks):
+    """Locates candidates for no-mechanical-repetition's first pattern: a
+    run of BOLD_LIST_RUN_MIN or more markdown lists, each with at least
+    BOLD_LIST_MIN_BULLETS top-level bullets that all open with a bold
+    lead-in. A paragraph or heading between qualifying lists does not break
+    the run (the usual shape is heading/intro sentence/bold list, repeated);
+    a non-qualifying list does. Reports once per run, at the run's first
+    bullet, naming every list's start line; never decides whether a lead-in
+    restates its own bullet."""
+    results = []
+    run = []
+
+    def qualifies(list_data):
+        items = list_data["items"]
+        return len(items) >= BOLD_LIST_MIN_BULLETS and all(BOLD_LEAD.match(t) for _, t in items)
+
+    def flush():
+        if len(run) >= BOLD_LIST_RUN_MIN:
+            run_lines = {items[0][0] for items in (l["items"] for l in run)}
+            first_line = run[0]["items"][0][0]
+            starts = ", ".join(str(l["items"][0][0]) for l in run)
+            detail = (
+                f"{len(run)} lists in a row open every bullet with a bold lead-in "
+                f"(lists at lines {starts}); judge whether each lead-in restates the "
+                "item it labels. Report once per run."
+            )
+            results.append((first_line, detail, run_lines))
+        run.clear()
+
+    for kind, data in blocks:
+        if kind == "list":
+            if qualifies(data):
+                run.append(data)
+            else:
+                flush()
+        elif kind in ("paragraph", "heading"):
+            continue
+        else:
+            flush()
+    flush()
+    return results
+
+
+def find_register_candidates(numbered_lines, only_lines, lexicon, rule_ids):
+    """Returns {rule_id: [(line, detail), ...]} of located candidates for
+    whichever of no-cadence-device/no-mechanical-repetition are in
+    rule_ids, from numbered_lines (prose_lines()'s unfiltered output for
+    one source). With only_lines set (--diff --added-only), keeps a
+    candidate only where it touches a changed line. Candidates never enter
+    a findings list and never affect error_total or the exit code."""
+    out = {}
+    if not numbered_lines or not rule_ids:
+        return out
+    blocks = register_blocks(numbered_lines)
+    verbs, connectives, structure_nouns, qualities = lexicon
+
+    if "no-cadence-device" in rule_ids:
+        candidates = find_cadence_fragments(blocks, verbs) + find_matched_pairs(
+            blocks, verbs, connectives, structure_nouns, qualities
+        )
+        candidates.sort(key=lambda c: c[0])
+        out["no-cadence-device"] = candidates
+    if "no-mechanical-repetition" in rule_ids:
+        out["no-mechanical-repetition"] = find_bold_list_runs(blocks)
+
+    if only_lines is not None:
+        for rule_id, candidates in out.items():
+            out[rule_id] = [c for c in candidates if c[2] & only_lines]
+
+    return {rule_id: [(line, detail) for line, detail, _ in candidates] for rule_id, candidates in out.items()}
+
+
 def changed_line_numbers(path):
     out = subprocess.run(
         ["git", "diff", "--unified=0", "HEAD", "--", path],
@@ -792,7 +1201,7 @@ def count_words_sentences(text):
     return words, sentences
 
 
-def format_inference_rules(label, inference_rules, det_errors, det_warnings):
+def format_inference_rules(label, inference_rules, det_errors, det_warnings, candidates=None):
     """The applicable inference-based rules for one source, as finding-shaped
     lines, for the caller to judge the prose against directly. This script
     never judges them itself.
@@ -804,8 +1213,17 @@ def format_inference_rules(label, inference_rules, det_errors, det_warnings):
     0 and severity "warning", so a rule line is never mistaken for a real
     finding at a real location: a pending rule is not itself a violation.
     Where the catalogue's own severity differs, it is appended in
-    parentheses so the judging step still knows it."""
+    parentheses so the judging step still knows it.
+
+    candidates, from find_register_candidates() (claude-plugins#18), is an
+    optional {rule_id: [(line, detail), ...]} of located structural
+    candidates for a rule above; each prints right after its rule's own
+    line, also at line 0 (never a real finding), as "candidate at line N:
+    <detail>", capped at MAX_CANDIDATES_PER_RULE with an "omitted" line past
+    the cap. The summary line's own text is unchanged when no candidate
+    exists for any rule, so an existing caller sees no difference."""
     lines = []
+    total_candidates = 0
     for rule_id, rule in inference_rules.items():
         desc = " ".join(rule["description"].split())
         line = f"{label}:0: [warning] [{rule_id}] inference pending: {desc}"
@@ -813,11 +1231,27 @@ def format_inference_rules(label, inference_rules, det_errors, det_warnings):
         if severity != "warning":
             line += f" (severity on violation: {severity})"
         lines.append(line)
-    lines.append(
+
+        rule_candidates = (candidates or {}).get(rule_id, [])
+        shown = rule_candidates[:MAX_CANDIDATES_PER_RULE]
+        for cand_line, detail in shown:
+            lines.append(f"{label}:0: [warning] [{rule_id}] candidate at line {cand_line}: {detail}")
+        total_candidates += len(shown)
+        omitted = len(rule_candidates) - len(shown)
+        if omitted:
+            lines.append(
+                f"{label}:0: [warning] [{rule_id}] candidate at line 0: "
+                f"{omitted} more candidate(s) omitted; judge the whole source."
+            )
+
+    summary = (
         f"{label}:0: [warning] [inference-pending] {len(inference_rules)} inference rule(s) "
         f"above need model judgement; this script does not judge them. "
         f"Deterministic tier: {det_errors} error(s), {det_warnings} warning(s)."
     )
+    if total_candidates:
+        summary += f" {total_candidates} located candidate(s) above are not findings."
+    lines.append(summary)
     return lines
 
 
@@ -832,7 +1266,7 @@ def main():
     parser.add_argument("--transcript", help="path to the Stop hook transcript JSONL")
     parser.add_argument("--html-file", help="path to an HTML file; text nodes are extracted as prose")
     parser.add_argument("--source-label", default=None, help="label for --text's source in the report")
-    parser.add_argument("--advise-inference", action="store_true", help="prints the applicable inference rules as finding-shaped `label:0: [warning] [rule-id] inference pending: ...` lines plus an `[inference-pending]` summary line, inside an INFERENCE_ADVISED block; gated: only when the deterministic tier is clean this invocation, not already stop_hook_active, and eligible per inference_eligible(); never judges the prose itself. Cannot be combined with --count.")
+    parser.add_argument("--advise-inference", action="store_true", help="prints the applicable inference rules as finding-shaped `label:0: [warning] [rule-id] inference pending: ...` lines, each optionally followed by its own `candidate at line N: ...` lines (a located structural signal, never a finding), plus an `[inference-pending]` summary line, inside an INFERENCE_ADVISED block; gated: only when the deterministic tier is clean this invocation, not already stop_hook_active, and eligible per inference_eligible(); never judges the prose itself. Cannot be combined with --count.")
     parser.add_argument("--force-inference", action="store_true", help="prints the same block unconditionally: ignores the deterministic-clean gate, stop_hook_active, and the eligibility throttle (still skips on empty prose); never judges the prose itself; for a single named file inside a git repository, also mints and prints a single-use swe-lint-nonce for --record-lint-result. Cannot be combined with --count.")
     parser.add_argument("--stop-hook-active", default="false", choices=["true", "false"])
     parser.add_argument("--quiet-vocab", action="store_true", help="omit vocabulary-membership lines from the printed report (they never block; this only reduces noise)")
@@ -876,7 +1310,9 @@ def main():
     cwd = args.cwd or Path.cwd()
     ignore_patterns = load_ignore_patterns(cwd)
 
-    # sources: list of (label, findings, prose_text_for_threshold)
+    # sources: list of (label, findings, prose_text_for_threshold, candidate_input)
+    # candidate_input is (numbered_lines, only_lines) for find_register_candidates(),
+    # or None where adjacency between lines is not real prose adjacency (--html-file).
     sources = []
 
     file_list = list(args.files)
@@ -894,37 +1330,43 @@ def main():
             # A code file: only its comments are prose. The code itself is
             # never linted as if it were Markdown.
             findings = []
-            comment_lines = []
+            comment_pairs = []
             for number, comment in extract_comments(text, ext):
                 check_line(number, comment, vocabulary, structure_nouns, banned_rules, rules, findings)
-                comment_lines.append(comment)
-            prose_for_threshold = "\n".join(comment_lines)
+                comment_pairs.append((number, comment))
+            prose_for_threshold = "\n".join(c for _, c in comment_pairs)
+            candidate_input = (comment_pairs, None)
         else:
             only_lines = changed_line_numbers(f) if (args.diff and args.added_only and f in changed_markdown_files()) else None
             findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions, only_lines)
+            numbered_lines = list(prose_lines(text, exemptions))
             prose_for_threshold = "\n".join(line for _, line in prose_lines(text, exemptions, only_lines))
-        sources.append((f, findings, prose_for_threshold))
+            candidate_input = (numbered_lines, only_lines)
+        sources.append((f, findings, prose_for_threshold, candidate_input))
 
     if args.text:
         text = sys.stdin.read()
         label = args.source_label or "text"
         findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
-        prose_for_threshold = "\n".join(line for _, line in prose_lines(text, exemptions))
-        sources.append((label, findings, prose_for_threshold))
+        numbered_lines = list(prose_lines(text, exemptions))
+        prose_for_threshold = "\n".join(line for _, line in numbered_lines)
+        sources.append((label, findings, prose_for_threshold, (numbered_lines, None)))
 
     if args.reply_file:
         path = Path(args.reply_file)
         text = path.read_text() if path.exists() else ""
         findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
-        prose_for_threshold = "\n".join(line for _, line in prose_lines(text, exemptions))
-        sources.append(("reply", findings, prose_for_threshold))
+        numbered_lines = list(prose_lines(text, exemptions))
+        prose_for_threshold = "\n".join(line for _, line in numbered_lines)
+        sources.append(("reply", findings, prose_for_threshold, (numbered_lines, None)))
 
     if args.transcript:
         path = Path(args.transcript)
         text = extract_transcript_reply_text(path) if path.exists() else ""
         findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
-        prose_for_threshold = "\n".join(line for _, line in prose_lines(text, exemptions))
-        sources.append(("transcript", findings, prose_for_threshold))
+        numbered_lines = list(prose_lines(text, exemptions))
+        prose_for_threshold = "\n".join(line for _, line in numbered_lines)
+        sources.append(("transcript", findings, prose_for_threshold, (numbered_lines, None)))
 
     if args.html_file:
         path = Path(args.html_file)
@@ -932,22 +1374,23 @@ def main():
         nodes = html_text_nodes(text, cfg["html_min_chars"])
         synthetic = "\n".join(nodes)
         findings = lint_text(synthetic, vocabulary, structure_nouns, banned_rules, rules, exemptions)
-        sources.append((args.html_file, findings, synthetic))
+        # No candidates: adjacent text nodes are not adjacent prose lines.
+        sources.append((args.html_file, findings, synthetic, None))
 
     if not sources:
         print("No sources to check.")
         return 0
 
     if args.count:
-        error_total = sum(1 for _, findings, _ in sources for _, sev, _, _ in findings if sev == "error")
-        warning_total = sum(1 for _, findings, _ in sources for _, sev, _, _ in findings if sev == "warning")
+        error_total = sum(1 for _, findings, _, _ in sources for _, sev, _, _ in findings if sev == "error")
+        warning_total = sum(1 for _, findings, _, _ in sources for _, sev, _, _ in findings if sev == "warning")
         print(f"{error_total} errors, {warning_total} warnings across {len(sources)} files")
         return 1 if error_total else 0
 
     error_total = 0
     warning_total = 0
     per_source_counts = {}
-    for label, findings, _ in sources:
+    for label, findings, _, _ in sources:
         src_errors = 0
         src_warnings = 0
         for number, severity, rule, detail in findings:
@@ -973,7 +1416,7 @@ def main():
 
     due_for_inference = args.force_inference or (args.advise_inference and error_total == 0 and not stop_hook_active)
     if due_for_inference:
-        combined_prose = "\n".join(prose for _, _, prose in sources if prose.strip())
+        combined_prose = "\n".join(prose for _, _, prose, _ in sources if prose.strip())
         if combined_prose.strip():
             words, sentences = count_words_sentences(combined_prose)
             if args.force_inference or inference_eligible(inference_key, words, sentences, cfg):
@@ -981,12 +1424,29 @@ def main():
                 is_conversational = bool(args.reply_file or args.transcript)
                 if is_conversational:
                     inference_rules.update(plugin_rules)
+                # Located candidates (claude-plugins#18): a cheap structural
+                # signal for a rule above, never itself a finding. Computed
+                # once the rule set is known, only for the rule ids actually
+                # applicable, and only when at least one of them is present.
+                register_rule_ids = {"no-cadence-device", "no-mechanical-repetition"} & set(inference_rules)
+                lexicon = None
+                if register_rule_ids:
+                    lexicon = (
+                        load_verb_lexicon(),
+                        load_tsv_words("connectives.tsv"),
+                        structure_nouns,
+                        load_tsv_words("qualities.tsv"),
+                    )
                 print("===INFERENCE_ADVISED===")
-                for label, _, prose in sources:
+                for label, _, prose, candidate_input in sources:
                     if not prose.strip():
                         continue
                     src_errors, src_warnings = per_source_counts.get(label, (0, 0))
-                    for line in format_inference_rules(label, inference_rules, src_errors, src_warnings):
+                    candidates = None
+                    if lexicon is not None and candidate_input is not None:
+                        numbered_lines, only_lines = candidate_input
+                        candidates = find_register_candidates(numbered_lines, only_lines, lexicon, register_rule_ids)
+                    for line in format_inference_rules(label, inference_rules, src_errors, src_warnings, candidates):
                         print(line)
                 print("===END_INFERENCE_ADVISED===")
                 save_inference_state(inference_key, words, sentences)

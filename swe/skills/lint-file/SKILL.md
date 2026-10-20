@@ -41,11 +41,19 @@ line per inference-based rule that applies here, each shaped like a
 finding so it survives a findings-shaped filter, `<file>:0: [warning]
 [rule-id] inference pending: description` (a rule whose own catalogue
 severity is not `warning` adds `(severity on violation: <severity>)`),
-followed by one summary line, `<file>:0: [warning] [inference-pending]
+A rule's own line can be followed by one or more `<file>:0: [warning]
+[rule-id] candidate at line N: description` lines: a located structural
+signal for that rule (a verbless sentence right after a long one, a
+run of bold-lead-in bullet lists, and similar), never a decision that
+the fault is real. Treat a candidate as a place to check first, not a
+substitute for judging the whole file in Step 4. The block ends with
+one summary line, `<file>:0: [warning] [inference-pending]
 N inference rule(s) above need model judgement; this script does not
-judge them. Deterministic tier: E error(s), W warning(s).` The script
-never judges the file against them itself: it has no model access and
-never spawns one. It records this pass in
+judge them. Deterministic tier: E error(s), W warning(s).`, with a
+trailing `K located candidate(s) above are not findings.` when any
+candidate printed. The script never judges the file against any of
+this itself: it has no model access and never spawns one. It records
+this pass in
 `~/.claude/swe/inference-state.json`, so a hook-advised subagent's pass
 on the same file counts too, for the throttle `--advise-inference`
 applies.
@@ -87,8 +95,11 @@ Step 5 rejects it.
 Read `<file-path>` (the `Read` tool). Using each `inference pending`
 line from Step 3, one rule per line, its id in brackets, its
 description after `inference pending:`, judge the file's own prose
-against each rule directly, as part of your own reasoning. Ignore the
-trailing `[inference-pending]` summary line; it is a count, not a rule.
+against each rule directly, as part of your own reasoning. Where a
+rule has one or more `candidate at line N` lines under it, check that
+line first, but still judge the whole file against the rule: a
+candidate is a starting set, not a complete one. Ignore the trailing
+`[inference-pending]` summary line; it is a count, not a rule.
 There is no separate call to make or process to wait on for this step.
 Note any violation as `<file-path>:<line>: [severity] [rule-id]
 detail`, matching the deterministic tier's own format. Severity is
@@ -156,7 +167,8 @@ Steps 3, 4, and 5 again on the file as it is now.
 
 Print every finding, deterministic and inference-tier alike, one line
 each with severity. This is the violations found in Step 4, both
-passes, not the `inference pending` lines or the `[inference-pending]`
-summary line from Step 3, which name rules to check, not findings. If
+passes, not the `inference pending` lines, the `candidate at line N`
+lines, or the `[inference-pending]` summary line from Step 3, which
+name rules and places to check, not findings. If
 there are none, say the file is clean, both tiers. Do not fix
 anything unless asked: this command is a check, not an edit.
