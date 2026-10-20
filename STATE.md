@@ -1,15 +1,10 @@
 # State
 
-Last updated: 2026-10-20 (software-english#10 and #11 shipped, closed)
+Last updated: 2026-10-20 (software-english#12 shipped, closed)
 
 ## In progress
 
-- [tasks/software-english-issue-12-heading-rules.md](tasks/software-english-issue-12-heading-rules.md)
-  ([software-english#12](https://github.com/jimbarritt/software-english/issues/12)):
-  two new inference-tier rules for heading-specific faults
-  (`no-withholding-heading`, `no-question-or-argument-heading`).
-  Claimed and planned; work and ship/release steps follow in the same
-  run.
+None.
 
 ## Waiting on others
 
@@ -61,6 +56,50 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-12-heading-rules.md](tasks/software-english-issue-12-heading-rules.md)
+  ([#12](https://github.com/jimbarritt/software-english/issues/12)):
+  two faults visible only in a heading, named in the issue but not in
+  the catalogue — a heading that withholds its content, and a heading
+  phrased as a question or an argument instead of a claim. New
+  `no-withholding-heading` (SPEC §7.17) and
+  `no-question-or-argument-heading` (SPEC §7.18), both inference-based,
+  unconditional on document type, scoped to headings only at every
+  level. Plan from an Opus Plan subagent. Scoped deliberately narrower
+  than the issue's literal wording to avoid flagging the repo's own
+  heavily-used topic-label and indirect-question heading styles (`What
+  a tutorial is`, `How this differs from …`, `Verdict`): a heading that
+  names a subject, or a subject and a property, passes both rules, and
+  a conventional section name is exempt from the withholding rule.
+  Checked by hand against all 176 existing headings in `spec/`,
+  `docs/`, `templates/`, `README.md`, and `COLOPHON.md`: zero false
+  positives. One correction made during verification, found only by
+  running the real linter, not anticipated going in: the drafted
+  `COLOPHON.md` prose ("these rules sit... for the reason §7.14 sits
+  there") tripped the deterministic `abstract-location` rule it sits
+  beside — an abstract subject given a verb of physical position —
+  reworded to "are new entries ... is there". Verified directly against
+  the real linter throughout: `tomllib` confirms the catalogue parses
+  and all 30 rule ids stay unique; `--added-only` (not `--diff` alone,
+  which lints the whole file, confirmed by a first run surfacing 20+
+  unrelated pre-existing findings) reports 0 errors on every added
+  line; `--force-inference` confirms both new rule ids and full
+  descriptions reach the judging-model block, count 20 -> 22; a manual
+  model-judgement pass against all 176 real headings plus the issue's
+  own fault/fix examples found zero false positives and each fault
+  firing once under the intended rule. All six `claude-plugins` test
+  suites pass (142 assertions, unchanged). Shipped on
+  `software-english`'s `main` at
+  [`f15724f`](https://github.com/jimbarritt/software-english/commit/f15724f294523c12ba023fa06d05f52ccac78dad),
+  released as
+  [v0.0.20](https://github.com/jimbarritt/software-english/releases/tag/v0.0.20).
+  Because the change touches `rules/core-rules.toml`: bumped
+  `claude-plugins/swe/software-english.json`'s pin to `v0.0.20` and
+  `swe`'s own version `0.17.10` -> `0.17.11`, commit
+  [`eef52ba`](https://github.com/jimbarritt/claude-plugins/commit/eef52bac81156e052ae62b6111b0c662a4f73a0e),
+  released as
+  [swe-v0.17.11](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.11).
+  Issue auto-closed by the `closes #12` commit. Single pass, no
+  escalation.
 - [tasks/software-english-issue-10-11-pr-description-document-type.md](tasks/software-english-issue-10-11-pr-description-document-type.md)
   ([#10](https://github.com/jimbarritt/software-english/issues/10),
   [#11](https://github.com/jimbarritt/software-english/issues/11)):

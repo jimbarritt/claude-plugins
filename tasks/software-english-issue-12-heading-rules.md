@@ -222,16 +222,34 @@ change needed there, per Reading above). `scripts/check-unshipped.sh`
 clean on `claude-plugins` before any release step (nothing pending
 there yet).
 
-Committed on `software-english`'s `main`, message ends `closes #12`.
-Released: `release.yml` run with `version: 0.0.20` (newest prior tag
-v0.0.19). Because the change touches `rules/core-rules.toml` (a file
-`swe` fetches): bumped `claude-plugins/swe/software-english.json`'s
-`tag` to `v0.0.20` and `swe`'s own `plugin.json` version, committed and
-pushed on `claude-plugins` `main`, ran `release-plugin.yml` with
-`plugin: swe`.
+Committed on `software-english`'s `main`:
+[`f15724f`](https://github.com/jimbarritt/software-english/commit/f15724f294523c12ba023fa06d05f52ccac78dad),
+message ends `closes #12`. Pushed. Released: `release.yml` run
+[39407546592](https://github.com/jimbarritt/software-english/actions/runs/39407546592)
+with `version: 0.0.20` (newest prior tag v0.0.19), success, tag
+[v0.0.20](https://github.com/jimbarritt/software-english/releases/tag/v0.0.20).
 
-(Commit hashes, release run links, and tag links recorded once the
-ship/release steps complete; this file is written ahead of that step
-per `MAINTAINER-RUN.md` step 4, and updated again at step 9.)
+Because the change touches `rules/core-rules.toml` (a file `swe`
+fetches): bumped `claude-plugins/swe/software-english.json`'s `tag` to
+`v0.0.20` and `swe`'s own `plugin.json` version `0.17.10` -> `0.17.11`,
+commit
+[`eef52ba`](https://github.com/jimbarritt/claude-plugins/commit/eef52bac81156e052ae62b6111b0c662a4f73a0e)
+on `claude-plugins` `main`, pushed, ran `release-plugin.yml` with
+`plugin: swe` — run
+[39407696554](https://github.com/jimbarritt/claude-plugins/actions/runs/39407696554),
+success, tag
+[swe-v0.17.11](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.11).
+`scripts/check-unshipped.sh` on `claude-plugins`: clean before the
+version bump (nothing pending), flagged the expected pending release
+after the bump and before the workflow ran, clean again after.
 
-Single pass, no escalation, so far.
+Commented on #12 with the commit, both release/tag links, and the
+scope judgement call; removed `agent:working`. Issue auto-closed by
+the `closes #12` commit before the comment landed (`closed_by:
+jimbarritt`, `state_reason: completed`). No other open issue, on
+either tracker, is resolved by this change: checked `claude-plugins#18`
+(candidate detectors for the two existing §8 register rules) and
+`claude-plugins#16` (`agent:hold`) — both unrelated to heading-scoped
+rules.
+
+Single pass, no escalation.
