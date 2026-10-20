@@ -1,10 +1,14 @@
 # State
 
-Last updated: 2026-10-20 (software-english#12 shipped, closed)
+Last updated: 2026-10-20 (claude-plugins#18 claimed, planned)
 
 ## In progress
 
-None.
+- [tasks/issue-18-register-rule-candidate-detectors.md](tasks/issue-18-register-rule-candidate-detectors.md)
+  ([#18](https://github.com/jimbarritt/claude-plugins/issues/18)): located
+  candidate detectors for `no-cadence-device` and `no-mechanical-repetition`
+  in `swe/scripts/software_english_lint.py`. Plan from an Opus Plan subagent
+  complete. Implementation next.
 
 ## Waiting on others
 
