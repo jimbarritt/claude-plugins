@@ -5,7 +5,9 @@ Checks prose against Software English's rules. Vocabulary data and the
 rule catalogue are vendored under ../data/ from the software-english
 repository (source of truth), fetched by fetch-software-english-data.sh
 per the tag pinned in ../software-english.json. Rules are parsed directly
-from core-rules.toml via Python's stdlib tomllib.
+from core-rules.toml with the stdlib tomllib on Python 3.11 or later, or
+with the copy of tomli in _vendor/ on an earlier Python, such as the
+macOS system Python 3.9.
 
 Deterministic-tier rules (vocabulary, banned words, tense patterns,
 anthropomorphism, abstract-location) run on every source, every time, at
@@ -143,10 +145,15 @@ import re
 import secrets
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    sys.path.insert(0, str(HERE / "_vendor"))
+    import tomli as tomllib
 PLUGIN_ROOT = HERE.parent
 DATA = PLUGIN_ROOT / "data"
 CONFIG_PATH = PLUGIN_ROOT / "config.json"

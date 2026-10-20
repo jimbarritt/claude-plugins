@@ -3,3 +3,4 @@
 # directory; a pattern with no "/" matches the basename, at any depth.
 swe/docs/agent-guide.md
 swe/output-styles/software-english.md
+swe/scripts/_vendor/*

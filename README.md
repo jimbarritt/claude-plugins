@@ -24,3 +24,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Licence
 
 Apache-2.0. See [LICENSE](./LICENSE).
+
+`swe/scripts/_vendor/tomli/` contains a copy of
+[tomli](https://github.com/hukkin/tomli) 2.5.0 and its MIT licence.
+The `swe` linter uses it on a Python earlier than 3.11, which has no
+`tomllib`.
