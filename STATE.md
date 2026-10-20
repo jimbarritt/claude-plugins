@@ -1,7 +1,6 @@
 # State
 
-Last updated: 2026-10-20 (software-english#14 shipped, closed; #16 closed
-as a side effect)
+Last updated: 2026-10-20 (software-english#15 shipped, closed)
 
 ## In progress
 
@@ -57,6 +56,50 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-15-framing-devices.md](tasks/software-english-issue-15-framing-devices.md)
+  ([#15](https://github.com/jimbarritt/software-english/issues/15), opened
+  by `jimbarritt-pleo`): no rule caught three co-occurring framing shapes
+  in a declarative sentence: cleft padding (`the import is what
+  reconciles` for `the import reconciles`), rhetorical-question framing
+  (`asks one question`, `answers two questions`), and naming-as-justification
+  (`is named for that question rather than for the structure`). The issue
+  offered a deterministic cleft check plus an inference rule for the
+  other two as one option; rejected after reading
+  `claude-plugins/swe/scripts/software_english_lint.py` directly: its
+  deterministic tier is hardcoded per rule id with no generic
+  pattern-based dispatcher, so a new deterministic check would need new
+  Python in a different repository, out of scope for a
+  `software-english`-only issue. Shipped as one new rule,
+  `no-framing-device` (SPEC §5.10), entirely inference-based
+  (`check = "model-judgement"`), which needs no `claude-plugins` code
+  change at all: that tier already collects every such rule's
+  description generically. One correction to the Opus plan's first
+  reading: the issue states plainly that an identity reading (`the
+  primary key is what the index is built on`) does **not** exempt the
+  cleft shape — kept as a fault with a fix, not listed as an exception.
+  "Distinct from" cross-references added against seven neighbouring
+  rules that could otherwise double-fire on the same sentence
+  (`no-question-or-argument-heading`, `no-contrastive-framing`,
+  `no-catch-all-verb`, `anthropomorphism-paraphrase`,
+  `no-metaphor-or-analogy`, `no-abstract-stand-in-for-artefact`,
+  `no-entailed-restatement`). Verified against the real linter: zero
+  `[error]`-severity findings on the added lines in both files; a
+  manual judgement pass against every rule the printed
+  `INFERENCE_ADVISED` block listed found no plausible finding in the new
+  prose. All seven `claude-plugins` test suites pass, unchanged.
+  Shipped on `software-english`'s `main` at
+  [`1de92e5`](https://github.com/jimbarritt/software-english/commit/1de92e5),
+  released as
+  [v0.0.22](https://github.com/jimbarritt/software-english/releases/tag/v0.0.22),
+  closing the issue automatically. `claude-plugins` pin bumped and `swe`
+  version bumped (`0.18.1` -> `0.18.2`) on `main` at
+  [`53ea98b`](https://github.com/jimbarritt/claude-plugins/commit/53ea98b),
+  released as
+  [swe-v0.18.2](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.18.2).
+  Single pass, no escalation. The issue's own closing remark, that
+  `no-contrastive-framing` may separately miss the general `X rather
+  than Y` contrast, is left unfixed: flagged there as a possible
+  separate gap, not this issue's ask.
 - [tasks/software-english-issue-14-abstract-stand-in-every-type.md](tasks/software-english-issue-14-abstract-stand-in-every-type.md)
   ([#14](https://github.com/jimbarritt/software-english/issues/14), opened
   by `jimbarritt-pleo`, a trusted collaborator — the first issue claimed from
