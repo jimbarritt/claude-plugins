@@ -1,10 +1,14 @@
 # State
 
-Last updated: 2026-10-20 (software-english#8 shipped, closed)
+Last updated: 2026-10-20 (software-english#9 claimed, in progress)
 
 ## In progress
 
-None.
+[tasks/software-english-issue-9-count-signpost.md](tasks/software-english-issue-9-count-signpost.md)
+([#9](https://github.com/jimbarritt/software-english/issues/9)):
+widen `vacuous-classification-property` to name a bare count
+signposting the list below it as a second, distinct fault. Plan done;
+work starting next.
 
 ## Waiting on others
 
