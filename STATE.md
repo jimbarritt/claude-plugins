@@ -1,6 +1,6 @@
 # State
 
-Last updated: 2026-10-20 (software-english#9 shipped, closed)
+Last updated: 2026-10-20 (software-english#10 and #11 shipped, closed)
 
 ## In progress
 
@@ -56,6 +56,59 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-10-11-pr-description-document-type.md](tasks/software-english-issue-10-11-pr-description-document-type.md)
+  ([#10](https://github.com/jimbarritt/software-english/issues/10),
+  [#11](https://github.com/jimbarritt/software-english/issues/11)):
+  two issues asking for the same feature, oldest-first claimed #10,
+  #11's concrete design actually implemented. A PR description could
+  pass the deterministic tier clean while a sentence named no
+  artefact (an abstract stand-in: "evidence", "visibility", and
+  similar) or listed a check with no result, since no document type
+  recognised a pull request description and nothing raised the bar
+  for its two load-bearing sections. New `PR Description` type in
+  Appendix F (`templates/pull-request.md`, a convergent convention
+  like Lab Notebook, since no standards body defines one, citing
+  Google's CL-description guide and the Linux kernel's "Submitting
+  patches"), and two new inference-tier rules conditioned on it only:
+  `no-abstract-stand-in-for-artefact` (SPEC §7.15, widened beyond
+  #11's ask to also cover #10's own "It reports four counts" unnamed-
+  count example) and `no-check-without-result` (SPEC §7.16, widened
+  to a manual-step check and a ticked checkbox, not only a command).
+  `document-type-template` and `no-work-breakdown-or-tracker-pointer`
+  updated to name the type, the latter gaining a third exception for
+  a `Closes #N` closing-keyword line. Plan from an Opus Plan subagent,
+  which flagged the sourcing gap (the three cited guides' hosts
+  blocked by the network proxy, so not fetched and checked against
+  the drafted paraphrase) and eleven judgement calls rather than
+  deciding them silently; two taken without asking (the two widenings
+  above). Two self-check catches during drafting, both found only by
+  running the real linter: the banned word "really" used three times
+  across the new prose, and "stands in for"/"standing in for" in the
+  new rule's own prose genuinely tripped the deterministic
+  `abstract-location` rule it is adjacent to (an abstract subject
+  followed by a location verb), not a false positive, reworded to
+  "used in place of"/"substitute". Verified directly against the real
+  linter throughout, not just reasoned about: `--diff --added-only`
+  reports 0 errors on every newly added line across the four touched
+  files; per-file before/after error counts unchanged on every
+  pre-existing file (`SPEC.md` 19→19, `COLOPHON.md` 1→1, `README.md`
+  2→2); the new `templates/pull-request.md` lints clean. All six
+  `claude-plugins` test suites pass (142 assertions, unchanged), run
+  twice: once against a local-fixture copy of the edited files, and
+  again against the real fetched `v0.0.19` tag after release. Shipped
+  on `software-english`'s `main` at
+  [`76d9954`](https://github.com/jimbarritt/software-english/commit/76d9954),
+  released as
+  [`v0.0.19`](https://github.com/jimbarritt/software-english/releases/tag/v0.0.19),
+  which closed both issues automatically. `claude-plugins` pin bumped
+  and `swe` version bumped (`0.17.9` -> `0.17.10`) on `main` at
+  [`3ed3ab4`](https://github.com/jimbarritt/claude-plugins/commit/3ed3ab4),
+  released as
+  [`swe-v0.17.10`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.10).
+  Single pass, no escalation. #10's own "where" standing in for a
+  conditional is a sentence-level fault neither issue asked to fix;
+  shown as a worked example in the new template, not filed as a
+  further issue (one-issue-per-run).
 - [tasks/software-english-issue-9-count-signpost.md](tasks/software-english-issue-9-count-signpost.md)
   ([#9](https://github.com/jimbarritt/software-english/issues/9)):
   `vacuous-classification-property`'s trigger set named only a
