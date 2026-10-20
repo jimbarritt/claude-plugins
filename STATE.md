@@ -1,6 +1,7 @@
 # State
 
-Last updated: 2026-10-20 (claude-plugins#18 shipped, closed)
+Last updated: 2026-10-20 (software-english#14 shipped, closed; #16 closed
+as a side effect)
 
 ## In progress
 
@@ -56,6 +57,77 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-14-abstract-stand-in-every-type.md](tasks/software-english-issue-14-abstract-stand-in-every-type.md)
+  ([#14](https://github.com/jimbarritt/software-english/issues/14), opened
+  by `jimbarritt-pleo`, a trusted collaborator — the first issue claimed from
+  that account): `no-abstract-stand-in-for-artefact` (SPEC §7.15) carried
+  `applies_to_document_type = "pr-description"`, so the same fault (an
+  abstract or structural noun standing in for a named artefact — the issue's
+  own example, "shapes" and "this record" for unnamed vendor payload
+  structures and a schema) passed both tiers clean on a Reference or a
+  Design document. Plan from an Opus Plan subagent, which read the sibling
+  `no-check-without-result` entry, SPEC §7.15/§7.16/Appendix F, all four
+  document-type templates, and `COLOPHON.md` before proposing anything.
+  Dropped the scope condition so the rule fires on every type; only its
+  *scope* stays conditional (problem/change statement on a PR Description,
+  whole document elsewhere — the issue's own literal proposal). Widened the
+  artefact list (added `type`, `schema`, `table`, `endpoint`, `topic`) and
+  split the stand-in noun list by type (PR Description keeps
+  `evidence`/`context`/`visibility`/`coverage`/`insight`; Reference/Design
+  gets `shape`/`form`/`flavour`); deliberately did not add `surface` from
+  the issue's own list, since it is already on `vocabulary/banned.tsv` and
+  adding it here would double-report. New precedence clause against
+  `no-metaphor-or-analogy` (§5.5), which already covers a form noun standing
+  in for a *named* schema's fields: if the sentence names the artefact,
+  §5.5 only; if it names no artefact at all, §7.15 only — needed so the
+  issue's own fault sentence and §5.5's own worked example don't collide.
+  New literal-sense exception for `form` (`an HTML form`). Confirmed
+  `no-check-without-result` needs no change: it is the "essential" case in
+  sibling issue #16's own essential/incidental terms, since its fault needs
+  a Verification/Not-verified section pair only a PR Description has. One
+  correction to the issue's own framing, given in the closing comment: its
+  claim that every scoped rule names `pr-description` was already false in
+  v0.0.20 (`no-planning-content-in-reference` is scoped to `reference`).
+  Two self-check catches, both found only by running the real linter, not
+  anticipated in the plan: "the sentence decides which rule reports it"
+  genuinely tripped `anthropomorphism-fixed-list` (correctly, not a false
+  positive — reworded to state the two cases with no verb of deciding), and
+  "document, the common stand-ins are structural nouns" tripped
+  `abstract-location`, a real false positive from hyphen tokenisation
+  (`stand-ins` splits to the bare word `stand`, a listed location verb)
+  landing within 4 words of `document`, a structure noun, after the
+  paragraph was rewrapped onto a new line (reworded the second "stand-ins"
+  to "substitutes"). Verified directly against the real linter throughout:
+  `--diff --added-only` reports 0 errors on every changed line across all
+  four files after both fixes; `--force-inference` against a scratch
+  Design-typed source confirms the rule now reaches the judging model there
+  (it always did, regardless of document type — `applies_to_document_type`
+  is never read programmatically by `software_english_lint.py`, only by the
+  judging model via the rule's own prose, which is what this fix actually
+  changes); a manual judgement pass confirms the issue's fault sentence
+  fires under §7.15, its fix sentence does not, §5.5's own worked example
+  fires under §5.5 only, and the stated exceptions (a measured quantity, an
+  HTML form) do not fire. All six `claude-plugins/swe` test suites pass (176
+  assertions, unchanged), run against the fix both as a local checkout and
+  against the real fetched `v0.0.21` tag post-release.
+  `scripts/check-unshipped.sh` clean before and after the `swe` pin bump.
+  Shipped on `software-english`'s `main` at
+  [`86fa220`](https://github.com/jimbarritt/software-english/commit/86fa220),
+  released as
+  [`v0.0.21`](https://github.com/jimbarritt/software-english/releases/tag/v0.0.21),
+  which closed #14 automatically. `claude-plugins` pin bumped and `swe`
+  version bumped (`0.18.0` -> `0.18.1`) on `main` at
+  [`c5204ae`](https://github.com/jimbarritt/claude-plugins/commit/c5204ae),
+  released as
+  [`swe-v0.18.1`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.18.1).
+  Single pass, no escalation. Also closed
+  [#16](https://github.com/jimbarritt/software-english/issues/16) as a side
+  effect: it asked for exactly the essential/incidental audit this fix
+  performed on the only two `pr-description`-scoped rules that existed,
+  with nothing left to audit once both were decided; closed with a comment
+  pointing back to this commit, its own "add a new `reference` document
+  type instead" alternative not pursued, rather than treated as a second
+  piece of work this run.
 - [tasks/issue-18-register-rule-candidate-detectors.md](tasks/issue-18-register-rule-candidate-detectors.md)
   ([#18](https://github.com/jimbarritt/claude-plugins/issues/18)): ninth
   real `claude-plugins` issue worked end to end by the self-maintaining-repo
