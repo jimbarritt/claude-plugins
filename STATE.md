@@ -1,6 +1,6 @@
 # State
 
-Last updated: 2026-10-20 (software-english#7 shipped, closed)
+Last updated: 2026-10-20 (software-english#8 shipped, closed)
 
 ## In progress
 
@@ -56,6 +56,45 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-8-register-rule.md](tasks/software-english-issue-8-register-rule.md)
+  ([#8](https://github.com/jimbarritt/software-english/issues/8)):
+  prose can pass every existing rule clean and still read as
+  machine-generated. New SPEC §8 "Register rules", two inference-tier
+  catalogue entries: `no-cadence-device` (§8.1, a verbless fragment
+  used as a rhythmic beat after a longer sentence, or a matched
+  sentence pair that restates itself in parallel shape) and
+  `no-mechanical-repetition` (§8.2, a bold lead-in repeated on every
+  bullet across a run of lists, one measurement restated several times
+  in different words, a contents list out of scale with its document).
+  Plan from an Opus Plan subagent, applied with no deviation on scope
+  or section placement. The issue's own two "deterministic-tier
+  candidates" (a verbless-fragment check, a repeated-structure count)
+  don't meet SPEC §2's deterministic-tier bar on their own (a
+  stdlib-only linter has no part-of-speech tagger, and deciding whether
+  flagged text adds a fact needs judgement either way), so both stayed
+  inference-based/`model-judgement`, and the detector idea was split
+  out as a `claude-plugins` follow-up,
+  [#18](https://github.com/jimbarritt/claude-plugins/issues/18), for
+  located-candidate signals to feed the existing model pass rather than
+  a new blocking rule. One self-check catch: the drafted `COLOPHON.md`
+  text used the banned word "holds", caught only by running the real
+  linter (copying the edited `rules/core-rules.toml` into
+  `claude-plugins/swe/data/`, since `swe` is not installed as a skill
+  in this session), fixed to "contains". Deterministic-tier error count
+  on the two edited files matched the pre-edit baseline exactly (20
+  before and after), confirming zero new findings from the new text.
+  All six `claude-plugins` test suites pass (142 assertions,
+  unchanged); `scripts/check-unshipped.sh` clean before and after the
+  `swe` pin bump. Shipped on `software-english`'s `main` at
+  [`9df843b`](https://github.com/jimbarritt/software-english/commit/9df843b3cb8c31bd971294578f048eb715fa82fd),
+  released as
+  [v0.0.17](https://github.com/jimbarritt/software-english/releases/tag/v0.0.17),
+  which closed the issue automatically. `claude-plugins` pin bumped and
+  `swe` version bumped (`0.17.7` -> `0.17.8`) on `main` at
+  [`7147c5a`](https://github.com/jimbarritt/claude-plugins/commit/7147c5a4648eb8d7962095d3813bffa2f6c3323a),
+  released as
+  [`swe-v0.17.8`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.8).
+  Single pass, no escalation.
 - [tasks/software-english-issue-7-unanchored-reference-headings.md](tasks/software-english-issue-7-unanchored-reference-headings.md)
   ([#7](https://github.com/jimbarritt/software-english/issues/7)):
   `no-unanchored-reference`'s rule description is the whole rule for
