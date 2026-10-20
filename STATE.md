@@ -4,7 +4,12 @@ Last updated: 2026-10-20 (software-english#10 and #11 shipped, closed)
 
 ## In progress
 
-None.
+- [tasks/software-english-issue-12-heading-rules.md](tasks/software-english-issue-12-heading-rules.md)
+  ([software-english#12](https://github.com/jimbarritt/software-english/issues/12)):
+  two new inference-tier rules for heading-specific faults
+  (`no-withholding-heading`, `no-question-or-argument-heading`).
+  Claimed and planned; work and ship/release steps follow in the same
+  run.
 
 ## Waiting on others
 
