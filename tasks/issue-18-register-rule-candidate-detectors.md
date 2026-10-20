@@ -178,4 +178,35 @@ both rules). No other version file touched, per CLAUDE.md.
 
 ## Status
 
-Plan complete. Implementation not yet started.
+Done. Single pass, no escalation.
+
+Implemented exactly as planned, with the matched-pair detector kept in
+scope (not deferred). `register_blocks()`, `split_sentences()`,
+`sentence_has_verb()`, `find_cadence_fragments()`, `find_matched_pairs()`,
+`find_bold_list_runs()`, `find_register_candidates()`, and
+`load_verb_lexicon()`/`load_tsv_words()` added to
+`swe/scripts/software_english_lint.py`; `format_inference_rules()` and
+`main()`'s `sources` pipeline carry the plumbing. Verified directly
+against the real linter and the pinned `v0.0.20` data throughout, not just
+reasoned about: the catalogue's own `no-cadence-device` worked example
+("No silent drops.") fires exactly as the plan predicted, including when
+wrapped across lines; the determiner exception ("No retries.") fires; the
+matched-pair example ("It never reads a file twice.") fires; the
+bold-list-run detector fires on a real 3-list run and stays silent on 2
+lists, a broken run, a single 5-bullet list (the shape this repo's own
+templates and `CLAUDE.md` use for a required-sections list), wholly-bold
+bullets, and the same content inside a fenced code block; a true-negative
+sweep of this repo's own real prose (`README.md`, `agent-guide.md`,
+`lint-file/SKILL.md`, the output style, root `CLAUDE.md`) reports zero
+candidates. New `swe/tests/register_candidates_test.sh`, 34 assertions, all
+pass; all six existing suites pass unchanged (142 assertions, 176 total).
+`--diff --added-only` on the two edited docs reports zero
+errors/warnings. `agent-guide.md`, `lint-file/SKILL.md`, and the three
+hooks' advisory text updated. Version bumped `0.17.12` -> `0.18.0`. Shipped
+on `main` at
+[`a48875a`](https://github.com/jimbarritt/claude-plugins/commit/a48875a377a2adab6168f5a414bcce2da045d6de),
+which closed the issue automatically, released as
+[`swe-v0.18.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.18.0).
+No `software-english` change: the located-candidate approach needed no new
+catalogue `check` value, as the issue itself anticipated. No other open
+issue resolved by this change.

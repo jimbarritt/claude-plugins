@@ -1,14 +1,10 @@
 # State
 
-Last updated: 2026-10-20 (claude-plugins#18 claimed, planned)
+Last updated: 2026-10-20 (claude-plugins#18 shipped, closed)
 
 ## In progress
 
-- [tasks/issue-18-register-rule-candidate-detectors.md](tasks/issue-18-register-rule-candidate-detectors.md)
-  ([#18](https://github.com/jimbarritt/claude-plugins/issues/18)): located
-  candidate detectors for `no-cadence-device` and `no-mechanical-repetition`
-  in `swe/scripts/software_english_lint.py`. Plan from an Opus Plan subagent
-  complete. Implementation next.
+None.
 
 ## Waiting on others
 
@@ -60,6 +56,54 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-18-register-rule-candidate-detectors.md](tasks/issue-18-register-rule-candidate-detectors.md)
+  ([#18](https://github.com/jimbarritt/claude-plugins/issues/18)): ninth
+  real `claude-plugins` issue worked end to end by the self-maintaining-repo
+  Routine, single pass, no escalation. Software English's `no-cadence-device`
+  and `no-mechanical-repetition` (SPEC §8.1, §8.2, shipped #8/v0.0.17) are
+  both `model-judgement`, so the deterministic tier never pointed at
+  anything for them; two of their patterns have a cheap structural signal a
+  stdlib-only linter can locate without deciding the fault itself. New
+  `register_blocks()`/`split_sentences()` (multi-line structure the existing
+  per-line `check_line()` cannot see) feed three detectors:
+  `find_cadence_fragments()` (a verbless sentence right after a 15+-word
+  sentence, against a closed verb/auxiliary lexicon —
+  `vocabulary/operations.tsv` plus auxiliaries plus a further hardcoded
+  common-verb set, added only after real prose false-positived without it,
+  with a determiner-before exception so "No retries." reads as a noun),
+  `find_matched_pairs()` (two adjacent sentences with an identical
+  word-class sequence — the issue's own "matched-pair half" ask, kept in
+  scope rather than deferred), and `find_bold_list_runs()` (a run of 3+
+  bold-lead-in bullet lists; a single such list does not fire, since this
+  repo's own templates and `CLAUDE.md` use one deliberately, exactly the
+  catalogue rule's own exclusion). Plan from an Opus Plan subagent, which
+  read the real linter, the real pinned `v0.0.20` catalogue/TSVs, and
+  prototyped all three detectors against all 33 real `.md` files in both
+  repos before proposing thresholds, flagging that the thresholds were
+  tuned on that same corpus (no held-out set) as a point to recheck later.
+  All candidates print as `candidate at line N: ...` lines directly after
+  their rule's own `inference pending` line, inside the existing
+  `===INFERENCE_ADVISED===` block, always at line 0, never entered into a
+  findings list, so `error_total`, `--count`, and the exit code are
+  unaffected; capped at 20 per rule per source. Verified directly against
+  the real linter and the real pinned data throughout: the catalogue's own
+  worked examples fire (including wrapped across lines), the determiner
+  exception fires, the list-run detector fires on a real 3-list run and
+  stays silent on 2 lists, a broken run, a single 5-bullet list, wholly-bold
+  bullets, and the same content fenced; a true-negative sweep of this
+  repo's own real prose (`README.md`, `agent-guide.md`,
+  `lint-file/SKILL.md`, the output style, root `CLAUDE.md`) reports zero
+  candidates. New `swe/tests/register_candidates_test.sh`, 34 assertions,
+  all pass; all six existing suites pass unchanged (142 assertions, 176
+  total). `--diff --added-only` on the two edited docs
+  (`agent-guide.md`, `lint-file/SKILL.md`) reports zero errors/warnings.
+  The three hooks' advisory text also updated. Version bumped `0.17.12` ->
+  `0.18.0`. Shipped on `main` at
+  [`a48875a`](https://github.com/jimbarritt/claude-plugins/commit/a48875a377a2adab6168f5a414bcce2da045d6de),
+  which closed the issue automatically, released as
+  [`swe-v0.18.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.18.0).
+  No `software-english` change: the located-candidate approach needed no
+  new catalogue `check` value, as the issue itself anticipated.
 - [tasks/software-english-issue-12-heading-rules.md](tasks/software-english-issue-12-heading-rules.md)
   ([#12](https://github.com/jimbarritt/software-english/issues/12)):
   two faults visible only in a heading, named in the issue but not in
