@@ -1,14 +1,10 @@
 # State
 
-Last updated: 2026-10-20 (software-english#9 claimed, in progress)
+Last updated: 2026-10-20 (software-english#9 shipped, closed)
 
 ## In progress
 
-[tasks/software-english-issue-9-count-signpost.md](tasks/software-english-issue-9-count-signpost.md)
-([#9](https://github.com/jimbarritt/software-english/issues/9)):
-widen `vacuous-classification-property` to name a bare count
-signposting the list below it as a second, distinct fault. Plan done;
-work starting next.
+None.
 
 ## Waiting on others
 
@@ -60,6 +56,47 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-9-count-signpost.md](tasks/software-english-issue-9-count-signpost.md)
+  ([#9](https://github.com/jimbarritt/software-english/issues/9)):
+  `vacuous-classification-property`'s trigger set named only a
+  taxonomy-definition case, so a bare count signposting the list
+  below it ("Three costs follow from that:", "Three routes drop an
+  entry:") went uncaught. The issue's own third example, "Two things
+  changed.", already fired via `vocabulary/banned.tsv`'s "Announcing
+  the shape of the text" group — only the first two were genuinely
+  uncaught, corrected in the closing comment rather than absorbed
+  silently. Rewrote the rule's `description` (TOML and SPEC.md §7.6
+  both) to name two faults, taxonomy property and count signpost,
+  each with a Fault/Fix pair and stated exceptions (a partial-set
+  count, a summary count, a quantity). Rule id, tier, `check`, and
+  `trigger_phrases` unchanged: nothing in `claude-plugins` ever reads
+  `trigger_phrases` (only `description` reaches the judging model,
+  confirmed by reading `--advise-inference`'s block-building code
+  directly), and the new trigger is positional, not a literal
+  substring, so it belongs in prose. No `claude-plugins` code change:
+  "findable deterministically in markdown" describes the trigger's
+  shape, not a Python detector requirement, and the trigger spans a
+  sentence head plus the following list, which the linter's
+  line-at-a-time `check_line` can't express without new
+  paragraph-aware code anyway — left as a pointer to `claude-plugins`#18
+  rather than a third issue. Verified against the real linter: 19
+  deterministic-tier errors on `spec/SPEC.md` both before and after,
+  identical set, line-shifted only; manually judged the issue's own
+  examples and the three new exceptions against the rewritten
+  description, each landing correctly. All six `claude-plugins` test
+  suites pass (142 assertions, unchanged). Shipped on
+  `software-english`'s `main` at
+  [`03b3f31`](https://github.com/jimbarritt/software-english/commit/03b3f31),
+  released as
+  [v0.0.18](https://github.com/jimbarritt/software-english/releases/tag/v0.0.18),
+  closing the issue automatically. `claude-plugins` pin bumped and
+  `swe` version bumped (`0.17.8` -> `0.17.9`) on `main` at
+  [`59c831f`](https://github.com/jimbarritt/claude-plugins/commit/59c831f),
+  released as
+  [`swe-v0.17.9`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.9).
+  Single pass, no escalation. One process catch, before pushing: the
+  first commit was missing the required attribution footer, fixed
+  with `git commit --amend` since it had not been pushed yet.
 - [tasks/software-english-issue-8-register-rule.md](tasks/software-english-issue-8-register-rule.md)
   ([#8](https://github.com/jimbarritt/software-english/issues/8)):
   prose can pass every existing rule clean and still read as

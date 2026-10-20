@@ -120,4 +120,82 @@ with the wording below and the checks in Outcome.
 
 ## Outcome
 
-(filled in after Step 5 work and Step 6 ship)
+Applied the plan as drafted, no deviation on scope.
+
+- `rules/core-rules.toml`: rewrote `vacuous-classification-property`'s
+  `description` to name two faults (taxonomy property, count
+  signpost), each with a Fault/Fix pair and stated exceptions.
+  `trigger_phrases` left unchanged, no TOML comment added above it
+  (no other rule in the file carries an inline comment).
+- `spec/SPEC.md` §7.6: mirrored the same two-fault structure, heading
+  text unchanged so the TOC entry and `#76-...` anchor both stay
+  valid.
+
+One correction found while reading, not anticipated going in: the
+issue's third example, "Two things changed.", already fires today —
+`vocabulary/banned.tsv`'s "Announcing the shape of the text" group
+bans `two things`/`three things`/`what follows` as literal phrases.
+Only the first two examples were genuinely uncaught. Stated plainly in
+the closing comment rather than silently absorbed.
+
+Verified against the real linter, not just reasoned about: copied the
+edited `rules/core-rules.toml` into `claude-plugins/swe/data/`
+(gitignored; `swe` is not installed as a skill in this session, and
+`.fetched-tag` was set to the pinned tag so `fetch-software-english-data.sh`
+did not overwrite it), then ran `software_english_lint.py` against
+both the pre-edit and post-edit `spec/SPEC.md`. Deterministic tier:
+19 errors both before and after, the identical set of findings,
+line-shifted only by the inserted text (confirmed by diffing the
+sorted finding lines after normalising the two temp filenames) — zero
+new deterministic findings from the new prose. Warnings rose 2529 ->
+2613, expected (`vocabulary-membership` scales with word count, and is
+advisory-only). Also ran `--force-inference` on a scratch file built
+from the issue's own three examples plus the three new exceptions
+(a partial-set count, a summary count, a quantity) and manually judged
+each against the new description: both previously-uncaught examples
+now read as a clear count-signpost fault, and all three exceptions
+correctly do not. `python3 -I` with `tomllib` confirmed the file still
+parses and all 26 rule ids stay unique. Restored `swe/data/` to empty
+afterwards (it is gitignored and not meant to persist).
+
+All six `claude-plugins` test suites pass (142 assertions, unchanged).
+`claude-plugins`'s own `git status` stayed clean throughout (no code
+change needed there per the Reading section above); confirmed with a
+second read, not just the Reading section's reasoning, since
+`check_line`'s line-at-a-time model can't express a trigger spanning
+a sentence head and the list that follows it without new
+paragraph-aware code, out of scope for a wording-only issue.
+
+Committed on `software-english`'s `main`:
+[`03b3f31`](https://github.com/jimbarritt/software-english/commit/03b3f31),
+message ends `closes #9`. Pushed. Released: `release.yml` run
+[39392367837](https://github.com/jimbarritt/software-english/actions/runs/39392367837)
+with `version: 0.0.18` (newest prior tag v0.0.17), success, tag
+[v0.0.18](https://github.com/jimbarritt/software-english/releases/tag/v0.0.18).
+
+Because the change touches `rules/core-rules.toml` (a file `swe`
+fetches): bumped `claude-plugins/swe/software-english.json`'s `tag` to
+`v0.0.18` and `swe`'s own `plugin.json` version `0.17.8` -> `0.17.9`,
+commit
+[`59c831f`](https://github.com/jimbarritt/claude-plugins/commit/59c831f)
+on `claude-plugins` `main`, pushed, ran `release-plugin.yml` with
+`plugin: swe` — run
+[39392521316](https://github.com/jimbarritt/claude-plugins/actions/runs/39392521316),
+success, tag
+[swe-v0.17.9](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.17.9).
+Confirmed with `scripts/check-unshipped.sh` before (flagged version
+ahead of tag, as expected pre-release) and after (clean, matches).
+
+Commented on #9 with the correction, the commit, and both release
+links; removed `agent:working`, kept `auto-fix-candidate`. Issue
+auto-closed by the `closes #9` commit before the comment landed
+(`closed_by: jimbarritt`, `state_reason: completed`). No other open
+issue, on either tracker, is resolved by this change.
+
+One process note, not a deviation: the first `software-english`
+commit was made without the required attribution footer
+(`Co-Authored-By`/`Claude-Session`); caught before pushing by reading
+the commit back with `git log`, fixed with `git commit --amend` since
+it had not been pushed yet.
+
+Single pass, no escalation.
