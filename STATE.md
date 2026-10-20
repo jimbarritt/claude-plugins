@@ -1,10 +1,15 @@
 # State
 
-Last updated: 2026-10-19 (software-english#6 shipped, closed)
+Last updated: 2026-10-20 (software-english#7 in progress)
 
 ## In progress
 
-None.
+- [tasks/software-english-issue-7-unanchored-reference-headings.md](tasks/software-english-issue-7-unanchored-reference-headings.md)
+  ([#7](https://github.com/jimbarritt/software-english/issues/7)):
+  `no-unanchored-reference`'s rule description (the whole rule, for the
+  inference tier) gave only body-prose examples, so a question-shaped
+  heading ("What this costs", "Which process owns the cache") escaped
+  it. Plan drafted by an Opus Plan subagent; applying now.
 
 ## Waiting on others
 
