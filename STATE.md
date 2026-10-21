@@ -1,10 +1,17 @@
 # State
 
-Last updated: 2026-10-21 (software-english#18 shipped, closed)
+Last updated: 2026-10-21 (software-english#19 claimed, plan written)
 
 ## In progress
 
-None.
+- [tasks/software-english-issue-19-distributive-tail.md](tasks/software-english-issue-19-distributive-tail.md)
+  ([#19](https://github.com/jimbarritt/software-english/issues/19), opened
+  by `jimbarritt-pleo`): new inference-based rule `no-distributive-tail`
+  (SPEC §8.3), a coordinated distributive clause attached to a count whose
+  property is about the document's layout rather than the subject matter.
+  Plan written by an Opus Plan subagent. Next: apply to `main`, run the
+  `swe` test suite and `/swe:lint-file` on the touched prose, run
+  `scripts/check-unshipped.sh`, commit `closes #19`, release.
 
 ## Waiting on others
 
