@@ -232,4 +232,29 @@ to the new release, bump `swe`'s own `version` in `claude-plugins`, push
 
 ## Outcome
 
-(filled in at step 9, once shipped)
+Shipped, single pass, no escalation.
+
+- `software-english@4beaf26`: new §8.3 `no-distributive-tail`, the matching
+  `core-rules.toml` block, and the `COLOPHON.md` register-section fix.
+  `closes #19`; GitHub auto-closed the issue on push.
+- Checked before committing: `tomllib` parses the edited `core-rules.toml`
+  with no duplicate ids (34 rules); the deterministic tier finds no new
+  errors in the added SPEC.md/COLOPHON.md text (ran the real linter with
+  the edited checkout copied into a local, gitignored `swe/data/` cache,
+  not committed); the located-candidate detector finds no new
+  `no-cadence-device` candidate in the new section; a manual inference-tier
+  read of the new prose against the plausible siblings (anthropomorphism,
+  metaphor, catch-all-verb, entailed-restatement, ownership, framing-device,
+  withholding/question heading, and a self-check against its own new rule)
+  found nothing; the `decides`/`cannot tell X from Y` phrasing in the
+  `COLOPHON.md` addition matches already-shipped phrasing at `SPEC.md:306`
+  and `COLOPHON.md:182`. All seven `claude-plugins/swe` test suites pass,
+  twice: once with the edited checkout, once again after fetching the real
+  released tag (176 assertions, unchanged).
+- Released [`v0.0.25`](https://github.com/jimbarritt/software-english/releases/tag/v0.0.25).
+- Touches `rules/core-rules.toml`, so also pinned and released `swe`:
+  `claude-plugins@fcee923` (tag bump + `swe` version 0.18.4 → 0.18.5),
+  released as [`swe-v0.18.5`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.18.5).
+  `check-unshipped.sh` clean on both repos afterwards.
+- Commented on the issue with the commit and release tags; removed
+  `agent:working`.

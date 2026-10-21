@@ -1,17 +1,10 @@
 # State
 
-Last updated: 2026-10-21 (software-english#19 claimed, plan written)
+Last updated: 2026-10-21 (software-english#19 shipped, closed)
 
 ## In progress
 
-- [tasks/software-english-issue-19-distributive-tail.md](tasks/software-english-issue-19-distributive-tail.md)
-  ([#19](https://github.com/jimbarritt/software-english/issues/19), opened
-  by `jimbarritt-pleo`): new inference-based rule `no-distributive-tail`
-  (SPEC §8.3), a coordinated distributive clause attached to a count whose
-  property is about the document's layout rather than the subject matter.
-  Plan written by an Opus Plan subagent. Next: apply to `main`, run the
-  `swe` test suite and `/swe:lint-file` on the touched prose, run
-  `scripts/check-unshipped.sh`, commit `closes #19`, release.
+None.
 
 ## Waiting on others
 
@@ -63,6 +56,30 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-19-distributive-tail.md](tasks/software-english-issue-19-distributive-tail.md)
+  ([#19](https://github.com/jimbarritt/software-english/issues/19), opened
+  by `jimbarritt-pleo`): a sentence stating a count or a set, followed by a
+  clause coordinated with `and` that distributes a property over the
+  members (`and each is ...`, `and both do ...`), where that property is a
+  fact about the document's own layout rather than the subject matter. Plan
+  from an Opus Plan subagent, which read SPEC §8 in full and §7.6 before
+  proposing anything. Two corrections to the issue's own proposed fix and
+  test, both forced by the issue's own stated rule: the repair sentence
+  keeps the fact "run on upload", which the issue's own repair dropped,
+  breaking its own "loses no fact" test and turning the sentence into a
+  §7.6 count signpost once a list follows directly; and the test needed a
+  first step checking that the property is about layout, not subject
+  matter, since "loses no fact" alone does not separate the fault from the
+  issue's own correct counter-example. New standalone rule
+  `no-distributive-tail` (SPEC §8.3), third in the §8 register-rules
+  family alongside `no-cadence-device` (§8.1) and `no-mechanical-repetition`
+  (§8.2), inference-based for the same reason as its siblings: a parser can
+  find the `, and each`/`, and both` coordination, but not whether the
+  distributed property is about the document or the subject matter. Fixed
+  `COLOPHON.md`'s now-false "Both rules are inference-based" in the §8
+  section. Released `software-english` `v0.0.25`; since the change touches
+  `rules/core-rules.toml`, also pinned and released `swe` (`0.18.4` →
+  `0.18.5`, `swe-v0.18.5`). Shipped, single pass, no escalation.
 - [tasks/software-english-issue-18-ownership-entitlement.md](tasks/software-english-issue-18-ownership-entitlement.md)
   ([#18](https://github.com/jimbarritt/software-english/issues/18), opened
   by `jimbarritt-pleo`): a possession or entitlement construction (`own`,
