@@ -1,10 +1,17 @@
 # State
 
-Last updated: 2026-10-20 (software-english#15 shipped, closed)
+Last updated: 2026-10-21 (software-english#17 in progress)
 
 ## In progress
 
-None.
+- [tasks/software-english-issue-17-unstated-presupposition.md](tasks/software-english-issue-17-unstated-presupposition.md)
+  ([#17](https://github.com/jimbarritt/software-english/issues/17)): plan
+  written and implemented on a local `software-english` `main` checkout,
+  verified against the real linter and all seven `claude-plugins` test
+  suites. Not yet shipped (committed/pushed/released) — in progress in the
+  same run. Sibling issue #18 ("possession and entitlement require an
+  animate possessor"), filed minutes later by the same author, is left
+  unclaimed for a future run (one issue per run).
 
 ## Waiting on others
 
