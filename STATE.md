@@ -1,16 +1,10 @@
 # State
 
-Last updated: 2026-10-21 (software-english#18 claimed, in progress)
+Last updated: 2026-10-21 (software-english#18 shipped, closed)
 
 ## In progress
 
-- [tasks/software-english-issue-18-ownership-entitlement.md](tasks/software-english-issue-18-ownership-entitlement.md)
-  ([#18](https://github.com/jimbarritt/software-english/issues/18), opened
-  by `jimbarritt-pleo`): a possession or entitlement construction (`own`,
-  `belongs to`, `deserves`, `is entitled to`, and similar) given to a
-  non-person possessor. Plan from an Opus Plan subagent: new inference-based
-  rule `no-ownership-or-entitlement-for-a-system` (SPEC §5.11). Work not yet
-  started on `main`.
+None.
 
 ## Waiting on others
 
@@ -62,6 +56,72 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-18-ownership-entitlement.md](tasks/software-english-issue-18-ownership-entitlement.md)
+  ([#18](https://github.com/jimbarritt/software-english/issues/18), opened
+  by `jimbarritt-pleo`): a possession or entitlement construction (`own`,
+  `its own`, `belongs to`, `is entitled to`, `deserves`, `earns`, `claims`,
+  `is owed`, and similar) given a possessor that cannot own or claim
+  desert — a system, a service, a component, a process, a document, or a
+  record. Plan from an Opus Plan subagent, which read SPEC §5 in full and
+  the no-unstated-presupposition (§7.19) precedent before proposing
+  anything. Two departures from the issue's own proposed direction, both
+  forced by text already shipped in this spec, not left to the model to
+  discover at judgement time: possessor animacy alone is not sufficient,
+  since `own` already appears correctly with an inanimate possessor
+  meaning one each and not shared ("each event on its own topic", the
+  §3.6/§5.9 fix text; "its own sentence", §8.1) — the issue's own cut test
+  ("cutting `own` changes nothing the sentence states") made a second,
+  independent condition rather than restated motivation, so the new rule
+  does not fire on the project's own correct fix text; and `belongs to`
+  needed a sense split against §5.2, which already names it as the
+  correct plain classification verb for an abstract subject (`a rule
+  belongs to one tier`) — the new rule fires on `belongs to` only where
+  its object is a possessor, never where the object is a set or whole the
+  subject is a member or part of. New standalone rule
+  `no-ownership-or-entitlement-for-a-system` (SPEC §5.11), end of §5,
+  inference-based: a fixed-phrase, subject-gated design (the mixed tier
+  §5.1/§5.2 use) was rejected, since every family member has at least one
+  correct use with a system possessor (`belongs to` as classification,
+  distributive `own`, a term of art such as a worker `claims` a job), so a
+  subject check alone would misfire on the project's own shipped prose.
+  Reciprocal "Distinct from" cross-references added to §5.1 and §5.2, in
+  both SPEC.md prose and the TOML descriptions, so neither rule claims a
+  phrase this one covers. Two pre-existing uses of "of its own"/"its own"
+  reworded where they were purely vacuous emphasis the new rule's own test
+  would itself flag (SPEC.md:188 and the matching
+  no-clipped-sentence-run TOML description; no-unanchored-reference's TOML
+  description). Verified against the real linter (`claude-plugins/swe`,
+  data populated locally for this check only, emptied again before
+  shipping, since `swe` is not installed as a skill in this session):
+  `tomllib` confirms 33 unique rule ids (32 before); `--diff --added-only`
+  reports 0 error-severity findings on every added line across both
+  files; the three error-severity findings the new TOML description's own
+  text produces when linted standalone (`carry`, `hold`, `knows`, all
+  inside "Distinct from" sentences citing another rule's own banned
+  words) match the same pattern already present, unmodified, in
+  `no-metaphor-or-analogy`'s own shipped description (12 such findings
+  there), confirmed by linting that rule's unmodified text the same way —
+  not a new defect, the established and unavoidable cost of a catalogue
+  that must name the very words a neighbouring rule bans. Full-file
+  comment-only lint of `rules/core-rules.toml` as a code file: 53 errors
+  before, 56 after, the delta exactly the three self-citation findings
+  above. All seven `claude-plugins/swe` test suites pass (176 assertions,
+  unchanged), run twice: once with locally-populated verification data,
+  once against the real fetched `v0.0.24` tag after release. Shipped on
+  `software-english`'s `main` at
+  [`48b9084`](https://github.com/jimbarritt/software-english/commit/48b908440d91742bf42ca240cb39ee46db3241b2),
+  released as
+  [v0.0.24](https://github.com/jimbarritt/software-english/releases/tag/v0.0.24),
+  closing the issue automatically. `claude-plugins` pin bumped and `swe`
+  version bumped (`0.18.3` -> `0.18.4`) on `main` at
+  [`cb48544`](https://github.com/jimbarritt/claude-plugins/commit/cb4854429656275f2b413c394d5dae496dd63092),
+  released as
+  [swe-v0.18.4](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.18.4).
+  Single pass, no escalation. Sibling issue #19 ("a distributive tail
+  coordinated onto a count"), filed three minutes after this one by the
+  same author, left unclaimed for a future run — one issue per run.
+  `claude-plugins`#16 stays `agent:hold`, excluded from the pool as
+  before.
 - [tasks/software-english-issue-17-unstated-presupposition.md](tasks/software-english-issue-17-unstated-presupposition.md)
   ([#17](https://github.com/jimbarritt/software-english/issues/17), opened
   by `jimbarritt-pleo`): a definite noun phrase with a cardinal or a

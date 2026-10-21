@@ -379,3 +379,33 @@ needs its pinned tag bumped and a `release-plugin.yml` run for `swe`.
 Neither open point is a "two readings lead to materially different work"
 blocker under MAINTAINER-RUN.md's Escalate criteria: both are narrow,
 resolved by the plan's own text, and left as documented scope decisions.
+
+## Outcome
+
+Shipped as planned, with no deviation on placement, tier, or rule id.
+Verified against the real linter (`claude-plugins/swe`, data populated
+locally only for this check, emptied again before shipping):
+`--diff --added-only` reports 0 error-severity findings on every added
+Markdown line; the new TOML description's own three error-severity
+findings when linted standalone (`carry`, `hold`, `knows`, from the
+"Distinct from" sentences citing other rules' banned words) match the
+same self-citation pattern already present in `no-metaphor-or-analogy`'s
+own shipped description (12 such findings there, confirmed by linting its
+unmodified text the same way) — not a new defect. Full-file comment-only
+lint of `rules/core-rules.toml`: 53 errors before, 56 after, the delta
+exactly those three. All seven `claude-plugins/swe` test suites pass (176
+assertions, unchanged), run both with local verification data and against
+the real fetched `v0.0.24` tag.
+
+Shipped on `software-english`'s `main` at
+[`48b9084`](https://github.com/jimbarritt/software-english/commit/48b908440d91742bf42ca240cb39ee46db3241b2),
+released as
+[v0.0.24](https://github.com/jimbarritt/software-english/releases/tag/v0.0.24),
+closing #18 automatically. `claude-plugins` pin bumped and `swe` version
+bumped (`0.18.3` -> `0.18.4`) on `main` at
+[`cb48544`](https://github.com/jimbarritt/claude-plugins/commit/cb4854429656275f2b413c394d5dae496dd63092),
+released as
+[swe-v0.18.4](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.18.4).
+Single pass, no escalation. Closing comment posted on the issue naming
+the commit, release tags, and the two departures from the proposed
+direction; `agent:working` label removed.
