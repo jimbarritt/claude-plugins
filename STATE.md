@@ -1,10 +1,16 @@
 # State
 
-Last updated: 2026-10-21 (software-english#17 shipped, closed)
+Last updated: 2026-10-21 (software-english#18 claimed, in progress)
 
 ## In progress
 
-None.
+- [tasks/software-english-issue-18-ownership-entitlement.md](tasks/software-english-issue-18-ownership-entitlement.md)
+  ([#18](https://github.com/jimbarritt/software-english/issues/18), opened
+  by `jimbarritt-pleo`): a possession or entitlement construction (`own`,
+  `belongs to`, `deserves`, `is entitled to`, and similar) given to a
+  non-person possessor. Plan from an Opus Plan subagent: new inference-based
+  rule `no-ownership-or-entitlement-for-a-system` (SPEC §5.11). Work not yet
+  started on `main`.
 
 ## Waiting on others
 
