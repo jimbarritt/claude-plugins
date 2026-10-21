@@ -1,17 +1,10 @@
 # State
 
-Last updated: 2026-10-21 (software-english#17 in progress)
+Last updated: 2026-10-21 (software-english#17 shipped, closed)
 
 ## In progress
 
-- [tasks/software-english-issue-17-unstated-presupposition.md](tasks/software-english-issue-17-unstated-presupposition.md)
-  ([#17](https://github.com/jimbarritt/software-english/issues/17)): plan
-  written and implemented on a local `software-english` `main` checkout,
-  verified against the real linter and all seven `claude-plugins` test
-  suites. Not yet shipped (committed/pushed/released) — in progress in the
-  same run. Sibling issue #18 ("possession and entitlement require an
-  animate possessor"), filed minutes later by the same author, is left
-  unclaimed for a future run (one issue per run).
+None.
 
 ## Waiting on others
 
@@ -63,6 +56,55 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-17-unstated-presupposition.md](tasks/software-english-issue-17-unstated-presupposition.md)
+  ([#17](https://github.com/jimbarritt/software-english/issues/17), opened
+  by `jimbarritt-pleo`): a definite noun phrase with a cardinal or a
+  completed-act participle ("the four surveyed carriers") can presuppose a
+  count or an act the document never states — a shape
+  `no-unanchored-reference` (SPEC §7.5) doesn't reach, since that rule needs
+  an abstract singular with no antecedent noun, not a concrete plural
+  missing a prior assertion. Plan from an Opus Plan subagent, which read
+  `COLOPHON.md`, `SPEC.md`, and `rules/core-rules.toml` in full before
+  proposing anything. New standalone rule `no-unstated-presupposition`
+  (SPEC §7.19), inference-based, unscoped like its sibling §7.5; appended
+  after §7.18 (not beside §7.5) for the §7.14 renumbering reason. Reciprocal
+  "Distinct from" clauses added to both rules — the plan's one judgement
+  call taken rather than left one-sided, since §7.5's own "and similar"
+  wording could otherwise let the judging model claim a phrase like "the
+  agreed plan" under §7.5 too. Kept the issue's own Fault sentence verbatim;
+  changed its Fix from passive to active voice with a named actor and a
+  date, to state the "who"/"when" the fault withholds and to avoid the
+  §7.6 count-signpost shape. Two self-check catches, both found only by
+  running the real linter: two uses of "is missing" (adjectival, not a
+  verb) tripped the deterministic `no-continuous-tense` rule, reworded to
+  "the document never states the fact ...". Verified directly against the
+  real linter throughout: `tomllib` confirms 32 unique rule ids (31 before);
+  `--diff --added-only` reports 0 errors on every added SPEC.md line, both
+  before and after the `no-continuous-tense` fix; both changed TOML
+  descriptions piped through `--text` report 0 errors (only the
+  sentence-length warnings every dense TOML description in this catalogue
+  already carries); `--force-inference` shows the new rule in the pending
+  block (24, up from 23) with the deterministic tier unchanged at 20
+  pre-existing errors; a manual judgement pass confirms the issue's own
+  Fault sentence fires under §7.19 and not §7.5, the Fix fires under
+  neither, and every stated non-trigger example doesn't fire. All seven
+  `claude-plugins/swe` test suites pass (176 assertions, unchanged), run
+  with `SWE_SRC` against the local checkout. No `claude-plugins` code
+  change — `swe/data/` was populated locally only to run the linter for
+  verification, then emptied again before shipping. Shipped on
+  `software-english`'s `main` at
+  [`3b4bb30`](https://github.com/jimbarritt/software-english/commit/3b4bb30db69301dbc2b9dbc15d46e5516b619320),
+  released as
+  [v0.0.23](https://github.com/jimbarritt/software-english/releases/tag/v0.0.23),
+  closing the issue automatically. `claude-plugins` pin bumped and `swe`
+  version bumped (`0.18.2` -> `0.18.3`) on `main` at
+  [`f4d8268`](https://github.com/jimbarritt/claude-plugins/commit/f4d8268ef4ff3165718a92a5cefa617b562d7cdd),
+  released as
+  [swe-v0.18.3](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.18.3).
+  Single pass, no escalation. Sibling issue #18 ("possession and
+  entitlement require an animate possessor"), filed six minutes after this
+  one by the same author, left unclaimed for a future run — one issue per
+  run.
 - [tasks/software-english-issue-15-framing-devices.md](tasks/software-english-issue-15-framing-devices.md)
   ([#15](https://github.com/jimbarritt/software-english/issues/15), opened
   by `jimbarritt-pleo`): no rule caught three co-occurring framing shapes

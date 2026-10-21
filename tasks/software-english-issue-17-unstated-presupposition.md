@@ -145,3 +145,16 @@ it depends on".
 
 None of these looked likely to need the maintainer's input; if Jim disagrees
 with any, it's a one-line SPEC/TOML wording change, not a design reversal.
+
+## Outcome
+
+Shipped on `software-english`'s `main` at
+[`3b4bb30`](https://github.com/jimbarritt/software-english/commit/3b4bb30db69301dbc2b9dbc15d46e5516b619320),
+released as
+[v0.0.23](https://github.com/jimbarritt/software-english/releases/tag/v0.0.23),
+which closed the issue automatically. `claude-plugins` pin bumped and `swe`
+version bumped (`0.18.2` -> `0.18.3`) on `main` at
+[`f4d8268`](https://github.com/jimbarritt/claude-plugins/commit/f4d8268ef4ff3165718a92a5cefa617b562d7cdd),
+released as
+[swe-v0.18.3](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.18.3).
+`agent:working` label removed. Single pass, no escalation.
