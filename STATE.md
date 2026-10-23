@@ -1,13 +1,30 @@
 # State
 
-Last updated: 2026-10-21 (software-english#19 shipped, closed)
+Last updated: 2026-10-23 (software-english#20 escalated, supervisor)
 
 ## In progress
 
-None.
+None. See "Waiting on others" for
+[software-english#20](https://github.com/jimbarritt/software-english/issues/20),
+escalated this run, waiting on Jim's answer.
 
 ## Waiting on others
 
+- [tasks/software-english-issue-20-anthropomorphism-gate.md](tasks/software-english-issue-20-anthropomorphism-gate.md)
+  ([#20](https://github.com/jimbarritt/software-english/issues/20), opened by
+  `jimbarritt-pleo`): escalated this run. The issue's two proposed fixes
+  (communication verbs + an inverted subject gate, and motion verbs) need a
+  coordinated change across both repos — the subject gate is hard-coded
+  Python in `claude-plugins`, not data in `software-english`. The
+  communication-verb half is sound once four guards are added (full plan
+  ready). The motion-verb half conflicts with shipped text: `banned.tsv`
+  prescribes `arrives` as the fix for `reaches`/`lands`/`as it comes`, and
+  `claude-plugins#15`'s `motion_idiom_test.sh` locks in that `"This leaves
+  the file unchanged."` and `"goes past the end of the file"` stay clean of
+  `[anthropomorphism]` findings on purpose. Question on the issue: add the
+  motion verbs and reverse those fixes/tests, or keep motion verbs at the
+  inference tier and ship only the communication-verb/gate half. Labelled
+  `supervisor` in place of `agent:working`.
 - The Claude plugin directory's review of `swe`, which Jim submitted on
   2026-10-01. Status: waiting for review. See
   [tasks/future-plugin-directory-listing.md](tasks/future-plugin-directory-listing.md).
