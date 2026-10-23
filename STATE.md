@@ -1,10 +1,16 @@
 # State
 
-Last updated: 2026-10-23 (claude-plugins#20 shipped, closed)
+Last updated: 2026-10-23 (software-english#21 claimed, planned)
 
 ## In progress
 
-None.
+- [software-english#21](https://github.com/jimbarritt/software-english/issues/21)
+  ("define-before-use and related rules: three mechanical candidates missed
+  in one opening sentence"), claimed by the self-maintaining-repo Routine.
+  Plan from an Opus Plan subagent, corpus-tested against both repos' real
+  `.md` files; see
+  [tasks/software-english-issue-21-define-before-use-count-list.md](tasks/software-english-issue-21-define-before-use-count-list.md).
+  Not yet implemented.
 
 ## Waiting on others
 
