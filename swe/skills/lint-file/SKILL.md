@@ -45,9 +45,10 @@ A rule's own line can be followed by one or more `<file>:0: [warning]
 [rule-id] candidate at line N: description` lines: a located structural
 signal for that rule (a verbless sentence right after a long one, a run
 of bold-lead-in bullet lists, a definite phrase whose head noun's lemma
-has not occurred earlier in the document, and similar), never a
-decision that the fault is real. Treat a candidate as a place to check
-first, not a substitute for judging the whole file in Step 4.
+has not occurred earlier in the document, a recurring undefined term, a
+count that does not match its own list, and similar), never a decision
+that the fault is real. Treat a candidate as a place to check first, not
+a substitute for judging the whole file in Step 4.
 
 After every rule's own lines, the block prints the file's prose as a
 numbered worklist: one `<file>:0: [warning] [inference-unit] N prose

@@ -54,9 +54,14 @@ then a head noun) whose head noun's lemma does not occur earlier in the
 document, title and headings included. A cardinal inside the phrase ("the
 two queues", "both options") routes it to no-unstated-presupposition
 instead, since that rule's own trigger is a cardinal or completed-act
-participle inside the phrase, not only an earlier noun. Also at line 0, never
-counted as a finding, and capped per rule per source; the
-`[inference-pending]` summary line names the total when any exist. The
+participle inside the phrase, not only an earlier noun. The same dispatcher
+(software-english#21) also covers define-before-use (a noun occurring three
+or more times, with at least one occurrence in a heading, outside the
+approved vocabulary, and never followed by a definition clause) and
+no-count-list-mismatch (a number word immediately before a short colon list
+in the same sentence, whose item count differs from the stated number).
+Also at line 0, never counted as a finding, and capped per rule per source;
+the `[inference-pending]` summary line names the total when any exist. The
 judging step above still reads the whole source: a candidate names one
 place to check first, not every instance of the fault.
 
@@ -746,6 +751,36 @@ GENERIC_DEFINITE_HEADS = {
 }
 
 DEFINITE_MAX_MODIFIERS = 2
+
+# --- define-before-use and count/list candidate detectors (software-english#21) ---
+#
+# Two more located-candidate detectors, same contract as the ones above:
+# find a site, never decide the fault, never enter the findings list.
+
+# Heading occurrence required, found only by measuring both repos' real
+# .md files: the literal 3+-occurrences/not-in-vocabulary rule alone
+# floods every file (1231 candidates across 33 files); requiring a
+# heading occurrence too narrows that to 135 (~4/file) while still
+# catching the issue's own "mode" example.
+DEFINE_MIN_OCCURRENCES = 3
+DEFINE_NOUN_GATE = NOUN_USE_DETERMINERS | (CARDINAL_WORDS - {"both"})
+
+# Number words only, two to twelve: no numerals (so "§7.9" never
+# matches), no "one" (a range such as "one or two lines" is a quantity,
+# not a list-introducing count), no "both" (software-english#21 corpus:
+# "on both flags: a pending rule is never a finding" is an explanatory
+# colon, not a list).
+COUNT_WORDS = {
+    "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+    "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+}
+COUNT_COLON_LIST = re.compile(
+    r"\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+"
+    r"((?:[a-z][a-z-]*\s+){0,2}[a-z][a-z-]*)\s*:\s+(\S.*)$",
+    re.IGNORECASE,
+)
+
+BOLD_SPAN = re.compile(r"(\*\*|__)(.+?)\1")
 
 
 def load_config():
@@ -1549,19 +1584,234 @@ def find_definite_first_mentions(numbered_lines, connectives, qualities):
     return results
 
 
+def term_is_defined(forms, text):
+    """True when text contains a definition clause for any of forms (a set
+    of lowercase surface forms of one term): a bold span containing a
+    form; "FORM means/refers to/is defined as/stands for/denotes"; "called/
+    named/termed/known as FORM"; "a/an FORM is a/an/the/any/one"; a
+    parenthetical gloss right after the term; or a bullet/table row that
+    opens with the term followed by ":" or "|" (software-english#21)."""
+    if not forms:
+        return False
+    alt = "|".join(re.escape(f) for f in sorted(forms, key=len, reverse=True))
+
+    for m in BOLD_SPAN.finditer(text):
+        inner = m.group(2).lower()
+        if any(re.search(r"\b" + re.escape(f) + r"\b", inner) for f in forms):
+            return True
+
+    if re.search(r"\b(?:" + alt + r")\s+(?:means|refers to|is defined as|stands for|denotes)\b", text, re.IGNORECASE):
+        return True
+    if re.search(
+        r"\b(?:called|named|termed|known as)\s+(?:an?\s+|the\s+)?[\"'“]?(?:" + alt + r")\b",
+        text, re.IGNORECASE,
+    ):
+        return True
+    if re.search(r"\b(?:a|an)\s+(?:" + alt + r")\s+is\s+(?:a|an|the|any|one)\b", text, re.IGNORECASE):
+        return True
+    if re.search(r"\b(?:" + alt + r")\s*\(", text, re.IGNORECASE):
+        return True
+
+    for line in text.splitlines():
+        bm = BULLET.match(line)
+        if bm:
+            item_text = bm.group(2)
+        elif TABLE_ROW.match(line):
+            item_text = line.replace("|", " ", 1)
+        else:
+            continue
+        if re.match(r"\s*(?:" + alt + r")\s*[:|]", item_text, re.IGNORECASE):
+            return True
+
+    return False
+
+
+def find_undefined_terms(numbered_lines, vocabulary, verbs, banned_words):
+    """Locates candidates for define-before-use (software-english#21): a
+    noun that occurs at least DEFINE_MIN_OCCURRENCES times, with at least
+    one of those occurrences in a heading, preceded somewhere by a word in
+    DEFINE_NOUN_GATE (confirming a noun use, not some other part of
+    speech), outside the approved vocabulary/verb lexicon/single-word
+    banned phrases (those are vocabulary-membership's or banned-word's own
+    territory), and never defined anywhere in the source (term_is_defined()).
+
+    One forward pass, grouping by lemma: a token joins the group of any of
+    its lemma_candidates() already seen, keyed on the first-seen surface
+    form (not the shortest candidate — that would map "modes" to "mod" and
+    split it from "mode"). Returns [(line, detail, {line}), ...] sorted by
+    first occurrence, so an opening-sentence term is always inside the cap."""
+    full_text = "\n".join(line for _, line in numbered_lines)
+    groups = {}
+    key_by_lemma = {}
+
+    for number, line in numbered_lines:
+        hm = HEADING.match(line)
+        in_heading = bool(hm)
+        search_text = line[hm.end():] if in_heading else line
+
+        for m in WORD.finditer(search_text):
+            word = m.group(0)
+            start = m.start()
+            if in_heading:
+                if LITERAL_TOKEN.match(word):
+                    continue
+            else:
+                if is_literal_token(word, line, start):
+                    continue
+
+            lw = word.lower()
+            if len(lw) < 3 or lw.endswith("ed") or lw.endswith("ly"):
+                continue
+            if lw in CARDINAL_WORDS or lw in GENERIC_DEFINITE_HEADS:
+                continue
+            candidates = list(lemma_candidates(lw))
+            if any(c in vocabulary or c in verbs or c in banned_words for c in candidates):
+                continue
+
+            prev_text = search_text[:start].rstrip()
+            prev_match = None
+            for pm in WORD.finditer(prev_text):
+                prev_match = pm
+            noun_gate_ok = bool(prev_match) and prev_match.group(0).lower() in DEFINE_NOUN_GATE
+
+            key = None
+            for c in candidates:
+                if c in key_by_lemma:
+                    key = key_by_lemma[c]
+                    break
+            if key is None:
+                key = lw
+                groups[key] = {
+                    "count": 0, "first_line": number, "first_surface": word,
+                    "forms": set(), "in_heading": False, "noun_gate": False,
+                }
+            for c in candidates:
+                key_by_lemma[c] = key
+
+            g = groups[key]
+            g["count"] += 1
+            g["forms"].add(lw)
+            if in_heading:
+                g["in_heading"] = True
+            if noun_gate_ok:
+                g["noun_gate"] = True
+
+    results = []
+    for g in groups.values():
+        if g["count"] < DEFINE_MIN_OCCURRENCES or not g["in_heading"] or not g["noun_gate"]:
+            continue
+        if term_is_defined(g["forms"], full_text):
+            continue
+        detail = (
+            f'term "{g["first_surface"]}" occurs {g["count"]} times, in a heading among them, '
+            "with no definition clause, and is not in the approved vocabulary; judge whether the "
+            "intended reader uses it, or whether the document must define it before this use."
+        )
+        results.append((g["first_line"], detail, {g["first_line"]}))
+
+    results.sort(key=lambda r: r[0])
+    return results
+
+
+def count_list_items(tail):
+    """Counts the items in a list that follows a colon in the same
+    sentence, for find_count_list_mismatches() (software-english#21).
+    Splits tail on commas outside parentheses and double quotes; drops
+    empty parts and a leading "and"/"or" on the last part. Where exactly
+    one part remains, splits it on a bare "and"/"or": one conjunction
+    gives 2 items, none gives 1, more than one is ambiguous and returns
+    None (not reported). Otherwise returns the number of comma-split
+    parts."""
+    tail = re.sub(r"[.!?]+\s*$", "", tail.strip()).strip()
+    if not tail:
+        return None
+
+    parts = []
+    current = []
+    depth = 0
+    in_dquote = False
+    for ch in tail:
+        if ch == '"':
+            in_dquote = not in_dquote
+            current.append(ch)
+            continue
+        if not in_dquote:
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth = max(0, depth - 1)
+            if ch == "," and depth == 0:
+                parts.append("".join(current).strip())
+                current = []
+                continue
+        current.append(ch)
+    parts.append("".join(current).strip())
+    parts = [p for p in parts if p]
+    if not parts:
+        return None
+
+    parts[-1] = re.sub(r"^(?:and|or)\s+", "", parts[-1], flags=re.IGNORECASE)
+
+    if len(parts) == 1:
+        conjunctions = list(re.finditer(r"\s+(?:and|or)\s+", parts[0], re.IGNORECASE))
+        if len(conjunctions) == 1:
+            return 2
+        if len(conjunctions) == 0:
+            return 1
+        return None
+
+    return len(parts)
+
+
+def find_count_list_mismatches(blocks):
+    """Locates candidates for no-count-list-mismatch (software-english#21):
+    a number word (COUNT_WORDS) immediately before a short noun phrase and
+    a colon, in the same sentence, whose following list's item count
+    (count_list_items()) differs from the stated number. Reads sentences
+    from paragraph blocks and from each list block's own top-level items
+    (register_blocks()); headings and tables are out of scope. Returns
+    [(line, detail, {line}), ...] sorted by line."""
+    results = []
+    for kind, data in blocks:
+        if kind == "paragraph":
+            sentences = split_sentences(data)
+        elif kind == "list":
+            sentences = []
+            for n, text in data["items"]:
+                sentences.extend(split_sentences([(n, text)]))
+        else:
+            continue
+
+        for line, sentence in sentences:
+            for m in COUNT_COLON_LIST.finditer(sentence):
+                stated = COUNT_WORDS[m.group(1).lower()]
+                actual = count_list_items(m.group(3))
+                if actual is not None and actual >= 2 and actual != stated:
+                    detail = (
+                        f'count "{m.group(1)}" before a colon list of {actual} items in the same '
+                        "sentence; judge whether the count, the list, or the punctuation that "
+                        "separates the items is wrong."
+                    )
+                    results.append((line, detail, {line}))
+
+    results.sort(key=lambda r: r[0])
+    return results
+
+
 def find_register_candidates(numbered_lines, only_lines, lexicon, rule_ids):
     """Returns {rule_id: [(line, detail), ...]} of located candidates for
     whichever of no-cadence-device, no-mechanical-repetition,
-    no-unanchored-reference, and no-unstated-presupposition are in
-    rule_ids, from numbered_lines (prose_lines()'s unfiltered output for
-    one source). With only_lines set (--diff --added-only), keeps a
-    candidate only where it touches a changed line. Candidates never enter
-    a findings list and never affect error_total or the exit code."""
+    no-unanchored-reference, no-unstated-presupposition, define-before-use,
+    and no-count-list-mismatch are in rule_ids, from numbered_lines
+    (prose_lines()'s unfiltered output for one source). With only_lines set
+    (--diff --added-only), keeps a candidate only where it touches a
+    changed line. Candidates never enter a findings list and never affect
+    error_total or the exit code."""
     out = {}
     if not numbered_lines or not rule_ids:
         return out
     blocks = register_blocks(numbered_lines)
-    verbs, connectives, structure_nouns, qualities = lexicon
+    verbs, connectives, structure_nouns, qualities, vocabulary, banned_words = lexicon
 
     if "no-cadence-device" in rule_ids:
         candidates = find_cadence_fragments(blocks, verbs) + find_matched_pairs(
@@ -1598,6 +1848,11 @@ def find_register_candidates(numbered_lines, only_lines, lexicon, rule_ids):
             out["no-unanchored-reference"] = unanchored
         if "no-unstated-presupposition" in rule_ids:
             out["no-unstated-presupposition"] = presupposition
+
+    if "define-before-use" in rule_ids:
+        out["define-before-use"] = find_undefined_terms(numbered_lines, vocabulary, verbs, banned_words)
+    if "no-count-list-mismatch" in rule_ids:
+        out["no-count-list-mismatch"] = find_count_list_mismatches(blocks)
 
     if only_lines is not None:
         for rule_id, candidates in out.items():
@@ -2006,6 +2261,7 @@ def main():
                 register_rule_ids = {
                     "no-cadence-device", "no-mechanical-repetition",
                     "no-unanchored-reference", "no-unstated-presupposition",
+                    "define-before-use", "no-count-list-mismatch",
                 } & set(inference_rules)
                 lexicon = None
                 if register_rule_ids:
@@ -2014,6 +2270,8 @@ def main():
                         load_tsv_words("connectives.tsv"),
                         structure_nouns,
                         load_tsv_words("qualities.tsv"),
+                        vocabulary,
+                        {p.lower() for p, _, _ in banned_rules if " " not in p},
                     )
                 print("===INFERENCE_ADVISED===")
                 for label, _, prose, candidate_input in sources:

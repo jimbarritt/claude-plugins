@@ -169,10 +169,10 @@ which restates the source's real deterministic counts so a caller
 counting `[warning]` lines is not misled by the added rule lines.
 
 Directly after a rule's own `inference pending` line,
-`find_register_candidates()` (claude-plugins#18, #19) can add one or more
-`candidate at line N: ...` lines for that same rule: a located
-structural signal, never a decision that the fault is real. Four rules
-get this today. `no-cadence-device`: a verbless sentence right after a
+`find_register_candidates()` (claude-plugins#18, #19, software-english#21)
+can add one or more `candidate at line N: ...` lines for that same rule: a
+located structural signal, never a decision that the fault is real. Six
+rules get this today. `no-cadence-device`: a verbless sentence right after a
 sentence of 15 or more words, in the same paragraph (a fragment that is
 its own paragraph is not detected, since nothing in the line structure
 then tells it apart from a caption or a label); and two adjacent
@@ -193,8 +193,20 @@ two adjective-shaped modifiers, then a head noun) whose head noun's lemma
 has not occurred earlier in the document. A cardinal inside the phrase
 ("the two queues", "both the options") routes the candidate to
 `no-unstated-presupposition` instead, since that rule's own trigger is a
-cardinal or a completed-act participle, not only an earlier noun. Each
-detector reads a closed, stdlib-only verb/auxiliary list
+cardinal or a completed-act participle, not only an earlier noun.
+`define-before-use`: `find_undefined_terms()` groups the document's words
+by lemma and flags a group that occurs three or more times, with at least
+one occurrence in a heading, preceded somewhere by a determiner or
+cardinal (confirming a noun use), outside the approved vocabulary/verb
+lexicon/single-word banned phrases, and never followed by a definition
+clause (a bold span, "X means"/"refers to"/"is defined as", "called X",
+"a X is a", a parenthetical gloss, or a glossary bullet/table row).
+`no-count-list-mismatch`: a number word (two to twelve, no numerals, no
+"one", no "both") immediately before a short lowercase noun phrase and a
+colon, in the same sentence, whose following list's item count
+(`count_list_items()`: comma-split outside parentheses/quotes, then an
+and/or split when exactly one part remains) differs from the stated
+number. Each detector reads a closed, stdlib-only verb/auxiliary list
 (`load_verb_lexicon()`), not real part-of-speech tagging, so a verb
 outside that list can still produce an extra candidate, and a word
 `vocabulary/operations.tsv` also uses as a noun can still miss one; see
@@ -610,6 +622,20 @@ skill's own directory name exactly; the same test asserts it.
   often a code identifier, not prose. A high-candidate-volume document
   is capped at 20 per rule, in document order, the same cap the #18
   detectors share.
+- The undefined-term detector (`define-before-use`, software-english#21)
+  has no cross-document state: a term that recurs across several related
+  files, each linted separately, is counted only within the one file
+  being checked. The heading-occurrence gate is a corpus-tuned precision
+  filter, not part of the rule's own text: a term that recurs 3+ times
+  with no definition but never appears in a heading is not a candidate.
+  No part-of-speech tagging means a domain noun the vocabulary data
+  happens to miss can still candidate the same as a coined term.
+- The count/list mismatch detector (`no-count-list-mismatch`,
+  software-english#21) only looks for a colon immediately after the
+  counted noun phrase, in the same sentence: the issue's own "and/or list
+  with no colon" variant, and a count followed by a separate bullet list
+  in the next block, are not detected. Only the number words two through
+  twelve are recognised, not a numeral or "one".
 - `~/.claude/swe/inference-state.json` is never pruned. It contains a
   small amount of text per file ever checked; it is not cleaned up
   automatically yet.
