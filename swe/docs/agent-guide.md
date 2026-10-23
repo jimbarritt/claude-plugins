@@ -141,6 +141,18 @@ doc.md:0: [warning] [inference-pending] 3 inference rule(s) above need model jud
 ===END_INFERENCE_ADVISED===
 ```
 
+`--force-inference` (below) adds a further block, after every rule's
+own lines and before the `[inference-pending]` summary, for a single
+named file inside a git repository: the file's prose as a numbered
+worklist, so a `clean` recording can later be checked for coverage
+(claude-plugins#20; see "Proof that Step 3 ran"):
+
+```
+doc.md:0: [warning] [inference-unit] 2 prose unit(s) follow; judge each one against every rule above.
+doc.md:0: [warning] [inference-unit] unit 1 of 2, heading, line 1: # Title
+doc.md:0: [warning] [inference-unit] unit 2 of 2, paragraph, lines 3-4: A paragraph that wraps over two lines.
+```
+
 Each rule line is shaped like a deterministic finding (`label:line:
 [severity] [rule-id] detail`), deliberately: a caller filtering output
 for finding lines (a `grep -E ":\s*\[(error|warning)\]"`, the natural
@@ -194,11 +206,12 @@ to check first, not every instance of the fault. `--html-file` gets no
 candidates, since adjacent extracted text nodes are not adjacent prose
 lines.
 
-Splitting a pending rule, a candidate, the summary, and a real finding
-apart, by regex:
+Splitting a pending rule, a candidate, a worklist unit, the summary,
+and a real finding apart, by regex:
 
 - pending rule: `^.+:0: \[warning\] \[[a-z0-9-]+\] inference pending: `
 - candidate: `^.+:0: \[warning\] \[[a-z0-9-]+\] candidate at line [0-9]+: `
+- worklist unit: `^.+:0: \[warning\] \[inference-unit\] `
 - summary: `\[inference-pending\]`
 - real finding: any finding-shaped line with a line number of 1 or more
 
@@ -248,12 +261,13 @@ has two passes (Step 4 of
 [`../skills/lint-file/SKILL.md`](../skills/lint-file/SKILL.md)): the
 body, then the file's headings as a separate list, against the same
 rules. The agent builds the heading list itself, from the same `Read`
-output the body pass already used. The deterministic tier already
+output the body pass already used, or reads it straight off the
+printed worklist's `heading` units. The deterministic tier already
 checks each heading line too, because `prose_lines()` yields a `#`
 line like any other prose line. For a single named file inside a git
-repository, it also mints and prints a single-use nonce bound to the
-file's exact git blob id, whether or not the rules block printed — see
-"Proof that Step 3 ran" below.
+repository, it also prints the worklist, a `swe-lint-units: M` total,
+and a single-use nonce bound to the file's exact git blob id, whether
+or not the rules block printed — see "Proof that Step 3 ran" below.
 
 Neither `--advise-inference` nor `--force-inference` can be combined
 with `--count`: `--count` returns its one-line summary before the
@@ -293,21 +307,26 @@ by every linked worktree). Append-only NDJSON, one row per
 `--record-lint-result` call: `ts`, `path` (repo-relative), `blob` (git's
 own blob object id for the exact content judged, via `git hash-object`,
 not a `sha256` of the working-tree file), `algo` (`sha1`/`sha256`),
-`status` (`clean`/`failed`), `tier` (`"both"`), `findings`, `rules_tag`,
-`plugin_version`, `recorded_by`. A row is a candidate for a staged file
-when `path` and `blob` both match that file's exact staged git blob (not
-the working-tree copy, which can differ from what a partial `git add -p`
-staged); among candidates for the same `(path, blob)`, the last row in
-file order wins. `clean` means zero `error`-severity findings across
-both tiers together; a warning never blocks anything here either,
-matching every other check in this plugin.
+`status` (`clean`/`failed`/`partial`), `tier` (`"both"`), `findings`,
+`rules_tag`, `plugin_version`, `recorded_by`, `units_total`,
+`units_judged` (the last two from claude-plugins#20; absent on a row
+recorded before that change, see "Proof that Step 3 ran" next). A row
+is a candidate for a staged file when `path` and `blob` both match
+that file's exact staged git blob (not the working-tree copy, which
+can differ from what a partial `git add -p` staged); among candidates
+for the same `(path, blob)`, the last row in file order wins. `clean`
+means zero `error`-severity findings across both tiers together, over
+the whole worklist; `partial` means the same verdict over less than
+the whole worklist. A warning never blocks anything here either,
+matching every other check in this plugin, and the pre-commit hook
+treats `partial` exactly like `failed`: anything but `clean` blocks.
 
 **Recording a verdict.** Only `/swe:lint-file`'s own Step 5 does this
 today, right after it judges a file's inference-tier findings itself
 (see [`../skills/lint-file/SKILL.md`](../skills/lint-file/SKILL.md)):
 
 ```
-python3 scripts/software_english_lint.py --record-lint-result {clean|failed} --findings N --nonce N <file-path>
+python3 scripts/software_english_lint.py --record-lint-result {clean|failed} --findings N --nonce N --units-judged M <file-path>
 ```
 
 A standalone mode: no rule catalogue read, no report printed, no other
@@ -316,8 +335,8 @@ one-line note for a file outside a git repository, which needs no
 ledger); exit 2 means the call itself was malformed; exit 3 means the
 ledger could not be written — reported, not silent, unlike
 `save_inference_state()` above, because a lost row here becomes a
-commit blocked with no visible cause; exit 4 means the nonce failed,
-covered in "Proof that Step 3 ran" next.
+commit blocked with no visible cause; exit 4 means the nonce or the
+units claim failed, covered in "Proof that Step 3 ran" next.
 
 **Proof that Step 3 ran.** `--record-lint-result` used to trust its
 caller completely: nothing stopped an agent recording `clean` on the
@@ -325,26 +344,45 @@ strength of an earlier session's judgement of different content
 (claude-plugins#10). `--force-inference` now mints a single-use nonce
 for a single named file inside a git repository and stores it in
 `<git-common-dir>/swe/lint-nonces.json`, keyed by the nonce, with
-the file's repo-relative path, its worktree toplevel, and its blob id
-at mint time. `--record-lint-result` requires that nonce back
+the file's repo-relative path, its worktree toplevel, its blob id at
+mint time, and the total units on its printed worklist (`units`;
+claude-plugins#20). `--record-lint-result` requires that nonce back
 (`--nonce`), for `clean` and `failed` alike, and checks it in order:
 given at all, known in the store, issued for this same file, and
 issued for this file's *current* blob. Any failure exits 4 with the
-reason. On success the entry is deleted before the ledger row is
-appended, so the nonce is spent by its first use regardless of whether
-that write succeeds; a write failure after that still needs a fresh
-`--force-inference` pass, not a retry with the same value. A `failed`
-verdict needs a nonce for the same reason a `clean` one does: without
-that, a `failed` recording could be followed by a `clean` recording on
-the same nonce, letting the second one through unjudged.
+reason, consuming nothing.
 
-This proves that `--force-inference` ran on this exact content and its
-output reached the caller. It does not, and cannot, prove that the
-caller judged the file against the rules the block printed: that step
-happens inside the model, invisible to this script by construction. A caller with direct shell access can still write the
+It then requires a coverage claim back too (`--units-judged`): `N`, or
+`"N of M"` for a declared partial. `N`, or `M` when given, must match
+the nonce's own stored total exactly, or the call exits 4 the same
+way — a wrong value proves the caller did not walk the real worklist
+for this blob (stale output, a truncated read), so Step 3 has to run
+again regardless; unlike the four nonce checks above, a units mismatch
+*does* consume the nonce, closing a guess-and-retry loop against one
+value. A nonce minted before claude-plugins#20 shipped has no stored
+total; that also exits 4, naming the pre-upgrade nonce, rather than
+trusting an unmeasured claim. On success the entry is deleted before
+the ledger row is appended, so the nonce is spent by its first use
+regardless of whether that write succeeds; a write failure after that
+still needs a fresh `--force-inference` pass, not a retry with the
+same value. A `failed` verdict needs a nonce and a units claim for the
+same reason a `clean` one does: without that, a `failed` recording
+could be followed by a `clean` recording on the same nonce, letting
+the second one through unjudged. A `clean` verdict with `N` below the
+stored total records `partial` instead (claude-plugins#20's "declares
+itself"); a `failed` verdict always records `failed`, whatever `N` is,
+since a fault found in part of a file still fails it.
+
+This proves that `--force-inference` ran on this exact content, that
+its output reached the caller, and that the caller saw the worklist's
+real total for this blob. It does not, and cannot, prove that the
+caller judged every unit on that worklist against the rules the block
+printed: that step happens inside the model, invisible to this script
+by construction. A caller with direct shell access can still write the
 ledger or the nonce store by hand. The design turns an accidental
-shortcut — recording a verdict without running Step 4 — into a
-deliberate forgery, which is the realistic case this closes.
+shortcut — recording a verdict without running Step 4, or without
+reading the whole worklist — into a deliberate forgery, which is the
+realistic case this closes.
 
 **Three state files, and why they are separate.**
 `~/.claude/swe/inference-state.json` (above) is global, per-user, keyed
@@ -362,8 +400,10 @@ first two would let a `failed` verdict in one clone suppress advisories
 for the same path in every other clone sharing that global file, and
 would force the throttle file to grow without bound. `/swe:lint-file`
 writes to all three, at different steps; that is their only coupling.
-The ledger row schema and the pre-commit hook are unchanged by any of
-this: the hook still cannot tell how a row was written, and the guard
+The ledger row schema gained the `units_total`/`units_judged` fields
+and the `partial` status (claude-plugins#20); the pre-commit hook is
+unchanged by any of this, since it already blocks on anything but
+`clean` — it still cannot tell how a row was written, and the guard
 sits entirely at the only sanctioned writer, `--record-lint-result`
 itself.
 
@@ -445,15 +485,18 @@ python3 scripts/software_english_lint.py --html-file page.html
 
 Add `--advise-inference` to print the `INFERENCE_ADVISED` rules block
 when a fresh pass would be worth doing, gated as above. Add
-`--force-inference` to print the same block unconditionally instead: this is what `/swe:lint-file` does. Neither ever judges the prose
-itself; that is always the caller's own job. Add `--quiet-vocab` to
-omit `vocabulary-membership` lines; every hook does this by default.
-Counting `[warning]` lines in either flag's output includes the
-`inference pending` rule lines, any `candidate at line N` lines under
-them, and the trailing `[inference-pending]` summary line, not just
-real warning findings; the summary line's own text states the source's
-real deterministic error/warning counts. Neither flag can be combined
-with `--count` (exits 2).
+`--force-inference` to print the same block unconditionally instead: this is what `/swe:lint-file` does, and, for a single named file inside
+a git repository, it also prints the file's prose as a numbered
+worklist and a `swe-lint-units: M` total (claude-plugins#20). Neither
+flag ever judges the prose itself; that is always the caller's own
+job. Add `--quiet-vocab` to omit `vocabulary-membership` lines; every
+hook does this by default. Counting `[warning]` lines in either flag's
+output includes the `inference pending` rule lines, any `candidate at
+line N` lines under them, the worklist's `inference-unit` lines (only
+for `--force-inference`), and the trailing `[inference-pending]`
+summary line, not just real warning findings; the summary line's own
+text states the source's real deterministic error/warning counts.
+Neither flag can be combined with `--count` (exits 2).
 
 Run `scripts/fetch-software-english-data.sh` once by hand first, if
 `data/` is empty — the hooks do this automatically, a manual run does
@@ -461,14 +504,14 @@ not.
 
 ```bash
 python3 scripts/software_english_lint.py FILE.md --force-inference --quiet-vocab
-# note the printed swe-lint-nonce value, then:
-python3 scripts/software_english_lint.py FILE.md --record-lint-result clean --findings 0 --nonce <value>
+# note the printed swe-lint-units and swe-lint-nonce values, then:
+python3 scripts/software_english_lint.py FILE.md --record-lint-result clean --findings 0 --nonce <value> --units-judged <units>
 ```
 
 Records a both-tier verdict for one named file in the commit check's
 ledger; see "The commit check" above. Standalone: lints nothing itself,
-needs no `data/` fetch, exits 0/2/3/4 (4: the nonce failed — "Proof
-that Step 3 ran" above has the reasons).
+needs no `data/` fetch, exits 0/2/3/4 (4: the nonce or the units claim
+failed — "Proof that Step 3 ran" above has the reasons).
 
 ## Writing a skill's frontmatter
 
@@ -586,6 +629,25 @@ skill's own directory name exactly; the same test asserts it.
   their own, prove Step 4 happened: a caller could still read the rule
   lines and skip judging them. That boundary is the same one the nonce
   above already accepts.
+- `prose_units()` (claude-plugins#20) reuses `register_blocks()`'s own
+  parse, so it inherits that parse's own gaps: the `FENCE` toggle
+  matches a bare ` ``` ` or `~~~` line regardless of the other fence
+  style, so one style's closing line can be read as opening the other
+  inside mixed, malformed fencing; a setext heading (a title line
+  followed by a line of `=`/`-` characters) is not recognised as a
+  heading, so it becomes an ordinary paragraph unit instead; and a
+  leading YAML front-matter block's `---` delimiters match `HR_LINE`,
+  so the front matter between them becomes one paragraph unit like any
+  other, not a block skipped outright. None of these is fixed by this
+  change; each was already true of the candidate detectors that share
+  the same parse.
+- `--units-judged`'s coverage claim proves only that the caller saw
+  the worklist's real total for this blob, the same boundary the nonce
+  itself already accepts: it does not, and cannot, prove that every
+  unit claimed as judged was actually judged against every rule, since
+  that judgement happens inside the model, invisible to this script by
+  construction. A caller could copy the printed total without reading
+  the worklist at all.
 - `git diff --cached --diff-filter=ACM` skips a pure rename (`R`), which
   is correct (the content was already judged), but a rename with edits
   is also reported as `R` and so slips through unchecked.

@@ -64,14 +64,21 @@ place to check first, not every instance of the fault.
 unconditionally: no gate, no threshold, no throttle. It is the current
 session itself that then judges the file directly, right where the
 command was run, no subagent needed. It still skips on empty prose.
-For a single named file inside a git repository, it also mints and
-prints a single-use nonce bound to the file's exact git blob id (see
---record-lint-result below), whether or not the block itself printed:
-a no-prose file and a deterministically-failed file both still need
-one to record a verdict later. Printed as the last line of output, so
-that piping this command's output through head, sed, or grep loses the
-nonce first, not silently. A findings-shaped grep now keeps the rules
-block itself even when it drops this nonce line.
+For a single named file inside a git repository, it also prints a
+numbered worklist of the file's prose units (one per heading,
+paragraph, top-level list item, and table; see prose_units()) as
+further finding-shaped lines, each `[inference-unit]`, then
+`swe-lint-units: M` naming the total, then mints and prints a
+single-use nonce bound to the file's exact git blob id (see
+--record-lint-result below), whether or not the rules block itself
+printed: a no-prose file (M is 0) and a deterministically-failed file
+both still need a nonce to record a verdict later. The worklist and
+its total are not printed for a multi-file call: there is no nonce to
+bind a total to there. Printed as the last lines of output, in that
+order, so that piping this command's output through head, sed, or
+grep loses the nonce first, then the total, not silently. A
+findings-shaped grep now keeps the rules block and the worklist even
+when it drops the nonce and total lines.
 
 Neither flag can be combined with --count: --count returns its one-line
 summary before the inference block would print and before a nonce would
@@ -152,6 +159,21 @@ script by construction. A "failed" verdict needs a nonce too, for the
 same reason: without that, a "failed" recording followed by "clean" on
 the same nonce would let the second recording through unjudged. See
 claude-plugins#10.
+
+--record-lint-result also requires --units-judged: "N" (a claim of
+full coverage, every unit on the worklist --force-inference printed
+for this exact blob) or "N of M" (a declared partial, quoted on the
+shell line). N or M not matching the total the nonce's entry
+recorded fails with exit 4, the same as a missing, unknown, or stale
+nonce, and consumes the nonce (unlike the nonce checks, which do
+not): the mismatch itself proves the caller did not walk the real
+worklist for this blob, so a fresh --force-inference pass is needed
+regardless. A "clean" verdict with N less than M records as "partial"
+in the ledger, not "clean"; a "failed" verdict always records as
+"failed", whatever the coverage. Like the nonce, --units-judged proves
+only that the caller saw the worklist's total for this blob, not that
+it judged every unit on it: that judgement happens inside the model,
+invisible to this script. See claude-plugins#20.
 """
 
 import argparse
@@ -312,7 +334,7 @@ def _save_nonces(store_path, nonces):
     os.replace(tmp_path, store_path)
 
 
-def issue_lint_nonce(file_path):
+def issue_lint_nonce(file_path, units_total):
     """Mints a single-use nonce proving --force-inference ran on
     file_path's exact current content, for --record-lint-result to
     demand back later. Returns (nonce, None) on success, or (None,
@@ -320,6 +342,11 @@ def issue_lint_nonce(file_path):
     ledger-write-style failure saving the store): the caller prints
     "no lint nonce issued" with that reason and moves on, since issuing
     a nonce never blocks linting itself.
+
+    units_total, from prose_units() (claude-plugins#20), is recorded on
+    the entry so --record-lint-result's --units-judged can be checked
+    against the exact total printed for this blob, not a value the
+    caller could otherwise invent.
 
     Any nonce already pending for this same (toplevel, rel) is dropped
     first: only the newest Step 3 run for a file stays valid, so a
@@ -341,6 +368,7 @@ def issue_lint_nonce(file_path):
         "toplevel": ctx["toplevel"],
         "blob": ctx["blob"],
         "algo": ctx["algo"],
+        "units": units_total,
         "issued_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
     try:
@@ -350,7 +378,39 @@ def issue_lint_nonce(file_path):
     return nonce, None
 
 
-def record_lint_result(file_path, status, findings, recorded_by, nonce):
+def parse_units_judged(value):
+    """Parses --units-judged's value (claude-plugins#20): "N", a claim of
+    full coverage, or "N of M", a declared partial (quoted on the shell
+    line, since it is two words). Returns (judged, declared_total);
+    declared_total is None for the bare "N" form. Raises ValueError, for
+    main() to report as a malformed call (exit 2), on anything else,
+    including N > M: that is nonsensical on its face, not a mismatch
+    against a stored worklist total, which is record_lint_result()'s own
+    exit-4 check instead."""
+    m = UNITS_JUDGED.match(value)
+    if not m:
+        raise ValueError(f'--units-judged value {value!r} is not "N" or "N of M"')
+    judged = int(m.group(1))
+    declared_total = int(m.group(2)) if m.group(2) is not None else None
+    if declared_total is not None and judged > declared_total:
+        raise ValueError(f"--units-judged {judged} of {declared_total}: judged count exceeds its own declared total")
+    return judged, declared_total
+
+
+def _consume_nonce(store_path, nonces, nonce):
+    """Deletes nonce from nonces and saves the store. Returns an exit code
+    (3) on a write failure, or None on success, for the caller to check
+    and return immediately."""
+    del nonces[nonce]
+    try:
+        _save_nonces(store_path, nonces)
+    except OSError as exc:
+        print(f"swe: could not write the nonce store: {exc}")
+        return 3
+    return None
+
+
+def record_lint_result(file_path, status, findings, recorded_by, nonce, units_judged, units_declared_total):
     """Appends one NDJSON row to this repository's lint ledger, proving
     that file_path's exact current content (its git blob id) was judged,
     both tiers together, with this verdict. A commit staging that same
@@ -360,21 +420,44 @@ def record_lint_result(file_path, status, findings, recorded_by, nonce):
     content (see issue_lint_nonce()), for both "clean" and "failed"
     verdicts: without this, --record-lint-result trusted its caller
     completely, so an agent could record "clean" on a stale, or wholly
-    imagined, earlier judgement (claude-plugins#10). The nonce is
-    checked, then consumed (deleted from the store) before the ledger
-    row is appended, so a nonce is spent by its first use whether or
-    not the write that follows succeeds; a write failure after that
-    still needs a fresh --force-inference pass to retry, not a second
-    call with the same value.
+    imagined, earlier judgement (claude-plugins#10). It also requires
+    units_judged (parsed by main() from --units-judged; claude-plugins#20):
+    N, a claim that every unit on the nonce's own worklist total was
+    judged, or, with units_declared_total also given (the "N of M" form),
+    a declared partial. Either must equal the total prose_units() found
+    for this exact blob when the nonce was minted (entry["units"]), or the
+    call fails the same way a stale or reused nonce does.
+
+    The nonce is checked first, then the units claim against it; either
+    one failing leaves the ledger untouched. A units mismatch also
+    consumes the nonce, same as a successful record: it proves the
+    caller did not walk the real worklist for this blob (stale output, a
+    truncated read), so Step 3 has to run again regardless, and consuming
+    stops a guess-and-retry loop against one nonce. The four nonce checks
+    above it do not consume, unchanged from before this flag existed. The
+    nonce is consumed before the ledger row is appended either way, so it
+    is spent by its first use whether or not the write that follows
+    succeeds; a write failure after that still needs a fresh
+    --force-inference pass to retry, not a second call with the same
+    value.
+
+    A "clean" status with units_judged below the stored total records as
+    "partial" instead: the issue's "a partial pass declares itself ...
+    and the ledger records it as partial, not clean." A "failed" status
+    always records as "failed", whatever the coverage: errors found in
+    part of a file still make it failed.
 
     Prints a one-line result and returns a process exit code: 0 on a
     successful record (including "nothing to record" cases such as the
-    file sitting outside a git repository, which need no ledger entry
-    or nonce), 3 when the ledger itself could not be written, 4 when
-    the nonce is missing, unknown, already used, issued for a different
-    file, or stale against the file's current content. Unlike
-    save_inference_state(), a write failure here is never silent: a
-    lost row turns into a commit blocked with no visible cause."""
+    file sitting outside a git repository, which need no ledger entry,
+    nonce, or units claim), 3 when the ledger itself could not be
+    written, 4 when the nonce is missing, unknown, already used, issued
+    for a different file, or stale against the file's current content,
+    or when units_judged is missing, the nonce predates this flag (minted
+    by a plugin version before claude-plugins#20), or its value does not
+    match the nonce's own stored total. Unlike save_inference_state(), a
+    write failure here is never silent: a lost row turns into a commit
+    blocked with no visible cause."""
     ctx, reason = _repo_context(file_path)
     if ctx is None:
         print(f"swe: {reason}; nothing recorded.")
@@ -400,24 +483,59 @@ def record_lint_result(file_path, status, findings, recorded_by, nonce):
         print(f"swe: {file_path} changed since its --force-inference pass; re-run /swe:lint-file.")
         return 4
 
-    del nonces[nonce]
-    try:
-        _save_nonces(store_path, nonces)
-    except OSError as exc:
-        print(f"swe: could not write the nonce store: {exc}")
-        return 3
+    if units_judged is None:
+        print(
+            f"swe: no --units-judged given for {file_path}; pass the unit "
+            'total Step 3 printed (swe-lint-units), or "N of M" for a '
+            "partial pass."
+        )
+        return 4
+    units_total = entry.get("units")
+    if units_total is None:
+        print(f"swe: nonce for {file_path} predates the unit worklist; re-run /swe:lint-file.")
+        return 4
+    if units_declared_total is not None and units_declared_total != units_total:
+        rc = _consume_nonce(store_path, nonces, nonce)
+        if rc is not None:
+            return rc
+        print(
+            f"swe: --units-judged total {units_declared_total} does not "
+            f"match the {units_total} unit(s) Step 3 printed for "
+            f"{file_path} (blob {ctx['blob'][:12]}); re-run /swe:lint-file."
+        )
+        return 4
+    if units_declared_total is None and units_judged != units_total:
+        rc = _consume_nonce(store_path, nonces, nonce)
+        if rc is not None:
+            return rc
+        print(
+            f"swe: --units-judged {units_judged} does not match the "
+            f"{units_total} unit(s) Step 3 printed for {file_path} (blob "
+            f"{ctx['blob'][:12]}); pass \"{units_judged} of {units_total}\" "
+            "for a partial pass, or re-run /swe:lint-file."
+        )
+        return 4
+
+    rc = _consume_nonce(store_path, nonces, nonce)
+    if rc is not None:
+        return rc
+
+    partial = units_judged < units_total
+    recorded_status = "partial" if (status == "clean" and partial) else status
 
     row = {
         "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "path": ctx["rel"],
         "blob": ctx["blob"],
         "algo": ctx["algo"],
-        "status": status,
+        "status": recorded_status,
         "tier": "both",
         "findings": findings,
         "rules_tag": _spec_tag(),
         "plugin_version": _plugin_version(),
         "recorded_by": recorded_by,
+        "units_total": units_total,
+        "units_judged": units_judged,
     }
 
     log_path = ctx["git_common"] / LINT_LOG_RELPATH
@@ -429,7 +547,10 @@ def record_lint_result(file_path, status, findings, recorded_by, nonce):
         print(f"swe: could not write the lint log: {exc}")
         return 3
 
-    print(f"swe: recorded {status} for {ctx['rel']} (blob {ctx['blob'][:12]}) in {log_path}")
+    print(
+        f"swe: recorded {recorded_status} ({units_judged} of {units_total} "
+        f"units) for {ctx['rel']} (blob {ctx['blob'][:12]}) in {log_path}"
+    )
     return 0
 
 
@@ -577,6 +698,9 @@ BOLD_LIST_RUN_MIN = 3
 PAIR_MIN_WORDS = 4
 PAIR_MAX_WORDS = 12
 MAX_CANDIDATES_PER_RULE = 20
+
+# --units-judged's value (claude-plugins#20): "N" or "N of M".
+UNITS_JUDGED = re.compile(r"^\s*(\d+)(?:\s+of\s+(\d+))?\s*$", re.IGNORECASE)
 
 # --- definite-phrase candidate detector (claude-plugins#19) -----------------
 #
@@ -962,6 +1086,48 @@ def register_blocks(numbered_lines):
     close_list()
     close_para()
     return blocks
+
+
+def prose_units(numbered_lines):
+    """The numbered worklist --force-inference prints for a single named
+    file (claude-plugins#20): one unit per register_blocks() block, except
+    an "hr" block, which is never a unit. Reuses that same parse, so "a
+    paragraph outside a code fence" means exactly what the register-rule
+    candidate detectors above already treat as prose; a fence, an indented
+    block, a blockquote, and a skip-marker line are never units, for the
+    same reason they are never candidates.
+
+    A "heading" and a "table" unit cover the whole block. A "list" block
+    becomes one "list-item" unit per top-level item: a nested bullet or a
+    continuation line folds into its own parent item, not a separate unit,
+    taken from the item's start line up to the line before the next item's
+    start (or the block's last line, for the final item).
+
+    Returns [(kind, first_line, last_line, text), ...] in document order;
+    kind is "heading", "paragraph", "list-item", or "table". text is the
+    unit's own prose, read back for the judging pass to work from: the
+    heading line itself, the paragraph's lines joined with a single space,
+    a list item's own first line (register_blocks() does not keep a
+    continuation line's text), or a table block's first row."""
+    line_by_number = dict(numbered_lines)
+    units = []
+    for kind, data in register_blocks(numbered_lines):
+        if kind == "heading":
+            units.append(("heading", data, data, line_by_number[data].strip()))
+        elif kind == "paragraph":
+            first, last = data[0][0], data[-1][0]
+            text = " ".join(line.strip() for _, line in data)
+            units.append(("paragraph", first, last, text))
+        elif kind == "list":
+            item_starts = [n for n, _ in data["items"]]
+            block_last = data["lines"][-1]
+            for idx, (start, first_text) in enumerate(data["items"]):
+                end = item_starts[idx + 1] - 1 if idx + 1 < len(item_starts) else block_last
+                units.append(("list-item", start, end, first_text.strip()))
+        elif kind == "table":
+            units.append(("table", data[0], data[-1], line_by_number[data[0]].strip()))
+        # "hr" is never a unit.
+    return units
 
 
 def split_sentences(paragraph):
@@ -1551,7 +1717,27 @@ def count_words_sentences(text):
     return words, sentences
 
 
-def format_inference_rules(label, inference_rules, det_errors, det_warnings, candidates=None):
+def format_unit_worklist(label, units):
+    """units' prose_units() list (claude-plugins#20) as finding-shaped
+    `[inference-unit]` lines, for the judging pass to walk: one separator
+    line stating the total, then one numbered line per unit, "unit N of M,
+    <kind>, line(s) <range>: <text>". Also at line 0 and severity
+    "warning", the same never-a-finding convention format_inference_rules()
+    uses for a rule or a candidate line. Returns [] for an empty worklist
+    (the separator line still states "0 prose unit(s)"); the caller
+    decides whether to print that."""
+    total = len(units)
+    lines = [
+        f"{label}:0: [warning] [inference-unit] {total} prose unit(s) follow; "
+        "judge each one against every rule above."
+    ]
+    for idx, (kind, first, last, text) in enumerate(units, start=1):
+        where = f"line {first}" if first == last else f"lines {first}-{last}"
+        lines.append(f"{label}:0: [warning] [inference-unit] unit {idx} of {total}, {kind}, {where}: {text}")
+    return lines
+
+
+def format_inference_rules(label, inference_rules, det_errors, det_warnings, candidates=None, units=None):
     """The applicable inference-based rules for one source, as finding-shaped
     lines, for the caller to judge the prose against directly. This script
     never judges them itself.
@@ -1571,7 +1757,17 @@ def format_inference_rules(label, inference_rules, det_errors, det_warnings, can
     line, also at line 0 (never a real finding), as "candidate at line N:
     <detail>", capped at MAX_CANDIDATES_PER_RULE with an "omitted" line past
     the cap. The summary line's own text is unchanged when no candidate
-    exists for any rule, so an existing caller sees no difference."""
+    exists for any rule, so an existing caller sees no difference.
+
+    units, from prose_units() (claude-plugins#20), is an optional list
+    printed via format_unit_worklist() right after every rule's own lines
+    and before the summary line, so "the rules print once and the units
+    print once": a caller walks the whole rule set once per source, then
+    the whole worklist once per source. The summary line also gains a
+    trailing clause naming the total and the --units-judged value that
+    claims it. Omitted (as for a multi-file --force-inference call, which
+    mints no nonce to bind a total to) the summary line's own text is
+    unchanged, so an existing caller sees no difference."""
     lines = []
     total_candidates = 0
     for rule_id, rule in inference_rules.items():
@@ -1594,6 +1790,9 @@ def format_inference_rules(label, inference_rules, det_errors, det_warnings, can
                 f"{omitted} more candidate(s) omitted; judge the whole source."
             )
 
+    if units is not None:
+        lines.extend(format_unit_worklist(label, units))
+
     summary = (
         f"{label}:0: [warning] [inference-pending] {len(inference_rules)} inference rule(s) "
         f"above need model judgement; this script does not judge them. "
@@ -1601,6 +1800,8 @@ def format_inference_rules(label, inference_rules, det_errors, det_warnings, can
     )
     if total_candidates:
         summary += f" {total_candidates} located candidate(s) above are not findings."
+    if units is not None:
+        summary += f" {len(units)} prose unit(s) listed above; record with --units-judged {len(units)}."
     lines.append(summary)
     return lines
 
@@ -1617,14 +1818,15 @@ def main():
     parser.add_argument("--html-file", help="path to an HTML file; text nodes are extracted as prose")
     parser.add_argument("--source-label", default=None, help="label for --text's source in the report")
     parser.add_argument("--advise-inference", action="store_true", help="prints the applicable inference rules as finding-shaped `label:0: [warning] [rule-id] inference pending: ...` lines, each optionally followed by its own `candidate at line N: ...` lines (a located structural signal, never a finding), plus an `[inference-pending]` summary line, inside an INFERENCE_ADVISED block; gated: only when the deterministic tier is clean this invocation, not already stop_hook_active, and eligible per inference_eligible(); never judges the prose itself. Cannot be combined with --count.")
-    parser.add_argument("--force-inference", action="store_true", help="prints the same block unconditionally: ignores the deterministic-clean gate, stop_hook_active, and the eligibility throttle (still skips on empty prose); never judges the prose itself; for a single named file inside a git repository, also mints and prints a single-use swe-lint-nonce for --record-lint-result. Cannot be combined with --count.")
+    parser.add_argument("--force-inference", action="store_true", help="prints the same block unconditionally: ignores the deterministic-clean gate, stop_hook_active, and the eligibility throttle (still skips on empty prose); never judges the prose itself; for a single named file inside a git repository, also prints its prose as a numbered `[inference-unit]` worklist, a `swe-lint-units: M` total, and a single-use swe-lint-nonce, all for --record-lint-result's --units-judged and --nonce. Cannot be combined with --count.")
     parser.add_argument("--stop-hook-active", default="false", choices=["true", "false"])
     parser.add_argument("--quiet-vocab", action="store_true", help="omit vocabulary-membership lines from the printed report (they never block; this only reduces noise)")
     parser.add_argument("--cwd", default=None, help="project root .swe-ignore is read from (defaults to the current directory)")
-    parser.add_argument("--record-lint-result", choices=["clean", "failed"], default=None, help="record a both-tier verdict for one named file in this repository's lint ledger (<git-common-dir>/swe/lint-log.ndjson) and exit; lints nothing itself; requires --nonce (exit 4 without a valid, matching one)")
+    parser.add_argument("--record-lint-result", choices=["clean", "failed"], default=None, help="record a both-tier verdict for one named file in this repository's lint ledger (<git-common-dir>/swe/lint-log.ndjson) and exit; lints nothing itself; requires --nonce and --units-judged (exit 4 without a valid, matching pair)")
     parser.add_argument("--findings", type=int, default=0, help="error-severity finding count to record with --record-lint-result")
     parser.add_argument("--recorded-by", default="lint-file", help="label for whoever judged the file, recorded with --record-lint-result")
     parser.add_argument("--nonce", default=None, help="the swe-lint-nonce value a prior --force-inference run printed for this file's current content; required by --record-lint-result inside a git repository")
+    parser.add_argument("--units-judged", default=None, help='a coverage claim for --record-lint-result, checked against the swe-lint-units total that --force-inference\'s nonce recorded for this exact blob: "N" (every unit judged) or "N of M", quoted on the shell line (a declared partial; records as a "partial" status, not "clean"). Required inside a git repository; rejected with exit 4 when missing, when the nonce predates this flag, or when the value does not match that total; a malformed value, or N > M, is a malformed call (exit 2)')
     args = parser.parse_args()
 
     if args.count and (args.force_inference or args.advise_inference):
@@ -1641,7 +1843,18 @@ def main():
         if len(args.files) != 1:
             print("swe: --record-lint-result takes exactly one file path", file=sys.stderr)
             return 2
-        return record_lint_result(args.files[0], args.record_lint_result, args.findings, args.recorded_by, args.nonce)
+        units_judged = None
+        units_declared_total = None
+        if args.units_judged is not None:
+            try:
+                units_judged, units_declared_total = parse_units_judged(args.units_judged)
+            except ValueError as exc:
+                print(f"swe: {exc}", file=sys.stderr)
+                return 2
+        return record_lint_result(
+            args.files[0], args.record_lint_result, args.findings, args.recorded_by,
+            args.nonce, units_judged, units_declared_total,
+        )
 
     rules, exemptions = load_rule_catalogue()
     if rules is None:
@@ -1764,6 +1977,18 @@ def main():
     if len(args.files) == 1 and not (args.text or args.reply_file or args.transcript or args.html_file):
         inference_key = str(Path(args.files[0]).resolve())
 
+    # The numbered worklist for the single named file --force-inference
+    # will mint a nonce for (claude-plugins#20), computed once so the
+    # per-source print loop below and the nonce-minting block after it
+    # agree on the same total. None for a multi-file call, --advise-
+    # inference, or any other source kind: none of those mint a nonce to
+    # bind a total to.
+    nonce_units = None
+    if args.force_inference and inference_key is not None and sources and sources[0][0] == args.files[0]:
+        nonce_candidate_input = sources[0][3]
+        if nonce_candidate_input is not None:
+            nonce_units = prose_units(nonce_candidate_input[0])
+
     due_for_inference = args.force_inference or (args.advise_inference and error_total == 0 and not stop_hook_active)
     if due_for_inference:
         combined_prose = "\n".join(prose for _, _, prose, _ in sources if prose.strip())
@@ -1799,23 +2024,28 @@ def main():
                     if lexicon is not None and candidate_input is not None:
                         numbered_lines, only_lines = candidate_input
                         candidates = find_register_candidates(numbered_lines, only_lines, lexicon, register_rule_ids)
-                    for line in format_inference_rules(label, inference_rules, src_errors, src_warnings, candidates):
+                    units = nonce_units if nonce_units is not None and label == args.files[0] else None
+                    for line in format_inference_rules(label, inference_rules, src_errors, src_warnings, candidates, units):
                         print(line)
                 print("===END_INFERENCE_ADVISED===")
                 save_inference_state(inference_key, words, sentences)
 
     # A nonce is minted for --force-inference on a single named file
-    # regardless of whether the block above printed: a no-prose file and
-    # a deterministically-failed file both still need one, to record
-    # "clean" or "failed" later. Printed last, deliberately: output
-    # piped through head/sed/grep loses this line first, so a truncated
-    # Step 3 fails Step 5 loudly instead of silently reading as complete
-    # (claude-plugins#10). The rules block above is now finding-shaped
-    # (claude-plugins#14), so a findings-shaped grep keeps it even when
-    # it still drops this nonce line.
+    # regardless of whether the block above printed: a no-prose file (its
+    # worklist total is 0) and a deterministically-failed file both still
+    # need one, to record "clean" or "failed" later. The total and the
+    # nonce are printed last, deliberately, in that order: output piped
+    # through head/sed/grep loses the nonce first, then the total, so a
+    # truncated Step 3 fails Step 5 loudly instead of silently reading as
+    # complete (claude-plugins#10). The rules block above is now
+    # finding-shaped (claude-plugins#14) and includes the unit worklist
+    # (claude-plugins#20), so a findings-shaped grep keeps both even when
+    # it still drops the total and nonce lines.
     if args.force_inference and inference_key is not None and sources and sources[0][0] == args.files[0]:
-        nonce, reason = issue_lint_nonce(args.files[0])
+        units_total = len(nonce_units) if nonce_units is not None else 0
+        nonce, reason = issue_lint_nonce(args.files[0], units_total)
         if nonce is not None:
+            print(f"swe-lint-units: {units_total}")
             print(f"swe-lint-nonce: {nonce}")
         else:
             print(f"swe: no lint nonce issued for {args.files[0]}: {reason}")

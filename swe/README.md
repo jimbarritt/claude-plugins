@@ -97,6 +97,11 @@ and the inference tier as well, regardless of whether the file already
 has deterministic errors or is short enough to normally skip it. Use
 this when you want the full check without editing the file first.
 
+The inference tier lists the file as a numbered worklist of prose
+units (one per heading, paragraph, list item, and table) and judges
+each one in turn, rather than reading the file once and hoping nothing
+was missed.
+
 ## Check commits against a clean lint
 
 ```text
@@ -113,6 +118,9 @@ A blocked commit prints which files need a fresh lint pass and the
 exact command to run. A commit that passes prints one line naming the
 number of staged markdown files checked and the clean verdict, so a
 hook that ran and passed is distinguishable from one that never fired.
+A pass that judged only part of a file's worklist records as
+`partial`, not `clean`, and blocks the commit the same way an unjudged
+file does.
 A commit with no staged markdown prints nothing from this check.
 `git commit --no-verify` bypasses the check for one commit. An existing
 `pre-commit` hook in the repository is kept and chained, not replaced:

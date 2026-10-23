@@ -47,36 +47,50 @@ signal for that rule (a verbless sentence right after a long one, a run
 of bold-lead-in bullet lists, a definite phrase whose head noun's lemma
 has not occurred earlier in the document, and similar), never a
 decision that the fault is real. Treat a candidate as a place to check
-first, not a substitute for judging the whole file in Step 4. The block ends with
-one summary line, `<file>:0: [warning] [inference-pending]
-N inference rule(s) above need model judgement; this script does not
-judge them. Deterministic tier: E error(s), W warning(s).`, with a
-trailing `K located candidate(s) above are not findings.` when any
-candidate printed. The script never judges the file against any of
-this itself: it has no model access and never spawns one. It records
-this pass in
+first, not a substitute for judging the whole file in Step 4.
+
+After every rule's own lines, the block prints the file's prose as a
+numbered worklist: one `<file>:0: [warning] [inference-unit] N prose
+unit(s) follow; judge each one against every rule above.` line, then
+one `<file>:0: [warning] [inference-unit] unit N of M, <kind>,
+line(s) <range>: <text>` line per unit (`<kind>` is `heading`,
+`paragraph`, `list-item`, or `table`). This is the same worklist Step 4
+walks and Step 5's `--units-judged` checks coverage against: a heading
+or a paragraph outside a fenced code block, a top-level list item
+(a nested bullet or a wrapped continuation line folds into its parent
+item, not a separate unit), or a table. The block ends with one
+summary line, `<file>:0: [warning] [inference-pending] N inference
+rule(s) above need model judgement; this script does not judge them.
+Deterministic tier: E error(s), W warning(s).`, with a trailing `K
+located candidate(s) above are not findings.` when any candidate
+printed, and a trailing `M prose unit(s) listed above; record with
+--units-judged M.` when the worklist printed. The script never judges
+the file against any of this itself: it has no model access and never
+spawns one. It records this pass in
 `~/.claude/swe/inference-state.json`, so a hook-advised subagent's pass
 on the same file counts too, for the throttle `--advise-inference`
 applies.
 
 Do not filter or truncate this command's output (no `head`, `sed`,
-`tail`, or `grep`). Step 4 must judge against the rules printed here,
-in full, not a list recalled from earlier in the conversation. A
-findings-shaped grep now keeps the rule and summary lines (they are
-line-0, `[warning]` lines like any other), but still drops the
-`swe-lint-nonce` line Step 5 needs, so filtering still loses something.
+`tail`, or `grep`). Step 4 must judge against the rules and the
+worklist printed here, in full, not a list recalled from earlier in
+the conversation. A findings-shaped grep now keeps the rule, worklist,
+and summary lines (they are line-0, `[warning]` lines like any other),
+but still drops the `swe-lint-units` and `swe-lint-nonce` lines Step 5
+needs, so filtering still loses something.
 
-The last line of output is `swe-lint-nonce: <value>`. Step 5 needs
-that value. It is valid for this file's exact current content only,
-and only once. If instead the last line reads `swe: no lint
-nonce issued for <file>: <reason>`, the file needs no ledger row (it
-is outside a git repository, or matched by `.swe-ignore`); do Step 4
-and skip Step 5.
+The last two lines of output are `swe-lint-units: <total>` then
+`swe-lint-nonce: <value>`. Step 5 needs both values. They are valid
+for this file's exact current content only, and only once. If instead
+the last line reads `swe: no lint nonce issued for <file>: <reason>`,
+the file needs no ledger row (it is outside a git repository, or
+matched by `.swe-ignore`); do Step 4 and skip Step 5.
 
 If the file has no prose to check (e.g. empty, or a code file with no
-comments), no `===INFERENCE_ADVISED===` block is printed; skip Step 4.
-The nonce line still prints in this case, since a no-prose file still
-needs a `clean` row recorded in Step 5.
+comments), no `===INFERENCE_ADVISED===` block is printed, so the
+worklist total is 0; skip Step 4. The units and nonce lines still
+print in this case, since a no-prose file still needs a `clean` row
+recorded in Step 5, with `--units-judged 0`.
 
 ## Step 4: Judge the file against the inference rules yourself
 
@@ -112,7 +126,9 @@ detail`, matching the deterministic tier's own format. Severity is
 After Pass 1, make a list of every heading in the file, in document
 order, each with its line number. A heading is a line that starts with
 one to six `#` characters and a space, outside a fenced code block.
-Make the list from the content you read in Pass 1.
+Make the list from the content you read in Pass 1, or read it directly
+off Step 3's worklist: every `heading` unit there is one heading, in
+the same order.
 
 Judge each heading in the list as a sentence, against each
 `inference pending` rule from Step 3. A heading is prose: a metaphor or
@@ -136,19 +152,32 @@ Count the `error`-severity findings: the deterministic tier's own count
 from Step 3, plus any you found judging the inference rules in Step 4
 (0 if Step 4 was skipped for lack of prose). Warnings do not count.
 
-Zero errors:
+Also count the units from Step 3's worklist judged in Step 4. Walking
+the whole worklist (both passes) is the normal case; state that count
+honestly, never the total by default. `M` below is the total Step 3
+printed as `swe-lint-units`.
+
+Every unit judged (the normal case), zero errors:
 
 ```
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" \
-  --record-lint-result clean --findings 0 --nonce <value from Step 3> <file-path>
+  --record-lint-result clean --findings 0 --nonce <value from Step 3> \
+  --units-judged <M> <file-path>
 ```
 
-One or more errors:
+Every unit judged, one or more errors:
 
 ```
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" \
-  --record-lint-result failed --findings <count> --nonce <value from Step 3> <file-path>
+  --record-lint-result failed --findings <count> --nonce <value from Step 3> \
+  --units-judged <M> <file-path>
 ```
+
+Only some units judged (for example, output was truncated and Step 3
+had to be re-run on part of the file): pass `--units-judged "<N> of
+<M>"`, quoted. This records as a `partial` row, which blocks a commit
+the same way `failed` does, whatever the verdict given, since a
+partial pass is not proof the file is clean.
 
 The row is keyed to the file's exact content at this moment, via its
 git blob id. Any later edit invalidates it, so run this after judging,
@@ -156,20 +185,26 @@ not before, and re-run `/swe:lint-file` after a fix.
 
 Exit 0 means recorded (including a one-line note when the file is
 outside a git repository, which needs no further action). Exit 2 means
-the command itself was malformed; fix the arguments and run it again.
-Exit 3 means the ledger could not be written: report that line as-is,
-because a commit staging this file will then be blocked with no other
-explanation. Exit 4 means the nonce was rejected: missing, unknown,
-already used, issued for another file, or the file changed after
-Step 3. Do not retry with another value: go back to Step 3 and run
-Steps 3, 4, and 5 again on the file as it is now.
+the command itself was malformed (for example, `<N>` above `<M>`); fix
+the arguments and run it again. Exit 3 means the ledger could not be
+written: report that line as-is, because a commit staging this file
+will then be blocked with no other explanation. Exit 4 means the
+nonce or the units claim was rejected: no `--nonce`, an unknown or
+already-used nonce, a nonce issued for another file, the file changed
+after Step 3, no `--units-judged`, a nonce that predates this flag
+(re-run Step 3), or a `--units-judged` value that does not match the
+total Step 3 printed for this exact blob. Do not retry with another value: go back to
+Step 3 and run Steps 3, 4, and 5 again on the file as it is now.
 
 ## Step 6: Report
 
 Print every finding, deterministic and inference-tier alike, one line
 each with severity. This is the violations found in Step 4, both
 passes, not the `inference pending` lines, the `candidate at line N`
-lines, or the `[inference-pending]` summary line from Step 3, which
-name rules and places to check, not findings. If
-there are none, say the file is clean, both tiers. Do not fix
-anything unless asked: this command is a check, not an edit.
+lines, the worklist's `inference-unit` lines, or the
+`[inference-pending]` summary line from Step 3, which name rules and
+places to check, not findings. If there are none, say the file is
+clean, both tiers. When Step 5 recorded a `partial` row, say so and
+name the coverage (`N of M units judged`): the file is not recorded
+clean, whatever Step 4 found, until a later pass judges the rest. Do
+not fix anything unless asked: this command is a check, not an edit.

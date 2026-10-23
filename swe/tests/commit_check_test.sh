@@ -117,15 +117,18 @@ ledger_path() {  # ledger_path <repo>
   echo "$1/.git/swe/lint-log.ndjson"
 }
 
-nonce_for() {  # nonce_for <repo> <file> -- prints the minted nonce, or nothing
-  (cd "$1" && python3 "$LINTER" "$2" --force-inference --quiet-vocab 2>&1) \
-    | sed -n 's/^swe-lint-nonce: //p' | tail -1
+nonce_for() {  # nonce_for <repo> <file> -- prints "<nonce> <units>" from one force-inference run
+  local out nonce units
+  out="$(cd "$1" && python3 "$LINTER" "$2" --force-inference --quiet-vocab 2>&1)"
+  nonce="$(printf '%s\n' "$out" | sed -n 's/^swe-lint-nonce: //p' | tail -1)"
+  units="$(printf '%s\n' "$out" | sed -n 's/^swe-lint-units: //p' | tail -1)"
+  printf '%s %s\n' "$nonce" "$units"
 }
 
 lint_and_record() {  # lint_and_record <repo> <file> <status> <findings>
-  local repo="$1" file="$2" status="$3" findings="$4" nonce
-  nonce="$(nonce_for "$repo" "$file")"
-  (cd "$repo" && python3 "$LINTER" --record-lint-result "$status" --findings "$findings" --nonce "$nonce" "$file" >/dev/null 2>&1)
+  local repo="$1" file="$2" status="$3" findings="$4" nonce units
+  read -r nonce units < <(nonce_for "$repo" "$file")
+  (cd "$repo" && python3 "$LINTER" --record-lint-result "$status" --findings "$findings" --nonce "$nonce" --units-judged "$units" "$file" >/dev/null 2>&1)
 }
 
 # --- --force-inference: nonce issuance -------------------------------------
@@ -146,6 +149,16 @@ if [[ "$NONCE1" =~ ^[0-9a-f]{32}$ ]]; then
 else
   assert "the nonce is 32 lowercase hex characters" 1
 fi
+
+UNITS1="$(printf '%s\n' "$FI_OUT" | sed -n 's/^swe-lint-units: //p' | tail -1)"
+if [[ "$UNITS1" =~ ^[0-9]+$ ]]; then
+  assert "swe-lint-units is a non-negative integer" 0
+else
+  assert "swe-lint-units is a non-negative integer" 1
+fi
+UNITS_LINE_INDEX="$(printf '%s\n' "$FI_OUT" | grep -n '^swe-lint-units: ' | tail -1 | cut -d: -f1)"
+TOTAL_LINES="$(printf '%s\n' "$FI_OUT" | wc -l | tr -d ' ')"
+assert "swe-lint-units is the line right before the nonce" "$([ "$UNITS_LINE_INDEX" -eq $((TOTAL_LINES - 1)) ]; echo $?)"
 
 NONCE_STORE="$REPO/.git/swe/lint-nonces.json"
 assert "the nonce store file exists" "$([ -f "$NONCE_STORE" ]; echo $?)"
@@ -197,7 +210,7 @@ assert "--count with --advise-inference exits 2" "$([ $? -eq 2 ]; echo $?)"
 
 # --- --record-lint-result: recording with a valid nonce --------------------
 
-OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE1" a.md 2>&1)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE1" --units-judged "$UNITS1" a.md 2>&1)"
 assert "recorder exits 0 with a valid nonce" "$([ $? -eq 0 ]; echo $?)"
 assert "recorder writes the ledger file" "$([ -f "$(ledger_path "$REPO")" ]; echo $?)"
 
@@ -227,7 +240,7 @@ FAKE="0123456789abcdef0123456789abcdef"
 OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$FAKE" skip3.md 2>&1)"
 assert "a fabricated nonce exits 4" "$([ $? -eq 4 ]; echo $?)"
 
-NONCE2="$(nonce_for "$REPO" skip3.md)"
+read -r NONCE2 UNITS2 <<< "$(nonce_for "$REPO" skip3.md)"
 echo "# second file, edited" > "$REPO/skip3.md"
 OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE2" skip3.md 2>&1)"
 assert "a nonce issued before an edit exits 4 (claude-plugins#10)" "$([ $? -eq 4 ]; echo $?)"
@@ -240,29 +253,29 @@ assert "a stale-blob recording appends no ledger row" "$([ "$LINES" -eq 1 ]; ech
 
 echo "# other file" > "$REPO/b.md"
 git -C "$REPO" add b.md
-NONCE_A="$(nonce_for "$REPO" skip3.md)"
-OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_A" b.md 2>&1)"
+read -r NONCE_A UNITS_A <<< "$(nonce_for "$REPO" skip3.md)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_A" --units-judged "$UNITS_A" b.md 2>&1)"
 assert "a nonce issued for a different file exits 4" "$([ $? -eq 4 ]; echo $?)"
 
 # --- failed also needs a nonce, and cannot be flipped to clean on it -------
 
 echo "# flip test" > "$REPO/flip.md"
 git -C "$REPO" add flip.md
-NONCE_FLIP="$(nonce_for "$REPO" flip.md)"
-OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result failed --findings 2 --nonce "$NONCE_FLIP" flip.md 2>&1)"
+read -r NONCE_FLIP UNITS_FLIP <<< "$(nonce_for "$REPO" flip.md)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result failed --findings 2 --nonce "$NONCE_FLIP" --units-judged "$UNITS_FLIP" flip.md 2>&1)"
 assert "a failed verdict records with a valid nonce" "$([ $? -eq 0 ]; echo $?)"
-OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_FLIP" flip.md 2>&1)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_FLIP" --units-judged "$UNITS_FLIP" flip.md 2>&1)"
 assert "flipping to clean on the same spent nonce exits 4" "$([ $? -eq 4 ]; echo $?)"
 
 # --- a later --force-inference supersedes an earlier pending nonce ---------
 
 echo "# superseded" > "$REPO/super.md"
 git -C "$REPO" add super.md
-NONCE_SUP_A="$(nonce_for "$REPO" super.md)"
-NONCE_SUP_B="$(nonce_for "$REPO" super.md)"
-OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_SUP_A" super.md 2>&1)"
+read -r NONCE_SUP_A UNITS_SUP_A <<< "$(nonce_for "$REPO" super.md)"
+read -r NONCE_SUP_B UNITS_SUP_B <<< "$(nonce_for "$REPO" super.md)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_SUP_A" --units-judged "$UNITS_SUP_A" super.md 2>&1)"
 assert "a superseded nonce exits 4" "$([ $? -eq 4 ]; echo $?)"
-OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_SUP_B" super.md 2>&1)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_SUP_B" --units-judged "$UNITS_SUP_B" super.md 2>&1)"
 assert "the superseding nonce still records" "$([ $? -eq 0 ]; echo $?)"
 
 # --- a nonce is issued even with no prose, or with deterministic errors ---
@@ -280,11 +293,13 @@ if [[ "$NONCE_EMPTY" =~ ^[0-9a-f]{32}$ ]]; then
 else
   assert "a no-prose file still gets a nonce" 1
 fi
+UNITS_EMPTY="$(printf '%s\n' "$FI_OUT" | sed -n 's/^swe-lint-units: //p' | tail -1)"
+assert "a no-prose file's worklist total is 0" "$([ "$UNITS_EMPTY" = "0" ]; echo $?)"
 case "$FI_OUT" in
   *":0: [warning]"*) assert "a no-prose file prints no pending-rule line" 1 ;;
   *) assert "a no-prose file prints no pending-rule line" 0 ;;
 esac
-OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_EMPTY" empty.md 2>&1)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_EMPTY" --units-judged "$UNITS_EMPTY" empty.md 2>&1)"
 assert "a no-prose file's clean recording succeeds" "$([ $? -eq 0 ]; echo $?)"
 
 printf '# has an em dash \xe2\x80\x94 right here\n' > "$REPO/dash.md"
@@ -311,7 +326,8 @@ if [[ "$NONCE_DASH" =~ ^[0-9a-f]{32}$ ]]; then
 else
   assert "a deterministically-failing file still gets a nonce" 1
 fi
-OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result failed --findings 1 --nonce "$NONCE_DASH" dash.md 2>&1)"
+UNITS_DASH="$(printf '%s\n' "$FI_OUT" | sed -n 's/^swe-lint-units: //p' | tail -1)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result failed --findings 1 --nonce "$NONCE_DASH" --units-judged "$UNITS_DASH" dash.md 2>&1)"
 assert "failed records with the nonce from a deterministically-failing pass" "$([ $? -eq 0 ]; echo $?)"
 
 # --- outside a git repository, and a .swe-ignore'd file: no nonce ----------
@@ -326,6 +342,10 @@ esac
 case "$FI_OUT" in
   *"swe-lint-nonce:"*) assert "outside a git repo: no nonce value is printed" 1 ;;
   *) assert "outside a git repo: no nonce value is printed" 0 ;;
+esac
+case "$FI_OUT" in
+  *"swe-lint-units:"*) assert "outside a git repo: no units value is printed" 1 ;;
+  *) assert "outside a git repo: no units value is printed" 0 ;;
 esac
 OUT="$(python3 "$LINTER" --record-lint-result clean "$OUTSIDE_DIR/x.md" 2>&1)"
 STATUS=$?
@@ -347,6 +367,10 @@ case "$FI_OUT" in
   *"swe-lint-nonce"*) assert ".swe-ignore'd file: no nonce line printed at all" 1 ;;
   *) assert ".swe-ignore'd file: no nonce line printed at all" 0 ;;
 esac
+case "$FI_OUT" in
+  *"swe-lint-units"*) assert ".swe-ignore'd file: no units line printed at all" 1 ;;
+  *) assert ".swe-ignore'd file: no units line printed at all" 0 ;;
+esac
 rm -f "$REPO/.swe-ignore"
 git -C "$REPO" rm -q --cached .swe-ignore >/dev/null 2>&1 || true
 
@@ -357,10 +381,10 @@ rm -f "$LEDGER"
 mkdir -p "$LEDGER"
 echo "# ledger write failure" > "$REPO/ledgerfail.md"
 git -C "$REPO" add ledgerfail.md
-NONCE_LF="$(nonce_for "$REPO" ledgerfail.md)"
-OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_LF" ledgerfail.md 2>&1)"
+read -r NONCE_LF UNITS_LF <<< "$(nonce_for "$REPO" ledgerfail.md)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_LF" --units-judged "$UNITS_LF" ledgerfail.md 2>&1)"
 assert "a ledger write failure exits 3" "$([ $? -eq 3 ]; echo $?)"
-OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_LF" ledgerfail.md 2>&1)"
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_LF" --units-judged "$UNITS_LF" ledgerfail.md 2>&1)"
 assert "the nonce is already spent after a failed write (no retry with the same value)" "$([ $? -eq 4 ]; echo $?)"
 
 # --- --advise-inference output still splits cleanly via hooks' _lib.sh ----
