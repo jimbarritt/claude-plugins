@@ -1,16 +1,10 @@
 # State
 
-Last updated: 2026-10-23 (software-english#21 claimed, planned)
+Last updated: 2026-10-23 (software-english#21 shipped, closed)
 
 ## In progress
 
-- [software-english#21](https://github.com/jimbarritt/software-english/issues/21)
-  ("define-before-use and related rules: three mechanical candidates missed
-  in one opening sentence"), claimed by the self-maintaining-repo Routine.
-  Plan from an Opus Plan subagent, corpus-tested against both repos' real
-  `.md` files; see
-  [tasks/software-english-issue-21-define-before-use-count-list.md](tasks/software-english-issue-21-define-before-use-count-list.md).
-  Not yet implemented.
+None.
 
 ## Waiting on others
 
@@ -62,6 +56,63 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-21-define-before-use-count-list.md](tasks/software-english-issue-21-define-before-use-count-list.md)
+  ([#21](https://github.com/jimbarritt/software-english/issues/21), opened by
+  `jimbarritt-pleo`): three bundled claims about one opening sentence
+  ("The router sends an order in one of two modes: on the primary queue,
+  with a priority flag, or on a queue of its own.") that `define-before-use`
+  and `no-abstract-stand-in-for-artefact` both missed, plus a speculative
+  fourth gap. Plan from an Opus Plan subagent, which corpus-tested every
+  proposed detector against both repos' real `.md` files before proposing
+  it. Root cause of claim 1 was not a detector gap: `define-before-use`
+  (SPEC §7.4) had no `core-rules.toml` entry at all, so the inference tier
+  never asked the judging model about it; fixed by catalogueing it, plus a
+  new located-candidate detector `find_undefined_terms()` (a noun recurring
+  3+ times, with a heading occurrence, outside the approved vocabulary,
+  never followed by a definition clause) — the heading-occurrence gate is a
+  corpus-tuned precision filter (609 -> 135 candidates measured; the literal
+  rule alone floods every file at 1231). Claim 2's own proposed deterministic
+  design was corrected, not implemented literally: the issue's own example
+  is itself ambiguous between a 2-item and a 3-item reading, and a
+  deterministic prototype produced 7 false positives out of 15 real matches
+  on both repos' prose. Shipped as new inference-based rule
+  `no-count-list-mismatch` (SPEC §7.20) at **error** severity — the
+  catalogue's first inference-based rule at that severity, keeping the
+  "error, not warning" half of the ask — plus a located-candidate detector
+  `find_count_list_mismatches()`. Claim 3 (word-list addition to §7.15)
+  shipped as asked, with `mode` itself deliberately left off the list (it
+  has correct uses: file mode, strict mode, a CLI mode) and used only as the
+  worked example; `layout`'s own pre-existing correct uses in this repo
+  (§8.3, COLOPHON.md, a heading) guarded by a widened literal-sense
+  exception. The speculative fourth gap ("consider a rule that...") not
+  built: most of what it asks for already has a rule (§7.13, §7.1) that,
+  like §7.4 before this fix, simply has no catalogue entry either — flagged
+  as a broader follow-up ("every SPEC inference rule gets a catalogue
+  entry") rather than built as a one-off here. No escalation: the plan's own
+  "deterministic vs. inference" question was resolved by decisive corpus
+  evidence matching established precedent (software-english#15,
+  claude-plugins#19), not a genuine two-readings fork. New
+  `swe/tests/define_and_count_candidates_test.sh` (34 assertions); all ten
+  `claude-plugins/swe` suites pass against both the local checkout and the
+  fetched release tag. One self-check catch during drafting, found only by
+  running the real linter: new prose citing the rule id
+  `no-abstract-stand-in-for-artefact` by name tripped `abstract-location`
+  via hyphen-tokenisation of "stand-in" (the same false-positive shape
+  issue #14 recorded); reworded "stands in for" to "substitutes for"
+  everywhere it was avoidable, and accepted the one residual hit from citing
+  the rule id itself as the same already-established, unavoidable
+  self-citation cost prior issues (e.g. #18) recorded. Shipped on
+  `software-english`'s `main` at
+  [`4bc643b`](https://github.com/jimbarritt/software-english/commit/4bc643bef7f90f29e7f809ca7ee1ec6f320ac3c3),
+  released as
+  [v0.0.27](https://github.com/jimbarritt/software-english/releases/tag/v0.0.27),
+  closing the issue automatically. `claude-plugins` pin bumped and `swe`
+  version bumped (`0.21.0` -> `0.22.0`) on `main` at
+  [`75cfc23`](https://github.com/jimbarritt/claude-plugins/commit/75cfc239a287e69227b5e48bc2c9978985b0288c),
+  released as
+  [swe-v0.22.0](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.22.0).
+  Single pass, no escalation. `claude-plugins`#16 stays `agent:hold`,
+  excluded from the pool as before.
 - [tasks/issue-20-unit-worklist.md](tasks/issue-20-unit-worklist.md)
   ([#20](https://github.com/jimbarritt/claude-plugins/issues/20), opened by
   `jimbarritt-pleo`): eleventh real `claude-plugins` issue worked end to end

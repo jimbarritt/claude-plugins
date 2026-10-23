@@ -229,5 +229,32 @@ document.
 
 ## Status
 
-Plan complete, not yet implemented. Next: do the work on `main` of each
-repository per MAINTAINER-RUN.md step 5 onward.
+Shipped, both halves, single pass, no escalation.
+
+- `software-english` `main`:
+  [`4bc643b`](https://github.com/jimbarritt/software-english/commit/4bc643bef7f90f29e7f809ca7ee1ec6f320ac3c3),
+  released
+  [v0.0.27](https://github.com/jimbarritt/software-english/releases/tag/v0.0.27),
+  closed issue #21 automatically via `closes #21`.
+- `claude-plugins` `main`:
+  [`75cfc23`](https://github.com/jimbarritt/claude-plugins/commit/75cfc239a287e69227b5e48bc2c9978985b0288c)
+  (pin bump + Python detectors + tests + docs, `swe` `0.21.0` -> `0.22.0`),
+  released
+  [swe-v0.22.0](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.22.0).
+  Commit says "Part of jimbarritt/software-english#21", not `closes`, since
+  that would risk closing a same-numbered `claude-plugins` issue.
+- Closing comment posted on software-english#21 naming both commits and
+  tags, and the actual disposition of all four claims (1 and 2 corrected,
+  not implemented literally; 3 as asked; 4 explicitly deferred).
+- One self-check catch during drafting (not anticipated in the plan): new
+  prose citing the rule id `no-abstract-stand-in-for-artefact` tripped
+  `abstract-location` via hyphen-tokenisation of "stand-in" into the bare
+  word "stand" — the same shape issue #14 already recorded. Reworded
+  "stands in for" to "substitutes for" everywhere avoidable; the one
+  residual hit from citing the rule id by name itself is accepted as the
+  established, unavoidable self-citation cost (same reasoning as #18's
+  `no-metaphor-or-analogy` self-citation).
+- All ten `claude-plugins/swe` test suites pass, verified twice: once
+  against the local `software-english` checkout (`SWE_SRC=`), once against
+  the real fetched `v0.0.27` tag after release.
+- `claude-plugins`#16 stays `agent:hold`, excluded from the pool as before.
