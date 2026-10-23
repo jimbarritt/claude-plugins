@@ -1,30 +1,13 @@
 # State
 
-Last updated: 2026-10-23 (software-english#20 escalated, supervisor)
+Last updated: 2026-10-23 (software-english#20 shipped, closed)
 
 ## In progress
 
-None. See "Waiting on others" for
-[software-english#20](https://github.com/jimbarritt/software-english/issues/20),
-escalated this run, waiting on Jim's answer.
+None.
 
 ## Waiting on others
 
-- [tasks/software-english-issue-20-anthropomorphism-gate.md](tasks/software-english-issue-20-anthropomorphism-gate.md)
-  ([#20](https://github.com/jimbarritt/software-english/issues/20), opened by
-  `jimbarritt-pleo`): escalated this run. The issue's two proposed fixes
-  (communication verbs + an inverted subject gate, and motion verbs) need a
-  coordinated change across both repos — the subject gate is hard-coded
-  Python in `claude-plugins`, not data in `software-english`. The
-  communication-verb half is sound once four guards are added (full plan
-  ready). The motion-verb half conflicts with shipped text: `banned.tsv`
-  prescribes `arrives` as the fix for `reaches`/`lands`/`as it comes`, and
-  `claude-plugins#15`'s `motion_idiom_test.sh` locks in that `"This leaves
-  the file unchanged."` and `"goes past the end of the file"` stay clean of
-  `[anthropomorphism]` findings on purpose. Question on the issue: add the
-  motion verbs and reverse those fixes/tests, or keep motion verbs at the
-  inference tier and ship only the communication-verb/gate half. Labelled
-  `supervisor` in place of `agent:working`.
 - The Claude plugin directory's review of `swe`, which Jim submitted on
   2026-10-01. Status: waiting for review. See
   [tasks/future-plugin-directory-listing.md](tasks/future-plugin-directory-listing.md).
@@ -73,6 +56,38 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/software-english-issue-20-anthropomorphism-gate.md](tasks/software-english-issue-20-anthropomorphism-gate.md)
+  ([#20](https://github.com/jimbarritt/software-english/issues/20), opened
+  by `jimbarritt-pleo`): `anthropomorphism-fixed-list` passed any
+  proper-noun subject (`Postgres knows about the row`) and every verb of
+  motion or communication, since the word list had neither and the subject
+  check fired only on a structure noun or a pronoun. The first
+  `software-english` issue whose fix spans both repos: `word_list` is
+  catalogue data, but the subject check is Python in `claude-plugins`.
+  Escalated first, the Routine's first real escalation since #16: the
+  motion-verb half contradicted `banned.tsv`'s own `arrives` fixes, SPEC
+  §5.2's deliberate exclusion, and `claude-plugins#15`'s test guards. Jim's
+  answer, in the session: the rule is absolute, an object cannot move,
+  implement it. Shipped both halves. New catalogue fields `subject_gate`
+  and `human_referents`; the linter fires unless a human referent precedes
+  the match in the same clause, with four measured guards (clause scope,
+  imperative lead, determiner-before, possessive) that took the plain
+  inversion from about 60 false positives on both repos' real prose to
+  zero. `abstract-location` keeps the old check (32 false positives
+  measured on inversion). `banned.tsv` no longer offers `arrives` as a
+  fix; the `#15` guards reversed; 42 shipped sentences reworded. Released
+  `software-english` [v0.0.26](https://github.com/jimbarritt/software-english/releases/tag/v0.0.26)
+  ([`0935b1a`](https://github.com/jimbarritt/software-english/commit/0935b1a9f1814de9598230207d7377e7595ab94d))
+  and `swe` 0.18.5 -> 0.19.0,
+  [swe-v0.19.0](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.19.0)
+  ([`3a86371`](https://github.com/jimbarritt/claude-plugins/commit/3a86371adef28d7440de52aab788d6f4f3bc1ff8)),
+  minor since the gate behaviour changes. New
+  `anthropomorphism_gate_test.sh` (34 assertions); eight suites, 210
+  assertions, pass against the fetched tag. Two process catches recorded
+  in the task file: the `software-english` clone sat on the harness
+  branch, so the first push to `main` was a no-op; `release.yml` takes
+  `0.0.26`, not `v0.0.26`. `claude-plugins`#19/#20 and
+  `software-english`#21 left unclaimed, one issue per run.
 - [tasks/software-english-issue-19-distributive-tail.md](tasks/software-english-issue-19-distributive-tail.md)
   ([#19](https://github.com/jimbarritt/software-english/issues/19), opened
   by `jimbarritt-pleo`): a sentence stating a count or a set, followed by a

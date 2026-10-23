@@ -154,10 +154,85 @@ re-deriving it is wanted rather than reusing this summary.
 > those fixes and tests, or keep motion verbs at the inference tier and
 > ship only the communication verbs and the inverted gate?
 
-## Status
+## Jim's answer
 
-Escalated. `agent:working` swapped for `supervisor` on
-`jimbarritt/software-english#20`. The next firing, once Jim answers on the
-issue from a trusted account, picks this up at Escalate step 2 (comment
-answered → re-enter the normal flow, implementing whichever reading Jim
-picks, per the Plan subagent's two-branch plan).
+Given directly in the escalating session, the same route as #2/#13, not
+on the issue: Reading 1. The rule is absolute. No motion verb, and no
+human verb or adjective, takes an inanimate subject; an object cannot
+carry, hold, travel, or move. Implement it, whatever that takes. Jim
+also noted that the `#15` exclusion was not a decision of his own.
+Recorded on the issue in a comment before resuming.
+
+## Outcome
+
+Shipped, both halves, single session after the escalation.
+
+**software-english** `0935b1a`, released as v0.0.26, closed the issue
+automatically.
+
+- `anthropomorphism-fixed-list`: new catalogue fields
+  `subject_gate = "not-human-subject"` and `human_referents` (33 words).
+  Fires unless a human referent precedes the match in the same clause;
+  a proper noun or a pronoun counts as a system.
+- Added `asks`, `tells`, `answers`, `says`, `disagree`, and the motion
+  verbs `arrives`, `arrive`, `goes`, `comes`, `come`, `enters`, `enter`,
+  `leaves`, `leave`, `moves`, `move`. Not added: `disagrees`,
+  `complains`, `travels`, `lands`, `reaches` (already in `banned.tsv`,
+  and this rule skips a banned span, so they would do nothing);
+  `replies` (a noun in four shipped sentences). `travel` added to
+  `banned.tsv` beside `travels`.
+- `banned.tsv` no longer gives `arrives` as the fix for `reaches`,
+  `land`, `lands`, `landed`, `as they come`, `as it comes`. SPEC §5.1
+  rewritten; §5.2's motion-verb exclusion paragraph and §5.5's
+  inference-tier motion paragraph restated: only a positional idiom with
+  no verb of its own (`pass over`, `behind the serialiser`) stays at the
+  inference tier. `abstract-location` keeps the structure-noun check
+  (inverting it measured 32 false positives: `live` as an adjective,
+  `stand` in `stand-in`, `the rest of`).
+- Four guards beyond the issue's text, each measured against both repos'
+  real prose (the plain inversion gave about 60 false positives):
+  clause-scoped lookback; no finding when nothing precedes the match, or
+  only an imperative/infinitive lead (`do not leave a heading empty`,
+  `to enter the value`: the `IMPERATIVE_LEAD` set, added after
+  `templates/technical-manual.md`'s "do not leave a heading empty"
+  fired); a determiner directly before the match marks a noun; a
+  possessive is not the subject.
+- 42 shipped sentences across both repos reworded (SPEC.md 18 sites,
+  COLOPHON.md 3, four templates, the ADR; `claude-plugins` CLAUDE.md,
+  README, send-feedback SKILL, two hook comments). Three were my own new
+  text, caught only by re-running the linter: a code span wrapped across
+  lines in §5.1 and §5.5 (the inline-code mask is per line), and "no word
+  comes before the match" in the new TOML description.
+
+**claude-plugins** `3a86371`, released as swe-v0.19.0 (minor: the gate
+behaviour changes, not only the pin).
+
+- `subject_gate_passes()` and `is_human_referent()` in
+  `software_english_lint.py`; the catalogue switch defaults to the old
+  system-subject check, so `commit_check_test`'s scratch catalogue and an
+  older pin behave as before. `HUMAN_SUBJECT_NOUNS` now applies to that
+  default check only.
+- `motion_idiom_test.sh`: the three `#15` guards reversed to `fires`
+  (`this leaves the file unchanged`, `the file does not move`, `goes past
+  the end of the file`); `where it left off`, `pass over`, `behind the
+  proxy` stay clean. New `anthropomorphism_gate_test.sh`, 34 assertions,
+  two fixtures (real data, scratch catalogue with and without
+  `subject_gate`). One fixture catch: `load_tsv_words()` skips a header
+  row, so a scratch TSV needs one.
+- Eight suites, 210 assertions, pass twice: with `SWE_SRC` on the local
+  checkout, and without it against the fetched v0.0.26. Before/after
+  count of `[anthropomorphism]`/`[abstract-location]` findings on every
+  tracked `.md`/`.py`/`.sh` in both repos: 1 before (a pre-existing
+  `abstract-location` "live" on SPEC.md), 59 after the TOML change
+  alone, 1 after the rewording. `--diff --added-only` clean in both
+  repos. `check-unshipped` green on `main`.
+
+Two process catches. The `software-english` clone was checked out on the
+harness-assigned branch, so the first `git push origin main` was a no-op
+("Everything up-to-date"); caught by reading the push output, fixed by a
+fast-forward of `main`. The first `release.yml` run failed at "Compute
+the tag": the input is plain semver (`0.0.26`), not `v0.0.26`; nothing
+was tagged, re-run with the right input. The count script's first run
+missed `claude-plugins/.swe-ignore` (it ran from the other repo's
+directory), which showed as two phantom `abstract-location` hits in
+exempt files; the script now runs each repo from its own root.
