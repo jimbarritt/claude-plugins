@@ -55,7 +55,7 @@ rejects with `plugins.N.source: Invalid input`. Copilot CLI takes a
 { "source": "github", "repo": "<owner>/<repo>", "path": "<dir>" }
 ```
 
-The first line goes in `.claude-plugin/marketplace.json`, the second in
+The first line is for `.claude-plugin/marketplace.json`, the second for
 `.github/plugin/marketplace.json`.
 
 ## Releasing a change

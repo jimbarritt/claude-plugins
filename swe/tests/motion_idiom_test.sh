@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Covers the deterministic motion-idiom coverage added for
 # claude-plugins#15: each fixed motion idiom in vocabulary/banned.tsv
-# ("where this/that leaves", "as they/it come(s)") fires as banned-word,
-# and the same words used literally, or the four shapes the issue
-# proposed but deliberately dropped (go past, pass over, does not move,
-# behind the + component), stay clean.
+# (the "where this/that ..." and "as they/it ..." families) fires as
+# banned-word.
+# software-english#20 then put the motion verbs themselves (goes, comes,
+# leaves, moves, arrives) on the anthropomorphism fixed list, with a
+# not-human-subject check: the literal uses #15 kept clean now fire as
+# [anthropomorphism], and only a positional idiom with no verb of its own
+# (pass over, behind the + component) stays clean.
 #
 # Runs against real Software English data, not a scratch fixture: no
 # other test file does this. SWE_SRC=<software-english checkout> copies
@@ -58,6 +61,11 @@ fires() {  # fires <sentence> <phrase>: a banned-word finding for exactly that p
   out="$(lint "$1")"
   grep -qF "[banned-word] \"$2\"" <<<"$out"
 }
+anthro() {  # anthro <sentence> <word>: an anthropomorphism finding for exactly that word
+  local out
+  out="$(lint "$1")"
+  grep -qF "[anthropomorphism] \"$2\"" <<<"$out"
+}
 clean() {  # clean <sentence>: no banned-word, abstract-location, or anthropomorphism finding
   local out
   out="$(lint "$1")"
@@ -77,17 +85,17 @@ assert "fires: add them as they come" "$(fires 'Add them as they come.' 'as they
 assert "fires: as they come in" "$(fires 'Requests are handled as they come in.' 'as they come'; echo $?)"
 assert "fires: as it comes" "$(fires 'Handle each event as it comes.' 'as it comes'; echo $?)"
 
-# --- guards: same words, literal or non-idiomatic sense, stay clean ---
-assert "clean: this leaves the file unchanged" "$(clean 'This leaves the file unchanged.'; echo $?)"
+# --- the motion verb itself, with a system subject, fires (software-english#20) ---
+assert "fires: this leaves the file unchanged" "$(anthro 'This leaves the file unchanged.' 'leaves'; echo $?)"
+assert "fires: that leaves two options" "$(anthro 'That leaves two options.' 'leaves'; echo $?)"
+assert "fires: the file does not move" "$(anthro 'The file does not move to the archive directory.' 'move'; echo $?)"
+assert "fires: a read goes past the end of the file" "$(anthro 'A read that goes past the end of the file returns an error.' 'goes'; echo $?)"
+
+# --- guards: no verb of motion on either list, stays clean ---
 assert "clean: resumes where it left off" "$(clean 'The job resumes where it left off.'; echo $?)"
-assert "clean: that leaves two options" "$(clean 'That leaves two options.'; echo $?)"
 assert "clean: as they become available" "$(clean 'As they become available, the queue drains.'; echo $?)"
 assert "clean: as they complete" "$(clean 'As they complete, the command exits.'; echo $?)"
-
-# --- guards: motion verbs deliberately left to the inference tier (#15) ---
-assert "clean: the file does not move (literal operation)" "$(clean 'The file does not move to the archive directory.'; echo $?)"
 assert "clean: a second pass over the input" "$(clean 'A second pass over the input removes duplicates.'; echo $?)"
-assert "clean: a read goes past the end of the file" "$(clean 'A read that goes past the end of the file returns an error.'; echo $?)"
 assert "clean: the service runs behind the proxy" "$(clean 'The service runs behind the proxy.'; echo $?)"
 
 echo

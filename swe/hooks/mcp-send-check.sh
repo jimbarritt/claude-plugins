@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PreToolUse on outbound-message MCP tools (Slack, Gmail send/reply/forward,
-# `create_file`): checks the message body before it arrives at another
-# person. Verified tool names in this Claude Code installation:
+# `create_file`): checks the message body before another person
+# receives it. Verified tool names in this Claude Code installation:
 #   mcp__claude_ai_Gmail__send_message   (fields: body, htmlBody)
 #   mcp__claude_ai_Gmail__reply          (fields: body, htmlBody)
 #   mcp__claude_ai_Gmail__forward        (fields: body, htmlBody)

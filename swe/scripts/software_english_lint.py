@@ -472,9 +472,13 @@ SENTENCE_END = (".", "!", "?")
 
 SYSTEM_PRONOUNS = {"it", "this", "that"}
 # In vocabulary/structure.tsv for other reasons, but human referents, not
-# system referents. Must not trigger an anthropomorphism/abstract-location
-# check ("the user lives in London" is correct English).
+# system referents. Applies to the system-subject gate only (the default,
+# used by abstract-location): "the user lives in London" is correct
+# English. A rule with subject_gate = "not-human-subject" reads its own
+# human_referents list from the catalogue instead.
 HUMAN_SUBJECT_NOUNS = {"user"}
+# The not-human-subject gate does not look back across a clause boundary.
+CLAUSE_BREAK = re.compile(r"[.!?;:,(]")
 
 # A literal token (identifier, path, command, flag, acronym, version) is not
 # checked against the vocabulary. Detected structurally, not by a list:
@@ -544,6 +548,13 @@ NOUN_DETERMINERS = {
     "a", "an", "the", "no", "each", "every", "zero", "any", "some", "all",
     "this", "that", "these", "those", "its", "their", "your", "one", "two", "three",
 }
+# "this" and "that" are left out: each is also a system-referring pronoun,
+# and so a subject in its own right.
+NOUN_USE_DETERMINERS = NOUN_DETERMINERS - SYSTEM_PRONOUNS
+# A clause with only these words before the verb is an imperative or an
+# infinitive, with no subject: "do not leave a heading empty", "to enter
+# the value". "does" is not here: a third-person subject precedes it.
+IMPERATIVE_LEAD = {"do", "not", "never", "always", "then", "also", "first", "please", "just", "only", "to"}
 
 # A bullet item whose first line opens with a bold span and has real text
 # after it closes: "**Fast startup.** The service starts in 200 ms." A
@@ -700,6 +711,35 @@ def is_literal_token(word, line, start):
     return False
 
 
+def is_human_referent(word, human_referents):
+    # A possessive ("user's") modifies the next noun, so it is never the
+    # subject. A plural counts only above three letters: "is" is not "i".
+    if word.endswith("'s") or word.endswith("s'"):
+        return False
+    if word in human_referents:
+        return True
+    return len(word) > 3 and word.endswith("s") and word[:-1] in human_referents
+
+
+def subject_gate_passes(rule, lowered, start, structure_nouns):
+    lookback_words = rule["lookback_words"]
+    if rule.get("subject_gate", "system-subject") == "not-human-subject":
+        before = lowered[:start]
+        breaks = list(CLAUSE_BREAK.finditer(before))
+        clause = before[breaks[-1].end():] if breaks else before
+        preceding = WORD.findall(clause)[-lookback_words:]
+        if not preceding or preceding[-1] in NOUN_USE_DETERMINERS:
+            return False
+        if all(w in IMPERATIVE_LEAD for w in WORD.findall(clause)):
+            return False
+        humans = {w.lower() for w in rule.get("human_referents", [])}
+        return not any(is_human_referent(w, humans) for w in preceding)
+    window = lowered[max(0, start - 40):start]
+    preceding = WORD.findall(window)[-lookback_words:]
+    gate_nouns = structure_nouns - HUMAN_SUBJECT_NOUNS
+    return any(w in gate_nouns or w in SYSTEM_PRONOUNS for w in preceding)
+
+
 def check_line(number, line, vocabulary, structure_nouns, banned_rules, rules, findings):
     banned_spans = []
     for phrase, fix, pattern in banned_rules:
@@ -733,16 +773,11 @@ def check_line(number, line, vocabulary, structure_nouns, banned_rules, rules, f
     for rule_id in ("anthropomorphism-fixed-list", "abstract-location"):
         rule = rules[rule_id]
         finding_id = "anthropomorphism" if rule_id == "anthropomorphism-fixed-list" else rule_id
-        lookback_words = rule["lookback_words"]
         for phrase in rule["word_list"]:
             for pm in re.finditer(r"\b" + re.escape(phrase) + r"\b", lowered):
                 if any(s <= pm.start() < e for s, e in flagged_spans):
                     continue
-                window_start = max(0, pm.start() - 40)
-                window = lowered[window_start:pm.start()]
-                preceding_words = WORD.findall(window)[-lookback_words:]
-                gate_nouns = structure_nouns - HUMAN_SUBJECT_NOUNS
-                if any(w in gate_nouns or w in SYSTEM_PRONOUNS for w in preceding_words):
+                if subject_gate_passes(rule, lowered, pm.start(), structure_nouns):
                     flagged_spans.append((pm.start(), pm.end()))
                     findings.append((number, rule["severity"], finding_id, f'"{phrase}"'))
 

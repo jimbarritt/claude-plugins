@@ -51,7 +51,7 @@ the hook itself, which can stall a tool call on a slow or failed model
 response, the hook only advises Claude that a fresh pass is worth
 doing; Claude dispatches it as a subagent, then fixes anything it
 reports. The underlying command or send already went through by the
-time the subagent's report comes back, since the hook does not delay
+time the subagent returns its report, since the hook does not delay
 it for a model call. A commit can be amended after the fact if
 something turns up; an already-sent message stays sent regardless.
 Publishing the same artefact
@@ -62,7 +62,7 @@ checking again.
 ## What the output style costs
 
 Selecting the output style costs roughly 6% to 11% more input tokens
-per turn than leaving it unselected. The style's own text goes into the
+per turn than leaving it unselected. The style's own text is added to the
 system prompt on every request, which is where the cost falls.
 
 | Prompt length | Extra input tokens |
@@ -144,7 +144,7 @@ Run this on your own schedule, not automatically:
 ```
 
 Answer its questions one at a time. For each real pattern it finds
-across the log, it proposes a fix direction and asks whether to file a
+across the log, it proposes a fix direction and one question: whether to file a
 `gh issue create` against the repository that owns the rule.
 
 Before it files anything, it shows the exact issue title and body and
@@ -167,7 +167,7 @@ release tag, and closes the issue.
 An issue qualifies when it has the `agent:go` label, or when a
 trusted account opened it. A run that cannot finish the work without
 an answer writes one question on the issue. It swaps the
-`agent:working` label for `supervisor` and leaves the issue open.
+`agent:working` label for `supervisor`; the issue stays open.
 
 This Routine is part of the repository's own maintenance, not
 behaviour the plugin installs.
@@ -216,8 +216,8 @@ Keys, all `true` by default:
 | `artifact` | The check on a file about to publish as an Artifact |
 | `mcp-send` | The check on an outbound Slack/Gmail/Drive message | <!-- swe: ignore -->
 
-A missing file, a missing key, or a value other than `false` leaves that
-check on. The same defaults live in the plugin's own `config.json`, so a
+With a missing file, a missing key, or a value other than `false`, that
+check stays on. The same defaults live in the plugin's own `config.json`, so a
 project file only needs to list what it changes.
 
 The commit check reads its own settings from the same file, under

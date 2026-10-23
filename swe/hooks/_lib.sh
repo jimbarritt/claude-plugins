@@ -114,7 +114,7 @@ report_and_maybe_block() {
 #
 # Two separate extractions from $1, each a plain command substitution
 # (not a side-effect global: a bash function called inside $(...) runs
-# in a subshell, so an assignment inside it never arrives back at the
+# in a subshell, so an assignment inside it is never visible to the
 # caller). A caller does CLEAN="$(strip_advise_block "$OUTPUT")" for
 # the deterministic-tier report with the block removed, and separately
 # ADVISE_RULES="$(extract_advise_rules "$OUTPUT")" for the rules text
@@ -131,7 +131,7 @@ extract_advise_rules() {
 # already did) exactly as if this hook produced no output. It only
 # tells Claude to dispatch a subagent to read the source and judge it
 # against the rules in $1 (built by the caller from ADVISE_RULES above,
-# which also knows the right file path or the text itself): never to
+# which also has the right file path or the text itself): never to
 # re-run this script for the judging step, since it cannot do that.
 # Today only the three PreToolUse hooks (bash, artifact, mcp-send) call
 # this. The posttooluse branch stays general library support, not tied

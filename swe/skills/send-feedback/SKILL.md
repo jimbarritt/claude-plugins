@@ -72,9 +72,9 @@ one pattern just because they share the placeholder).
 
 - **Real `rule_id`:** group entries by `(rule_id, verdict)`. Two or
   more sharing both is a candidate cluster, carried into Step 3
-  together. A singleton also goes to Step 3, on its own: one clear,
+  together. A singleton is also raised in Step 3, on its own: one clear,
   well-formed entry is reason enough to raise it, not just a cluster.
-- **`rule_id: "unknown"` or `null`:** every entry goes to Step 3
+- **`rule_id: "unknown"` or `null`:** every entry is raised in Step 3
   individually, regardless of how many share the placeholder. If, when
   you get to one in Step 3, its `quote`/`note` reads as an obvious
   duplicate of one just discussed, say so and offer to fold them into
