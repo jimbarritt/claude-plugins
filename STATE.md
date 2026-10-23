@@ -1,15 +1,10 @@
 # State
 
-Last updated: 2026-10-23 (claude-plugins#19 claimed, planned)
+Last updated: 2026-10-23 (claude-plugins#19 shipped, closed)
 
 ## In progress
 
-- [tasks/issue-19-definite-phrase-candidates.md](tasks/issue-19-definite-phrase-candidates.md)
-  ([#19](https://github.com/jimbarritt/claude-plugins/issues/19), opened by
-  `jimbarritt-pleo`): located candidates for `no-unanchored-reference` and
-  `no-unstated-presupposition` by a definite-noun-phrase token lookup over
-  the document, same pattern as #18. Claimed and planned this run; work on
-  `main` not yet started.
+None.
 
 ## Waiting on others
 
@@ -61,6 +56,58 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-19-definite-phrase-candidates.md](tasks/issue-19-definite-phrase-candidates.md)
+  ([#19](https://github.com/jimbarritt/claude-plugins/issues/19), opened by
+  `jimbarritt-pleo`): tenth real `claude-plugins` issue worked end to end by
+  the self-maintaining-repo Routine, single pass, no escalation. Neither
+  `no-unanchored-reference` (SPEC §7.5) nor `no-unstated-presupposition`
+  (SPEC §7.19) is model-judgement-only pointed at anything, so a document
+  whose opening sentence was a verbless colon list of fresh definite noun
+  phrases passed `/swe:lint-file` clean, with no candidate for the model
+  pass to check on a long file. Plan from an Opus Plan subagent, which read
+  the #18 located-candidate precedent and both rules' real catalogue text
+  before proposing anything. New `find_definite_first_mentions()`: one
+  forward pass tracking every token's lemma seen so far (title and headings
+  included) over `definite_segments()` (phrase-bounded chunks of
+  `prose_lines()`'s output); a `the`/`these`/`those`/`both the` phrase whose
+  head noun hasn't occurred earlier is a candidate, routed to
+  `no-unstated-presupposition` when it carries a cardinal, otherwise to
+  `no-unanchored-reference`, matching the catalogue's own stated precedence
+  between the two. Wired into #18's existing `find_register_candidates()`
+  dispatcher and `===INFERENCE_ADVISED===` printer unchanged: same
+  `candidate at line N` format, same 20-per-rule cap, same never-a-finding
+  invariants. One deviation from the plan's own literal algorithm, forced by
+  the real corpus: a bare `both` was excluded from starting a phrase unless
+  immediately followed by `the`, since every bare-`both` hit in this repo's
+  and `software-english`'s own real prose was a correlative/pronoun use
+  ("both existed here", "both match"), not a determiner, and the detector
+  has no verb lexicon to tell the two apart. Two minor residual noise cases
+  accepted as inherent to a no-POS-tagger design rather than special-cased: a
+  compound-noun head reads as its first word ("the retry queue" -> head
+  "retry"), and one elliptical "the two" picked up a following adverb as its
+  head. No `software-english` change: both rules' existing `check`,
+  `severity`, and precedence text already covered this signal, as the plan
+  anticipated. New `swe/tests/definite_phrase_candidates_test.sh` (35
+  assertions); `register_candidates_test.sh` edited since both new rules now
+  legitimately fire on real prose by design (unlike #18's narrow structural
+  patterns) — its true-negative sweep narrowed to the #18 rule ids only, its
+  exact "1 located candidate(s)" assertion relaxed to a pattern; all nine
+  suites pass (re-verified independently by this session, not just the
+  implementing subagent). Corpus sweep across both repos' real `.md` files
+  found candidates on every file, several hitting the 20-cap
+  (`agent-guide.md`, `SPEC.md`, `pull-request.md`), ~20 spot-checked by eye
+  as genuinely plausible signals — expected and correct, unlike #18's
+  narrower patterns, since these are general prose rules. The issue's own
+  "optional high-precision" blocking check deliberately not built: it would
+  break the located-candidate invariant and needs a `software-english`
+  schema change out of scope. Version bumped `0.19.0` -> `0.20.0`. Shipped
+  on `main` at
+  [`cf3f6ca`](https://github.com/jimbarritt/claude-plugins/commit/cf3f6cad9fced264db2133db81f98c7b12784ddb),
+  which closed the issue automatically, released as
+  [`swe-v0.20.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.20.0).
+  `agent:working` label removed on close. `claude-plugins`#20 and
+  `software-english`#21, both filed the same day a few minutes after #19 by
+  the same author, left unclaimed — one issue per run.
 - [tasks/software-english-issue-20-anthropomorphism-gate.md](tasks/software-english-issue-20-anthropomorphism-gate.md)
   ([#20](https://github.com/jimbarritt/software-english/issues/20), opened
   by `jimbarritt-pleo`): `anthropomorphism-fixed-list` passed any

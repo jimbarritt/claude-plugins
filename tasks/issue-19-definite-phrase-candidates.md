@@ -126,6 +126,66 @@ or title-semantics anchoring, no code-block/blockquote anchoring, the
 completed-act participle marker not detected, code-comment sources still get
 candidates), and `lint-file/SKILL.md`'s example list.
 
-## Status
+## Outcome
 
-Planned. Work not yet started this run.
+Shipped, single pass, no escalation. Implemented largely as planned, with
+one deviation from the brief, corpus-evidenced: bare `both` is excluded from
+starting a phrase unless immediately followed by `the`. The literal
+algorithm let a bare `both` absorb a following past-tense verb as a
+"modifier" or head ("both existed here", "both match", "both enforced by
+..." — all real sentences in this repo's and `software-english`'s own prose,
+all correlative/pronoun uses, none a true determiner); with no verb lexicon
+passed into the new detector (by design, only `connectives`/`qualities`),
+there is no clean lexical way to tell these apart from "both options", so
+`both` only starts a phrase as `both the <head>`. Two minor residual noise
+cases accepted rather than special-cased, since there is no mechanism in a
+no-POS-tagger design to fix them cleanly: a compound-noun head reads as its
+first word ("the retry queue" -> head "retry", not "queue"), and one
+elliptical "the two" picked up a following adverb as its head in the real
+corpus sweep.
+
+`find_definite_first_mentions()` makes one forward pass over
+`definite_segments()` (phrase-bounded segments of `prose_lines()`'s
+unfiltered output, split on a blank line, an hr, a heading, a table row, a
+bullet, or a gap), tracking every token's lemma in one `seen` set across the
+whole document (title and headings included). A phrase starting
+`the`/`these`/`those`/`both the`, with an optional cardinal and up to two
+adjective-shaped modifiers, is a candidate when its head noun hasn't
+occurred earlier: with a cardinal, routed to `no-unstated-presupposition`;
+otherwise to `no-unanchored-reference`, matching the catalogue's own stated
+precedence between the two. Wired into the existing #18
+`find_register_candidates()`/`===INFERENCE_ADVISED===` mechanism — same
+`candidate at line N` format, same 20-per-rule cap, same never-a-finding
+invariants.
+
+New `swe/tests/definite_phrase_candidates_test.sh` (35 assertions, all
+pass). `register_candidates_test.sh` needed two edits since both new rules
+now legitimately fire on real prose by design (unlike #18's narrow
+structural patterns): its true-negative sweep narrowed to the #18 rule ids
+only, and its exact "1 located candidate(s)" text assertion relaxed to a
+pattern (34 assertions, all pass, re-verified independently by this
+session). All seven other existing suites rerun unchanged against
+`SWE_SRC=/home/user/software-english` and pass (176 assertions total,
+re-verified independently). No `software-english` change: both rules'
+`check`/`severity`/precedence text already covered this signal, as
+anticipated. The issue's own "optional high-precision" blocking check was
+deliberately not built (see the plan above).
+
+Corpus sweep (rough per-file candidate counts, unanchored/presupposition):
+this repo's `README.md` 4/0, `CLAUDE.md` 12/1, `agent-guide.md` 21/1 (hit
+the 20-cap), `lint-file/SKILL.md` 13/0, the output style 12/0;
+`software-english`'s `README.md` 4/0, `COLOPHON.md` 14/1, `SPEC.md` 21/4
+(hit the cap); all 15 `templates/` files 2-21 unanchored each
+(`pull-request.md` hit the cap), 0-1 presupposition each. ~20 candidates
+spot-checked by eye across files all read as genuinely plausible signals.
+
+Version bumped `0.19.0` -> `0.20.0` (minor, new detector output, same
+precedent as #18). Shipped on `main` at
+[`cf3f6ca`](https://github.com/jimbarritt/claude-plugins/commit/cf3f6cad9fced264db2133db81f98c7b12784ddb),
+which closed the issue automatically (`closes #19`), released as
+[`swe-v0.20.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.20.0).
+Commented on the issue with the summary; `agent:working` label removed,
+`auto-fix-candidate` kept. `scripts/check-unshipped.sh` clean.
+`claude-plugins`#20 and `software-english`#21 (both filed the same day, a
+few minutes after #19, by the same author) left unclaimed — one issue per
+run.
