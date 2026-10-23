@@ -1,10 +1,15 @@
 # State
 
-Last updated: 2026-10-23 (software-english#20 shipped, closed)
+Last updated: 2026-10-23 (claude-plugins#19 claimed, planned)
 
 ## In progress
 
-None.
+- [tasks/issue-19-definite-phrase-candidates.md](tasks/issue-19-definite-phrase-candidates.md)
+  ([#19](https://github.com/jimbarritt/claude-plugins/issues/19), opened by
+  `jimbarritt-pleo`): located candidates for `no-unanchored-reference` and
+  `no-unstated-presupposition` by a definite-noun-phrase token lookup over
+  the document, same pattern as #18. Claimed and planned this run; work on
+  `main` not yet started.
 
 ## Waiting on others
 
