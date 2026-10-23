@@ -1,10 +1,16 @@
 # State
 
-Last updated: 2026-10-23 (claude-plugins#19 shipped, closed)
+Last updated: 2026-10-23 (claude-plugins#20 claimed, in progress)
 
 ## In progress
 
-None.
+- [tasks/issue-20-unit-worklist.md](tasks/issue-20-unit-worklist.md)
+  ([#20](https://github.com/jimbarritt/claude-plugins/issues/20), opened by
+  `jimbarritt-pleo`): a numbered worklist of prose units for the
+  inference-tier pass, plus a `--units-judged` coverage check on
+  `--record-lint-result` that rejects a mismatch with exit 4 and records a
+  partial pass as `partial`, not `clean`. Plan from an Opus Plan subagent,
+  read against the real code. `agent:working` label set on the issue.
 
 ## Waiting on others
 
