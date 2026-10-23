@@ -46,7 +46,15 @@ can add `label:0: [warning] [rule-id] candidate at line N: ...` lines: a
 cheap structural signal for no-cadence-device (a verbless fragment right
 after a long sentence; two adjacent sentences with matching word-class
 shape) or no-mechanical-repetition (a run of bold-lead-in bullet lists),
-located without deciding whether the fault is real. Also at line 0, never
+located without deciding whether the fault is real. The same dispatcher
+(claude-plugins#19) also covers no-unanchored-reference and
+no-unstated-presupposition: a definite noun phrase ("the"/"these"/"those"/
+"both" plus an optional cardinal and up to two adjective-shaped modifiers,
+then a head noun) whose head noun's lemma does not occur earlier in the
+document, title and headings included. A cardinal inside the phrase ("the
+two queues", "both options") routes it to no-unstated-presupposition
+instead, since that rule's own trigger is a cardinal or completed-act
+participle inside the phrase, not only an earlier noun. Also at line 0, never
 counted as a finding, and capped per rule per source; the
 `[inference-pending]` summary line names the total when any exist. The
 judging step above still reads the whole source: a candidate names one
@@ -500,11 +508,12 @@ COMMENT_PREFIXES = {
     ".bash": "#",
 }
 
-# --- register-rule candidate detectors (claude-plugins#18) -----------------
+# --- register-rule candidate detectors (claude-plugins#18, #19) ------------
 #
-# These locate structural signals for two inference-based (model-judgement)
-# rules, no-cadence-device and no-mechanical-repetition, without deciding
-# the fault themselves: see find_register_candidates() and its callers.
+# These locate structural signals for four inference-based (model-judgement)
+# rules, no-cadence-device, no-mechanical-repetition, no-unanchored-reference,
+# and no-unstated-presupposition, without deciding the fault themselves: see
+# find_register_candidates() and its callers.
 
 BULLET = re.compile(r"^(\s*)(?:[-*+]|\d+[.)])\s+(.*)$")
 HEADING = re.compile(r"^\s{0,3}#{1,6}\s")
@@ -568,6 +577,51 @@ BOLD_LIST_RUN_MIN = 3
 PAIR_MIN_WORDS = 4
 PAIR_MAX_WORDS = 12
 MAX_CANDIDATES_PER_RULE = 20
+
+# --- definite-phrase candidate detector (claude-plugins#19) -----------------
+#
+# A definite noun phrase ("the"/"these"/"those"/"both" + optional cardinal +
+# up to DEFINITE_MAX_MODIFIERS adjective-shaped words + a head noun) whose
+# head noun's lemma does not occur earlier in the document is a located
+# candidate for no-unanchored-reference, or for no-unstated-presupposition
+# when the phrase carries a cardinal: see find_definite_first_mentions().
+
+# Hyphenated compounds and multi-digit numbers stay one token each, so
+# "two-phase" and "30-second" are never read as a bare cardinal.
+DEFINITE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9'\-]*|[.,;:!?()\"]")
+
+CARDINAL_WORDS = {
+    "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    "eleven", "twelve", "twenty", "both",
+}
+# 1-99 only: "the 404 response" and "the 2009 edition" never match, since
+# those are literal/identifying numbers, not counts. "one" is deliberately
+# left out of CARDINAL_WORDS: "the one that ..." is not a count claim.
+CARDINAL_NUMERAL = re.compile(r"^[1-9][0-9]?$")
+
+# A numeral cardinal (not a word cardinal) over one of these heads is a
+# quantity, not a presupposed count ("the 30 seconds", not "the four
+# carriers") — per no-unstated-presupposition's own "not this fault: a
+# number that is a quantity" clause.
+QUANTITY_HEADS = {
+    "second", "seconds", "minute", "minutes", "hour", "hours", "day", "days",
+    "ms", "byte", "bytes", "kb", "mb", "gb", "percent",
+}
+
+DEFINITE_DETERMINERS = {"the", "these", "those"}
+# "both" is handled separately in find_definite_first_mentions(): it is
+# itself a cardinal and a determiner at once, and can precede an optional
+# "the" ("both the options").
+
+# Heads that never need an antecedent, tuned against this repo's and
+# software-english's own real prose (claude-plugins#19).
+GENERIC_DEFINITE_HEADS = {
+    "same", "other", "next", "following", "previous", "rest", "end",
+    "whole", "only", "way", "case", "most", "top", "bottom",
+    "user", "reader", "writer", "caller",
+}
+
+DEFINITE_MAX_MODIFIERS = 2
 
 
 def load_config():
@@ -1096,9 +1150,243 @@ def find_bold_list_runs(blocks):
     return results
 
 
+def definite_segments(numbered_lines):
+    """Splits numbered_lines (prose_lines()'s unfiltered output for one
+    source) into phrase-bounded segments: each a list of (line, token)
+    pairs tokenised with DEFINITE_TOKEN, in document order. A segment never
+    crosses a blank line, an HR_LINE, a HEADING, a TABLE_ROW, a BULLET, or a
+    gap in line numbers (a fence, a blockquote, an indented block, or a
+    skip-marker line prose_lines() already excluded). A heading, a table
+    row, and a bullet item each become their own one-line segment: a
+    heading's text stays in the token stream (stripped of its leading
+    "#"s) since it both anchors an earlier noun and can itself hold a
+    candidate phrase; a table row has its "|" characters stripped first; a
+    bullet's marker is stripped, only the text after it is tokenised. A
+    wrapped line inside one ordinary paragraph (no boundary line type, no
+    gap) joins the current segment, so a phrase split across a wrap still
+    reads as one segment (claude-plugins#19)."""
+    segments = []
+    current = None
+    prev_number = None
+
+    def close():
+        nonlocal current
+        if current:
+            segments.append(current)
+        current = None
+
+    for number, line in numbered_lines:
+        gapped = prev_number is not None and number != prev_number + 1
+        prev_number = number
+        stripped = line.strip()
+
+        if not stripped:
+            close()
+            continue
+        if HR_LINE.match(line):
+            close()
+            continue
+
+        hm = HEADING.match(line)
+        if hm:
+            close()
+            tokens = [(number, t) for t in DEFINITE_TOKEN.findall(line[hm.end():])]
+            if tokens:
+                segments.append(tokens)
+            continue
+
+        if TABLE_ROW.match(line):
+            close()
+            tokens = [(number, t) for t in DEFINITE_TOKEN.findall(line.replace("|", " "))]
+            if tokens:
+                segments.append(tokens)
+            continue
+
+        bm = BULLET.match(line)
+        if bm:
+            close()
+            tokens = [(number, t) for t in DEFINITE_TOKEN.findall(bm.group(2))]
+            if tokens:
+                segments.append(tokens)
+            continue
+
+        if gapped or current is None:
+            close()
+            current = [(number, t) for t in DEFINITE_TOKEN.findall(line)]
+        else:
+            current.extend((number, t) for t in DEFINITE_TOKEN.findall(line))
+
+    close()
+    return segments
+
+
+def _strip_possessive_s(word):
+    """"carrier's" reads as "carrier" for the head check and for anchoring."""
+    if word[-2:].lower() == "'s":
+        return word[:-2]
+    return word
+
+
+def _definite_head_ok(token, connectives):
+    """True when token could be the head of a definite phrase: starts with
+    a lowercase letter (a capitalised or punctuation token is out of
+    scope), at least 3 characters after stripping a trailing "'s", not a
+    connective/auxiliary/cardinal-word/generic-definite-head, and not a
+    literal token (acronym, snake_case/dotted/path-like, camelCase, a
+    version number — LITERAL_TOKEN, shared with the vocabulary check)."""
+    word = _strip_possessive_s(token)
+    if not word or not word[0].islower():
+        return False
+    if not any(ch.isalpha() for ch in word):
+        return False
+    if len(word) < 3:
+        return False
+    lw = word.lower()
+    if lw in connectives or lw in AUXILIARY_VERBS or lw in CARDINAL_WORDS:
+        return False
+    if lw in GENERIC_DEFINITE_HEADS:
+        return False
+    if LITERAL_TOKEN.match(word):
+        return False
+    return True
+
+
+def find_definite_first_mentions(numbered_lines, connectives, qualities):
+    """Locates candidates for no-unanchored-reference and, where the
+    phrase carries a cardinal, no-unstated-presupposition: one forward
+    pass over definite_segments(numbered_lines), in document order,
+    maintaining one `seen` set of lemma_candidates() across the whole
+    document (never reset per segment — a noun seen in the title or an
+    earlier heading anchors a later mention the same as one seen in body
+    prose). A hyphenated token also contributes lemma_candidates() of each
+    half ("dead-letter" anchors a later bare "letter" or "dead").
+
+    A phrase starts at "the"/"these"/"those", or at "both" immediately
+    followed by "the" ("both the options"). Bare "both" with no following
+    "the" is not a phrase start: in this repo's and software-english's own
+    prose, every such occurrence is the correlative/pronoun use ("both
+    match", "X and Y both existed"), never a determiner before a noun, so
+    treating it as one only produced noise (claude-plugins#19 corpus
+    sweep) — the module has no verb lexicon to tell "both enforced" (a
+    clause) from "both options" (a phrase) apart otherwise. From there, an
+    optional cardinal (a CARDINAL_WORDS word, or a CARDINAL_NUMERAL
+    numeral) is consumed, then up to DEFINITE_MAX_MODIFIERS tokens shaped
+    like an adjective or past participle (ends "ed", or in qualities),
+    each consumed only while the token after it could still itself be a
+    head (_definite_head_ok()), so a long run of ordinary words is never
+    read as "all modifiers". The next token is the head if it passes
+    _definite_head_ok(); otherwise this was not a definite phrase worth
+    reporting, and the scan resumes one token past the determiner, not
+    past the whole attempt, so a token inside a failed attempt can still
+    start its own phrase.
+
+    A head immediately followed by ":" or "(" is a same-sentence
+    enumeration ("the three routes: read, write, and delete") and is not
+    reported. A numeral (not word) cardinal over a QUANTITY_HEADS head
+    ("the 30 seconds") is a quantity, not a presupposed count, and is not
+    reported. A head whose lemma is already in `seen` is anchored and is
+    not reported. Every token read, including a head that is excluded or
+    anchored, is added to `seen` before the scan moves on, so a given head
+    noun only ever produces one candidate: its own first occurrence.
+
+    Returns [(line, phrase_text, has_cardinal), ...] in document order
+    (claude-plugins#19)."""
+    seen = set()
+
+    def mark_seen(token):
+        lw = token.lower()
+        for c in lemma_candidates(lw):
+            seen.add(c)
+        if "-" in lw:
+            for part in lw.split("-"):
+                if part:
+                    for c in lemma_candidates(part):
+                        seen.add(c)
+
+    results = []
+    for segment in definite_segments(numbered_lines):
+        n = len(segment)
+        i = 0
+        while i < n:
+            line, tok = segment[i]
+            lw = tok.lower()
+            is_both = lw == "both" and i + 1 < n and segment[i + 1][1].lower() == "the"
+            if lw not in DEFINITE_DETERMINERS and not is_both:
+                mark_seen(tok)
+                i += 1
+                continue
+
+            start = i
+            det_line = line
+            j = i + 1
+            has_cardinal = False
+            cardinal_is_numeral = False
+            if is_both:
+                has_cardinal = True
+                j += 1  # the "the" immediately after "both" is already confirmed
+            elif j < n:
+                nxt = segment[j][1]
+                if nxt.lower() in CARDINAL_WORDS:
+                    has_cardinal = True
+                    j += 1
+                elif CARDINAL_NUMERAL.match(nxt):
+                    has_cardinal = True
+                    cardinal_is_numeral = True
+                    j += 1
+
+            skipped = 0
+            while skipped < DEFINITE_MAX_MODIFIERS and j < n:
+                cand = segment[j][1]
+                lc = cand.lower()
+                modifier_shaped = (lc.endswith("ed") and len(lc) > 2) or lc in qualities
+                if not modifier_shaped:
+                    break
+                if j + 1 >= n or not _definite_head_ok(segment[j + 1][1], connectives):
+                    break
+                j += 1
+                skipped += 1
+
+            head_idx = j
+            if head_idx >= n or not _definite_head_ok(segment[head_idx][1], connectives):
+                for k in range(start, min(head_idx, n - 1) + 1):
+                    mark_seen(segment[k][1])
+                i = start + 1
+                continue
+
+            head_tok = segment[head_idx][1]
+            head_word = _strip_possessive_s(head_tok).lower()
+            next_tok = segment[head_idx + 1][1] if head_idx + 1 < n else None
+
+            for k in range(start, head_idx):
+                mark_seen(segment[k][1])
+
+            if next_tok in (":", "("):
+                mark_seen(head_tok)
+                i = head_idx + 1
+                continue
+
+            if has_cardinal and cardinal_is_numeral and any(
+                c in QUANTITY_HEADS for c in lemma_candidates(head_word)
+            ):
+                mark_seen(head_tok)
+                i = head_idx + 1
+                continue
+
+            anchored = any(c in seen for c in lemma_candidates(head_word))
+            mark_seen(head_tok)
+            if not anchored:
+                phrase_text = " ".join(t for _, t in segment[start:head_idx + 1])
+                results.append((det_line, phrase_text, has_cardinal))
+
+            i = head_idx + 1
+
+    return results
+
+
 def find_register_candidates(numbered_lines, only_lines, lexicon, rule_ids):
     """Returns {rule_id: [(line, detail), ...]} of located candidates for
-    whichever of no-cadence-device/no-mechanical-repetition are in
+    whichever of no-cadence-device, no-mechanical-repetition,
+    no-unanchored-reference, and no-unstated-presupposition are in
     rule_ids, from numbered_lines (prose_lines()'s unfiltered output for
     one source). With only_lines set (--diff --added-only), keeps a
     candidate only where it touches a changed line. Candidates never enter
@@ -1117,6 +1405,33 @@ def find_register_candidates(numbered_lines, only_lines, lexicon, rule_ids):
         out["no-cadence-device"] = candidates
     if "no-mechanical-repetition" in rule_ids:
         out["no-mechanical-repetition"] = find_bold_list_runs(blocks)
+
+    definite_rule_ids = {"no-unanchored-reference", "no-unstated-presupposition"} & set(rule_ids)
+    if definite_rule_ids:
+        unanchored = []
+        presupposition = []
+        for line, phrase_text, has_cardinal in find_definite_first_mentions(numbered_lines, connectives, qualities):
+            if has_cardinal:
+                detail = (
+                    f'definite phrase "{phrase_text}" whose head noun first occurs here, '
+                    "with a count; judge whether an earlier sentence states that count."
+                )
+                if "no-unstated-presupposition" in rule_ids:
+                    presupposition.append((line, detail, {line}))
+                elif "no-unanchored-reference" in rule_ids:
+                    unanchored.append((line, detail, {line}))
+            else:
+                detail = (
+                    f'definite phrase "{phrase_text}" whose head noun first occurs here; '
+                    "judge whether an earlier sentence, the title, a link or a table names its referent."
+                )
+                if "no-unanchored-reference" in rule_ids:
+                    unanchored.append((line, detail, {line}))
+        # Already in document order from one forward pass; no re-sort needed.
+        if "no-unanchored-reference" in rule_ids:
+            out["no-unanchored-reference"] = unanchored
+        if "no-unstated-presupposition" in rule_ids:
+            out["no-unstated-presupposition"] = presupposition
 
     if only_lines is not None:
         for rule_id, candidates in out.items():
@@ -1463,7 +1778,10 @@ def main():
                 # signal for a rule above, never itself a finding. Computed
                 # once the rule set is known, only for the rule ids actually
                 # applicable, and only when at least one of them is present.
-                register_rule_ids = {"no-cadence-device", "no-mechanical-repetition"} & set(inference_rules)
+                register_rule_ids = {
+                    "no-cadence-device", "no-mechanical-repetition",
+                    "no-unanchored-reference", "no-unstated-presupposition",
+                } & set(inference_rules)
                 lexicon = None
                 if register_rule_ids:
                     lexicon = (

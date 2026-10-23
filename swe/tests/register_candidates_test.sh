@@ -240,8 +240,13 @@ for f in README.md swe/docs/agent-guide.md swe/skills/lint-file/SKILL.md swe/out
   [ -f "$REAL_PATH" ] || REAL_PATH="$PLUGIN_ROOT/$f"
   if [ -f "$REAL_PATH" ]; then
     REAL_OUT="$(HOME="$SCRATCH_HOME" python3 -B "$LINTER" --text --source-label t --force-inference --quiet-vocab < "$REAL_PATH" 2>&1)"
-    assert "clean: real file $f has no located candidates" \
-      "$(! grep -q 'candidate at line' <<<"$REAL_OUT"; echo $?)"
+    # Scoped to the two rule ids this file's detectors own: the
+    # definite-phrase detector (claude-plugins#19) fires on this repo's
+    # own real prose by design, since no-unanchored-reference and
+    # no-unstated-presupposition are general prose rules, not narrow
+    # structural patterns (see definite_phrase_candidates_test.sh).
+    assert "clean: real file $f has no no-cadence-device/no-mechanical-repetition candidates" \
+      "$(! grep -qE '\[(no-cadence-device|no-mechanical-repetition)\] candidate at line' <<<"$REAL_OUT"; echo $?)"
   fi
 done
 
@@ -262,7 +267,7 @@ case "$COUNT_OUT" in
 esac
 
 assert "the summary line names the located-candidate count" \
-  "$(grep -q '1 located candidate(s) above are not findings' <<<"$INV_OUT"; echo $?)"
+  "$(grep -qE '[0-9]+ located candidate\(s\) above are not findings' <<<"$INV_OUT"; echo $?)"
 
 GREP_FINDINGS="$(grep -E ':\s*\[(error|warning)\]' <<<"$INV_OUT")"
 assert "a findings-shaped grep over the output keeps the candidate line" \

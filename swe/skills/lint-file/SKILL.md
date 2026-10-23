@@ -43,10 +43,11 @@ finding so it survives a findings-shaped filter, `<file>:0: [warning]
 severity is not `warning` adds `(severity on violation: <severity>)`),
 A rule's own line can be followed by one or more `<file>:0: [warning]
 [rule-id] candidate at line N: description` lines: a located structural
-signal for that rule (a verbless sentence right after a long one, a
-run of bold-lead-in bullet lists, and similar), never a decision that
-the fault is real. Treat a candidate as a place to check first, not a
-substitute for judging the whole file in Step 4. The block ends with
+signal for that rule (a verbless sentence right after a long one, a run
+of bold-lead-in bullet lists, a definite phrase whose head noun's lemma
+has not occurred earlier in the document, and similar), never a
+decision that the fault is real. Treat a candidate as a place to check
+first, not a substitute for judging the whole file in Step 4. The block ends with
 one summary line, `<file>:0: [warning] [inference-pending]
 N inference rule(s) above need model judgement; this script does not
 judge them. Deterministic tier: E error(s), W warning(s).`, with a

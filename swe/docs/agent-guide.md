@@ -157,9 +157,9 @@ which restates the source's real deterministic counts so a caller
 counting `[warning]` lines is not misled by the added rule lines.
 
 Directly after a rule's own `inference pending` line,
-`find_register_candidates()` (claude-plugins#18) can add one or more
+`find_register_candidates()` (claude-plugins#18, #19) can add one or more
 `candidate at line N: ...` lines for that same rule: a located
-structural signal, never a decision that the fault is real. Two rules
+structural signal, never a decision that the fault is real. Four rules
 get this today. `no-cadence-device`: a verbless sentence right after a
 sentence of 15 or more words, in the same paragraph (a fragment that is
 its own paragraph is not detected, since nothing in the line structure
@@ -173,17 +173,26 @@ where every list has at least two top-level bullets and every bullet
 opens with a bold span followed by real text. A single such list does
 not fire, since several of this repo's own templates use one
 deliberately for a defined term or a named set of required sections,
-exactly the catalogue's own exclusion. Each detector reads a closed,
-stdlib-only verb/auxiliary list (`load_verb_lexicon()`), not real
-part-of-speech tagging, so a verb outside that list can still produce
-an extra candidate, and a word `vocabulary/operations.tsv` also uses as
-a noun can still miss one; see "Known limits" below. Candidates are
-capped at 20 per rule per source (a further line names the count
-omitted past the cap) and, like a pending rule, never affect
-`error_total`, `--count`, or the exit code. The judging step still
-reads the whole source: a candidate names one place to check first, not
-every instance of the fault. `--html-file` gets no candidates, since
-adjacent extracted text nodes are not adjacent prose lines.
+exactly the catalogue's own exclusion. `no-unanchored-reference` and
+`no-unstated-presupposition`: `find_definite_first_mentions()` walks the
+document once, title and headings included, and flags a definite noun
+phrase ("the"/"these"/"those"/"both the" plus an optional cardinal, up to
+two adjective-shaped modifiers, then a head noun) whose head noun's lemma
+has not occurred earlier in the document. A cardinal inside the phrase
+("the two queues", "both the options") routes the candidate to
+`no-unstated-presupposition` instead, since that rule's own trigger is a
+cardinal or a completed-act participle, not only an earlier noun. Each
+detector reads a closed, stdlib-only verb/auxiliary list
+(`load_verb_lexicon()`), not real part-of-speech tagging, so a verb
+outside that list can still produce an extra candidate, and a word
+`vocabulary/operations.tsv` also uses as a noun can still miss one; see
+"Known limits" below. Candidates are capped at 20 per rule per source (a
+further line names the count omitted past the cap) and, like a pending
+rule, never affect `error_total`, `--count`, or the exit code. The
+judging step still reads the whole source: a candidate names one place
+to check first, not every instance of the fault. `--html-file` gets no
+candidates, since adjacent extracted text nodes are not adjacent prose
+lines.
 
 Splitting a pending rule, a candidate, the summary, and a real finding
 apart, by regex:
@@ -544,6 +553,20 @@ skill's own directory name exactly; the same test asserts it.
 - `--html-file` gets no register-rule candidates: adjacent extracted
   text nodes are not adjacent prose lines, so the adjacency the
   detectors need does not hold.
+- The definite-phrase detector (claude-plugins#19) is lexical only: a
+  synonym, title or heading semantics, or a link target does not anchor
+  a noun, only a shared lemma does. A noun introduced only inside a
+  fenced code block or a blockquote does not anchor a later mention,
+  since `prose_lines()` excludes those lines from the document it
+  scans. A completed-act-participle marker ("the agreed plan", with no
+  cardinal) is not detected; it falls through to
+  `no-unanchored-reference` as a plain unanchored phrase instead, which
+  the rules' own stated precedence still treats as correct, just not
+  flagged as a presupposition specifically. A code file's extracted
+  comments still get candidates even though an antecedent there is
+  often a code identifier, not prose. A high-candidate-volume document
+  is capped at 20 per rule, in document order, the same cap the #18
+  detectors share.
 - `~/.claude/swe/inference-state.json` is never pruned. It contains a
   small amount of text per file ever checked; it is not cleaned up
   automatically yet.
