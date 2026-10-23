@@ -142,4 +142,51 @@ own recommendation in every case:
 
 ## Status
 
-In progress. Implementing on `main` per the plan above.
+Shipped, single pass, no escalation. Implemented essentially as planned,
+with no deviation from the design above. Smoke-tested by hand against a
+throwaway fixture before touching the real test suites (full pass,
+partial pass, wrong total, malformed value, N > M, empty file,
+multi-file, `--advise-inference`) — every case matched the design on
+the first try.
+
+`swe/tests/unit_worklist_test.sh` (new, 47 assertions): the worklist's
+unit count and ordering on a fixture exercising every block kind
+(heading, wrapped paragraph, two fence styles, an indented block, a
+blockquote, a skip-marker line, a nested list, a table), findings-shaped
+invariants, the nonce entry's own stored `units`, a 0-unit file, a code
+file's comment-run units, `--advise-inference` printing neither
+worklist nor total, every `--units-judged` failure mode (missing,
+mismatched bare count, mismatched declared total, the mismatch
+consuming the nonce), a partial and a failed recording with their
+`units_total`/`units_judged` fields, a malformed value and `N > M`
+(exit 2), a pre-upgrade nonce with no stored `units` key (hand-written
+via a Python one-liner, since no real nonce predates this change), the
+outside-a-repository case needing no `--units-judged`, and the
+pre-commit hook blocking a `partial` row the same as `failed`.
+`swe/tests/commit_check_test.sh` updated throughout: every in-repository
+`--record-lint-result` call needed `--units-judged` added, `nonce_for()`
+changed to return both the nonce and the units total from one
+`--force-inference` run (two separate runs would supersede the first
+nonce), several call sites changed from plain command substitution to
+`read -r nonce units <<< "$(nonce_for ...)"` so a token meant to be
+compared as a bare nonce never silently became `"<nonce> <units>"`.
+All ten suites pass, both locally and against the real fetched
+`swe-v0.21.0` tag.
+
+`swe/docs/agent-guide.md`, `swe/skills/lint-file/SKILL.md`, and
+`swe/README.md` updated; two self-check catches in `SKILL.md`, both
+found only by running the real linter against the drafted prose: "you
+actually judged" ("actually" is a banned word) and "is missing" (an
+adjectival use, not a verb, that still trips the deterministic
+`no-continuous-tense` pattern — the same false-positive shape prior
+sessions' task files record for this same rule). `--diff --added-only`
+reports zero errors/warnings on every changed line across all three
+docs after both fixes.
+
+Version bumped `0.20.0` -> `0.21.0`. Shipped on `main` at
+[`719a8a9`](https://github.com/jimbarritt/claude-plugins/commit/719a8a9c29322156098e76c06a196704feb05e5d),
+which closed the issue automatically (`closes #20`), released as
+[`swe-v0.21.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.21.0).
+`agent:working` label removed on close. `software-english`#21, filed
+a few minutes after this issue by the same author, left unclaimed —
+one issue per run.

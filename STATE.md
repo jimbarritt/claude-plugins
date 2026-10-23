@@ -1,16 +1,10 @@
 # State
 
-Last updated: 2026-10-23 (claude-plugins#20 claimed, in progress)
+Last updated: 2026-10-23 (claude-plugins#20 shipped, closed)
 
 ## In progress
 
-- [tasks/issue-20-unit-worklist.md](tasks/issue-20-unit-worklist.md)
-  ([#20](https://github.com/jimbarritt/claude-plugins/issues/20), opened by
-  `jimbarritt-pleo`): a numbered worklist of prose units for the
-  inference-tier pass, plus a `--units-judged` coverage check on
-  `--record-lint-result` that rejects a mismatch with exit 4 and records a
-  partial pass as `partial`, not `clean`. Plan from an Opus Plan subagent,
-  read against the real code. `agent:working` label set on the issue.
+None.
 
 ## Waiting on others
 
@@ -62,6 +56,53 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-20-unit-worklist.md](tasks/issue-20-unit-worklist.md)
+  ([#20](https://github.com/jimbarritt/claude-plugins/issues/20), opened by
+  `jimbarritt-pleo`): eleventh real `claude-plugins` issue worked end to end
+  by the self-maintaining-repo Routine, single pass, no escalation. The
+  nonce proved a `clean` verdict was recorded against the file's exact
+  current blob, but nothing proved the judging pass had covered the whole
+  file rather than one edited section. Plan from an Opus Plan subagent,
+  which read the real nonce/ledger code and the existing exit-4 convention
+  before proposing anything; the plan flagged eight open questions with a
+  recommendation for each, decided by this session (one coherent reading,
+  not two materially different ones) rather than escalated, all documented
+  in the task file. New `prose_units()` (one unit per heading, paragraph,
+  top-level list item — a nested bullet or continuation line folds into its
+  parent item, not a separate unit — or table; reuses `register_blocks()`'s
+  own parse, so "outside a code fence" matches the existing candidate
+  detectors exactly) and `format_unit_worklist()`, wired into
+  `--force-inference`'s single-file case only (the only case that mints a
+  nonce): the rule block gains a numbered `[inference-unit]` worklist after
+  every rule's own lines, and a `swe-lint-units: M` total prints just before
+  the nonce. The nonce entry itself now stores `units`. New required
+  `--record-lint-result` flag `--units-judged`, `"N"` or `"N of M"` (quoted);
+  a mismatch against the nonce's own stored total exits 4, the same
+  convention a stale nonce already used, and — unlike the four pre-existing
+  nonce checks — also consumes the nonce, since the mismatch itself proves
+  the caller did not walk the real worklist for this blob. A `clean` verdict
+  with a partial count records `partial` in the ledger, not `clean`; a
+  `failed` verdict always records `failed` regardless of coverage. The
+  pre-commit hook needed no change: it already blocks on anything but
+  `clean`. New `swe/tests/unit_worklist_test.sh` (47 assertions);
+  `swe/tests/commit_check_test.sh` updated throughout, since every
+  in-repository `--record-lint-result` call now needs `--units-judged` —
+  its `nonce_for()` helper changed to capture both the nonce and the units
+  total from one `--force-inference` run, since a second run would
+  supersede the first nonce. All ten suites pass, verified both locally and
+  against the real fetched `swe-v0.21.0` tag. `swe/skills/lint-file/SKILL.md`,
+  `swe/docs/agent-guide.md`, and `swe/README.md` updated; two self-check
+  catches in `SKILL.md`, both found only by running the real linter
+  ("actually" a banned word, "is missing" tripping `no-continuous-tense`
+  despite being adjectival — the same recurring false-positive shape prior
+  task files record for that rule). Version bumped `0.20.0` -> `0.21.0`.
+  Shipped on `main` at
+  [`719a8a9`](https://github.com/jimbarritt/claude-plugins/commit/719a8a9c29322156098e76c06a196704feb05e5d),
+  which closed the issue automatically, released as
+  [`swe-v0.21.0`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.21.0).
+  `agent:working` label removed on close. `software-english`#21, filed a
+  few minutes after this issue by the same author, left unclaimed — one
+  issue per run.
 - [tasks/issue-19-definite-phrase-candidates.md](tasks/issue-19-definite-phrase-candidates.md)
   ([#19](https://github.com/jimbarritt/claude-plugins/issues/19), opened by
   `jimbarritt-pleo`): tenth real `claude-plugins` issue worked end to end by
