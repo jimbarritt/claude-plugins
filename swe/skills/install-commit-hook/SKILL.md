@@ -14,14 +14,16 @@ staged content has a `clean` verdict recorded by `/swe:lint-file`.
 
 ## Step 1: Read the arguments
 
-`$ARGUMENTS` is empty, a repository path, the word `uninstall`, or
-`uninstall` followed by a path. An empty argument means the current
-project.
+Arguments given: $ARGUMENTS
+
+This is blank, a repository path, the word `uninstall`, or `uninstall`
+followed by a path. Blank means the current project. Pass `uninstall` to
+the installer as `--uninstall`, and pass any path as `<repo-path>`.
 
 ## Step 2: Run the installer
 
 ```
-"$CLAUDE_PLUGIN_ROOT/scripts/install-commit-hook.sh" [--uninstall] [<repo-path>]
+"${CLAUDE_PLUGIN_ROOT}/scripts/install-commit-hook.sh" [--uninstall] [<repo-path>]
 ```
 
 Exit 0 means the hook is in place (installed, updated, already current,

@@ -14,7 +14,9 @@ call. It only appends one line to a local log file, at
 
 ## Step 1: Read the arguments
 
-`$ARGUMENTS` contains a verdict, then an optional note:
+Arguments given: $ARGUMENTS
+
+They contain a verdict, then an optional note:
 
 - `false-positive`: a finding fired, but the flagged text does not
   break the rule.

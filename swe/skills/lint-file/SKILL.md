@@ -16,13 +16,15 @@ exists for the case where you want the full check regardless.
 
 ## Step 1: Read the argument
 
-`$ARGUMENTS` contains one file path, relative to the current project unless
-given as absolute. If empty, ask which file to check.
+Argument given: $ARGUMENTS
+
+This is one file path, relative to the current project unless given as
+absolute. If it is blank, ask which file to check.
 
 ## Step 2: Fetch the rule data
 
 ```
-"$CLAUDE_PLUGIN_ROOT/scripts/fetch-software-english-data.sh"
+"${CLAUDE_PLUGIN_ROOT}/scripts/fetch-software-english-data.sh"
 ```
 
 If this fails and prints "no cached data available", report that and
@@ -31,7 +33,7 @@ stop: there is nothing to check against.
 ## Step 3: Run the deterministic tier and get the inference rules
 
 ```
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" <file-path> --force-inference --quiet-vocab
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/software_english_lint.py" <file-path> --force-inference --quiet-vocab
 ```
 
 This prints the deterministic tier's findings, if any, the normal way.
@@ -161,7 +163,7 @@ printed as `swe-lint-units`.
 Every unit judged (the normal case), zero errors:
 
 ```
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" \
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/software_english_lint.py" \
   --record-lint-result clean --findings 0 --nonce <value from Step 3> \
   --units-judged <M> <file-path>
 ```
@@ -169,7 +171,7 @@ python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" \
 Every unit judged, one or more errors:
 
 ```
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/software_english_lint.py" \
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/software_english_lint.py" \
   --record-lint-result failed --findings <count> --nonce <value from Step 3> \
   --units-judged <M> <file-path>
 ```
