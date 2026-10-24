@@ -11,10 +11,13 @@ disable-model-invocation: false
 Install a git `pre-commit` hook in one repository. Once installed, a
 commit that stages a markdown file is blocked unless that file's exact
 staged content has a `clean` verdict recorded by `/swe:lint-file`. When
-[tsk](https://github.com/jimbarritt/tsk) 0.26.1 or later is installed,
-also offer tsk's own documents hook, so a `tsk ledger push` or
-`tsk ledger doc put` of a ledger document gets the same check, since
-tsk runs its own git commands with git hooks disabled.
+[tsk](https://github.com/jimbarritt/tsk) 0.26.1 or later is installed
+and `swe/config.json`'s `docs_hook.enabled` is `true`, also offer tsk's
+own documents hook, so a `tsk ledger push` or `tsk ledger doc put` of a
+ledger document gets the same check, since tsk runs its own git
+commands with git hooks disabled. `docs_hook.enabled` defaults to
+`false` (claude-plugins#22: built and released, off by default pending
+some use of the manual route).
 
 ## Step 1: Read the arguments
 
@@ -43,6 +46,11 @@ no git repository for its own user place, so a Step 2 failure does not
 rule it out.
 
 ## Step 3: Check for tsk
+
+First read `${CLAUDE_PLUGIN_ROOT}/config.json`'s `docs_hook.enabled`
+field. When it is `false`, say "the tsk documents hook is off for now
+(`swe/config.json`'s `docs_hook.enabled` is `false`)" and go to Step 6,
+running none of the commands below.
 
 ```
 "${CLAUDE_PLUGIN_ROOT}/scripts/install-docs-hook.sh" --detect [<repo-path>]

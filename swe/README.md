@@ -132,11 +132,13 @@ to remove it.
 
 ## Check tsk ledger documents
 
-When [tsk](https://github.com/jimbarritt/tsk) 0.26.1 or later is
-installed, `/swe:install-commit-hook` also offers a `pre-docs-commit`
-hook: tsk calls it directly, through its own documents-hook point, not
-through git, since `tsk ledger push` and `tsk ledger doc put` run git
-with hooks disabled. Choose one of three places for it:
+Off by default today: set `docs_hook.enabled` to `true` in
+`swe/config.json` to turn it on. When [tsk](https://github.com/jimbarritt/tsk)
+0.26.1 or later is installed and that switch is on,
+`/swe:install-commit-hook` also offers a `pre-docs-commit` hook: tsk
+calls it directly, through its own documents-hook point, not through
+git, since `tsk ledger push` and `tsk ledger doc put` run git with
+hooks disabled. Choose one of three places for it:
 
 - **User**, `${XDG_CONFIG_HOME:-$HOME/.config}/tsk/hooks/pre-docs-commit`:
   covers every ledger of this user, including a repository the user

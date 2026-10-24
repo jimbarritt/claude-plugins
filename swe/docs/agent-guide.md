@@ -455,6 +455,14 @@ equivalent key, because the git hook cannot reach it:
 
 ## The tsk documents check
 
+Controlled by `docs_hook.enabled` in [`../config.json`](../config.json),
+`false` today: `/swe:install-commit-hook`'s own Step 3 reads that field
+first and, when it is `false`, skips Steps 3 through 5 with a one-line
+note, running none of the commands this section describes. The scripts
+and hook below are built and shipped regardless; the switch controls
+only whether the skill offers and installs them. Set it to `true` to
+turn this back on.
+
 `/swe:install-commit-hook` also installs a second, independent hook
 ([`../tsk-hooks/pre-docs-commit.sh`](../tsk-hooks/pre-docs-commit.sh),
 copied verbatim by

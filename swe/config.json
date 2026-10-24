@@ -6,5 +6,8 @@
     "bash": true,
     "artifact": true,
     "mcp-send": true
+  },
+  "docs_hook": {
+    "enabled": false
   }
 }
