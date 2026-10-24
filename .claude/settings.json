@@ -1,15 +1,4 @@
 {
-  "enabledPlugins": {
-    "tsk@jimbarritt-claude-plugins": true
-  },
-  "extraKnownMarketplaces": {
-    "jimbarritt-claude-plugins": {
-      "source": {
-        "source": "github",
-        "repo": "jimbarritt/claude-plugins"
-      }
-    }
-  },
   "hooks": {
     "SessionStart": [
       {
@@ -21,5 +10,16 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "tsk@jimbarritt-claude-plugins": true
+  },
+  "extraKnownMarketplaces": {
+    "jimbarritt-claude-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "jimbarritt/claude-plugins"
+      }
+    }
   }
 }
