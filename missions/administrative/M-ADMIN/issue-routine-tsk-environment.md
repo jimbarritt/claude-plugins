@@ -58,3 +58,18 @@ already runs under tsk. Its prompt resumes a standing thread with the
   and reads the briefing with `tsk ledger doc get`.
 - `CLAUDE.md` on `main` points cross-session planning at the ledger
   (commit `7be7379`).
+
+## The 15:08 run, 2026-10-24
+
+- Session `session_01EwnyAesBccYKBY4w7CBrsU`. The run reused the filesystem of
+  the 14:06 run: the clone and the tsk state directory have 14:07 timestamps.
+- At 14:07 the 14:06 run ran `tsk` before origin had a ledger. tsk created a
+  local ledger store, `claude-plugins-e8c4f33a`, with only the creation
+  commits and no rows.
+- At 15:08 `tsk ledger fetch` left that store in place. `tsk ledger push`
+  failed with `no common ancestor`. The auto mode permission check blocked
+  `tsk ledger discard --yes`. The run read nothing and claimed nothing.
+- Fix 1: the Routine prompt authorises `tsk ledger discard --yes` when the
+  only local commits are the creation commits.
+- Fix 2: feature request jimbarritt/tsk#8: `tsk ledger fetch` replaces an
+  empty local ledger with origin's ledger.
