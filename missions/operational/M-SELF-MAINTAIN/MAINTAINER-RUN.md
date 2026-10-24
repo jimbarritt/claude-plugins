@@ -48,8 +48,14 @@ one exists.
      `access: "push"`, and for `jimbarritt/software-english` the same way.
      A fresh session starts with neither repository in scope, and every
      step below needs both.
-   - Clone `claude-plugins` and `cd` into the clone. Read `CLAUDE.md` on
+   - The runner clones `claude-plugins` to `/home/user/claude-plugins`
+     before the session starts. `cd` into it, check out `main` and pull.
+     Clone it there only if the directory is missing. Read `CLAUDE.md` on
      `main`.
+   - The session starts in `/home/user`, so Claude Code loads no project
+     settings, no hook and no plugin from the clone. The `tsk` command is
+     installed in the environment. Use it directly, not through the tsk
+     skills.
    - Run `tsk ledger fetch`. Then read this document and `ALLOWLIST.md` with
      `tsk ledger doc get`.
    - Call `list_repository_collaborators` on `jimbarritt/claude-plugins`

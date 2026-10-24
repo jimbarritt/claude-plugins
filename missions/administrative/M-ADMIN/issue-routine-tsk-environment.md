@@ -11,14 +11,17 @@ Recorded on 2026-10-24.
 - The Routine runs in environment `env_0173H2wsxugkZUm5Whrkmtv9`, the same
   environment as interactive sessions on this repo. That environment has
   tsk 0.26.1 and dolt in `/usr/local/bin`.
-- The Routine starts with no repository attached. Its prompt clones
-  `claude-plugins` after the session starts, and `MAINTAINER-RUN.md` step 1
-  calls `add_repo` for both repositories.
-- The `SessionStart` hook in `.claude/settings.json`
-  (`tsk thread session-start --install-plugin claude-cli`) runs only when the
-  repository is attached at session start. In a Routine session it does not
-  run. So the tsk plugin is not installed, the ledger is not fetched, no thread
-  is bound, and the tsk Stop hook check does not run.
+- The Routine starts with both repositories attached as sources. The runner
+  clones `claude-plugins` to `/home/user/claude-plugins` and `software-english`
+  beside it before the session starts.
+- The session starts in `/home/user`, the parent directory of the two clones
+  (init event of `session_01Kxgz5bvg4rAH2FMwoDqBYh`: `"cwd":"/home/user"`).
+  So Claude Code does not load `/home/user/claude-plugins/.claude/settings.json`.
+  The `SessionStart` hooks do not run, and the tsk and swe plugins do not load.
+  The init event lists only the built-in plugins. No thread is bound, and the
+  tsk Stop hook check does not run.
+- A plugin installed after session start does not load in that session.
+  The Routine can use the `tsk` command directly.
 - `MAINTAINER-RUN.md` on `planning` records each issue in `STATE.md` and
   `tasks/` only. Nothing in the Routine writes to the ledger.
 - The run that fired at 14:06 on 2026-10-24 (session
@@ -35,15 +38,23 @@ Recorded on 2026-10-24.
    mission, with its tasks, its decisions, and the task file as a document.
    The run pauses its thread at the end.
 
-## Open question
-
-While the `planning` branch stays, does the Routine write each issue to the
-ledger only, or to both the ledger and `STATE.md`/`tasks/`? The
-recommendation is both, until Jim removes the `planning` branch.
-
 ## Reference
 
 The `M-ADMIN-03` Routine in `jimbarritt/tsk` (`trig_019AVSCvfqAWSVzeKV88p863`)
 already runs under tsk. Its prompt resumes a standing thread with the
 `resume-thread` skill, falls back to `start-thread` for its mission, and runs
 `pause-thread` at the end.
+
+## Outcome, 2026-10-24
+
+- Jim answered the open question: ledger only. The `planning` branch is
+  deprecated.
+- The briefing and the allowlist are now ledger documents of
+  `M-SELF-MAINTAIN`: `MAINTAINER-RUN.md` and `ALLOWLIST.md`. The briefing
+  creates a mission per issue (`M-CP-<N>` or `M-SE-<N>`), starts a thread on
+  it, writes the plan and the report as documents, and pauses the thread at
+  the end.
+- The Routine prompt now runs `tsk ledger fetch` in `/home/user/claude-plugins`
+  and reads the briefing with `tsk ledger doc get`.
+- `CLAUDE.md` on `main` points cross-session planning at the ledger
+  (commit `7be7379`).
