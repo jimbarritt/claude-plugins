@@ -12,7 +12,8 @@
     ]
   },
   "enabledPlugins": {
-    "tsk@jimbarritt-claude-plugins": true
+    "tsk@jimbarritt-claude-plugins": true,
+    "swe@jimbarritt-claude-plugins": true
   },
   "extraKnownMarketplaces": {
     "jimbarritt-claude-plugins": {
