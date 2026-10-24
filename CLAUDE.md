@@ -90,25 +90,19 @@ repo to change when a task needs a spec change there.
 
 ## Cross-session planning
 
-The `planning` branch is a detached branch (no shared history with `main`)
-used to track tasks and status across sessions. It holds `STATE.md` (current
-status) and `tasks/` (one file per workstream).
+The tsk ledger records tasks and status across sessions: missions, tasks,
+decisions, questions, and the documents linked to them. Write it only
+through `tsk` commands. `tsk mission list` lists the missions. The
+`tsk:tsk` skill is the reference for the commands.
 
-When asked to "update the plan", use the `planning` branch. Do not switch
-the main working copy to it with `git checkout planning`. Instead, use a
-separate git worktree, e.g.:
+When asked to "update the plan", update the ledger.
 
-```sh
-git worktree add /home/user/claude-plugins-planning planning
-cd /home/user/claude-plugins-planning
-```
+The `planning` branch is deprecated. It contains the plan from before the
+ledger (`STATE.md` and `tasks/`), which was imported into the ledger on
+2026-10-24. Do not read from it or write to it.
 
-If the worktree already exists, `cd` into it directly rather than adding it
-again. Update `STATE.md` and the relevant task file there, not files on
-`main`.
-
-Outside of planning documents, work directly on `main`. Do not use a
-feature branch for ordinary changes to this repo.
+Work directly on `main`. Do not use a feature branch for ordinary changes
+to this repo.
 
 Committing and pushing to `main` is pre-approved: do not ask first.
 This does not cover a force push or a history rewrite (`git push
