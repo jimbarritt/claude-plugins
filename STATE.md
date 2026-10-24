@@ -1,10 +1,15 @@
 # State
 
-Last updated: 2026-10-24 (claude-plugins#21 shipped, closed)
+Last updated: 2026-10-24 (claude-plugins#22 claimed, in progress)
 
 ## In progress
 
-None.
+- [tasks/issue-22-tsk-docs-hook.md](tasks/issue-22-tsk-docs-hook.md)
+  ([#22](https://github.com/jimbarritt/claude-plugins/issues/22), opened by
+  `jimbarritt`): swe installs a tsk `pre-docs-commit` hook so ledger
+  documents stay linted now that tsk 0.26.1 runs its own git commands with
+  hooks disabled. Plan from an Opus Plan subagent, written up in the task
+  file. Starting step 5 (Work).
 
 ## Waiting on others
 
