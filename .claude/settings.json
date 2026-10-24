@@ -6,6 +6,10 @@
           {
             "type": "command",
             "command": "tsk thread session-start --install-plugin claude-cli"
+          },
+          {
+            "type": "command",
+            "command": "claude plugin install swe@jimbarritt-claude-plugins --scope project >/dev/null 2>&1 || true"
           }
         ]
       }
