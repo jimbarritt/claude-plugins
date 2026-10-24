@@ -104,4 +104,51 @@ recurs.
 
 ## Status
 
-(filled in at Record, step 9)
+Shipped, single pass, no escalation. Implemented exactly as planned, with
+one fix the plan did not anticipate.
+
+Edits as planned: braced `${CLAUDE_PLUGIN_ROOT}` in
+`swe/skills/install-commit-hook/SKILL.md`, `swe/skills/lint-file/SKILL.md`
+(four call sites), reworded `$ARGUMENTS`-as-backticked-sentence-subject in
+all three (`install-commit-hook/SKILL.md`, `lint-file/SKILL.md`,
+`swe/skills/feedback/SKILL.md`), each as "Arguments given: $ARGUMENTS"
+followed by prose stating the cases. `swe/skills/send-feedback/SKILL.md`
+confirmed to have neither pattern, left untouched. `swe/hooks/hooks.json`
+confirmed already correct (braced, and a harness-subprocess invocation
+rather than a Bash-tool call), left untouched.
+
+Verified against the real linter (`swe/data/` populated locally via
+`fetch-software-english-data.sh` for this check only, gitignored, not
+committed): `--diff --added-only` on the three edited files reported one
+real error-severity finding not anticipated going in — the drafted
+`feedback/SKILL.md` wording "They hold a verdict, then an optional note:"
+tripped the banned word `hold` — reworded to "contain". Zero
+error-severity findings after that fix; the remaining
+`vocabulary-membership` lines are warnings on plain function words
+(`given`, `blank`, `project`, and similar), the same pre-existing noise
+shape prior task files record for this check, not acted on. All eleven
+`swe/tests/*.sh` suites pass (unchanged counts), confirming this is a
+documentation-only fix: no script or hook behaviour changed.
+
+One process note: a `git stash push` run mid-session (to check a
+pre-edit baseline error count by temporarily reverting) stashed this
+session's own uncommitted edits onto the shared stash stack, following
+this session's own stash-safety convention of restoring by SHA via `git
+stash apply <sha>` rather than a bare `pop`, then dropping that exact
+entry by its verified hash. No work lost; flagged here since it's a
+process trap worth remembering for a future diff-baseline check:
+prefer `git show HEAD:<path>` to read an unmodified file instead of
+stashing, when uncommitted changes are already present.
+
+No `swe/tests/` change: the plan's own optional regression-guard
+suggestion (a frontmatter-test assertion catching a future unbraced
+`$CLAUDE_PLUGIN_ROOT` or backticked `` `$ARGUMENTS` ``) not built — this
+Routine does not add speculative permanent test coverage beyond what an
+issue itself asks for, per the decision already recorded above.
+
+Version bumped `0.22.0` -> `0.22.1`. Shipped on `main` at
+[`69ad9e1`](https://github.com/jimbarritt/claude-plugins/commit/69ad9e1db47d5a133c72e185248a5195425dbdc5),
+which closed the issue automatically (`closes #21`), released as
+[`swe-v0.22.1`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.22.1).
+`agent:working` label removed on close. No `software-english` change: the
+fault is entirely in `claude-plugins`-side skill prose.

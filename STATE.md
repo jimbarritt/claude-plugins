@@ -1,16 +1,10 @@
 # State
 
-Last updated: 2026-10-24 (claude-plugins#21 claimed, in progress)
+Last updated: 2026-10-24 (claude-plugins#21 shipped, closed)
 
 ## In progress
 
-[tasks/issue-21-plugin-root-env-var.md](tasks/issue-21-plugin-root-env-var.md)
-([#21](https://github.com/jimbarritt/claude-plugins/issues/21), opened by
-`jimbarritt`): a bare `$CLAUDE_PLUGIN_ROOT` (missing the `${...}` braces
-the harness actually substitutes) in three `swe` skills' script-path
-fences, plus a bare `$ARGUMENTS` used as a backticked sentence subject in
-the same three skills' Step 1 (renders as `` `` `` when no argument is
-given). Claimed by the self-maintaining-repo Routine.
+None.
 
 ## Waiting on others
 
@@ -62,6 +56,44 @@ below; may already be moot or need restating).
 
 ## Recently done
 
+- [tasks/issue-21-plugin-root-env-var.md](tasks/issue-21-plugin-root-env-var.md)
+  ([#21](https://github.com/jimbarritt/claude-plugins/issues/21), opened by
+  `jimbarritt`): twelfth real `claude-plugins` issue worked end to end by
+  the self-maintaining-repo Routine, single pass, no escalation. Three
+  `swe` skills wrote the bare `$CLAUDE_PLUGIN_ROOT` instead of the
+  documented `${CLAUDE_PLUGIN_ROOT}`, so Claude Code left it
+  unsubstituted and a Bash tool call expanded it against an unset shell
+  variable; the same three skills also used `$ARGUMENTS` as a backticked
+  sentence subject, which renders as an empty pair of backticks when no
+  argument is given. Plan from an Opus Plan subagent, which read the
+  official Claude Code docs (`plugins-reference`, `skills`) rather than
+  the issue's own guessed mechanism, and found the fix is adding braces,
+  not the issue's proposed "read a harness-printed base directory"
+  approach. Fixed `install-commit-hook/SKILL.md` (both faults, as
+  reported) and, not named in the issue, `lint-file/SKILL.md` (both
+  patterns, four `$CLAUDE_PLUGIN_ROOT` call sites) and
+  `feedback/SKILL.md` (the `$ARGUMENTS` pattern); confirmed
+  `send-feedback/SKILL.md` has neither and `hooks.json` is already
+  correct (a harness-subprocess invocation, not a Bash-tool call, out of
+  scope). One self-check catch found only by running the real linter: the
+  drafted `feedback/SKILL.md` wording ("They hold a verdict...") tripped
+  the banned word `hold`, reworded to "contain". All eleven `swe/tests/`
+  suites pass unchanged (a documentation-only fix, no script or hook
+  behaviour change, so no test-suite change needed). One process note
+  recorded in the task file: a mid-session `git stash push`, used to
+  check a pre-edit baseline error count, stashed this session's own
+  uncommitted edits; restored by SHA via `git stash apply` per this
+  repo's stash-safety convention, then dropped that exact entry — no
+  work lost, but `git show HEAD:<path>` is the safer way to read an
+  unmodified file next time uncommitted changes are already present.
+  Version bumped `0.22.0` -> `0.22.1`. Shipped on `main` at
+  [`69ad9e1`](https://github.com/jimbarritt/claude-plugins/commit/69ad9e1db47d5a133c72e185248a5195425dbdc5),
+  which closed the issue automatically, released as
+  [`swe-v0.22.1`](https://github.com/jimbarritt/claude-plugins/releases/tag/swe-v0.22.1).
+  `agent:working` label removed on close. No `software-english` change:
+  the fault is entirely in `claude-plugins`-side skill prose.
+  `claude-plugins`#16 stays `agent:hold`, excluded from the pool as
+  before.
 - [tasks/software-english-issue-21-define-before-use-count-list.md](tasks/software-english-issue-21-define-before-use-count-list.md)
   ([#21](https://github.com/jimbarritt/software-english/issues/21), opened by
   `jimbarritt-pleo`): three bundled claims about one opening sentence
