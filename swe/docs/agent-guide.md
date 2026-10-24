@@ -453,6 +453,93 @@ equivalent key, because the git hook cannot reach it:
 { "commit-check": { "enabled": true, "block_on_deterministic": false, "paths": ["*.md"] } }
 ```
 
+## The tsk documents check
+
+`/swe:install-commit-hook` also installs a second, independent hook
+([`../tsk-hooks/pre-docs-commit.sh`](../tsk-hooks/pre-docs-commit.sh),
+copied verbatim by
+[`../scripts/install-docs-hook.sh`](../scripts/install-docs-hook.sh))
+when [tsk](https://github.com/jimbarritt/tsk) 0.26.1 or later is
+installed (claude-plugins#22). tsk's own documents worktree is a linked
+git worktree of the code repository; before tsk 0.26.1, the commit
+check above fired on tsk's own commits there too, since a linked
+worktree shares `.git/hooks/`. tsk 0.26.1 runs its own git commands
+with hooks disabled, and calls this hook directly instead, through its
+own hook point (ADR 0025 in `jimbarritt/tsk`), so swe's documents check
+has no dependency on the tsk binary at all: it is a plain script that
+tsk happens to call.
+
+**Why no ledger row.** `<git-common-dir>/swe/lint-log.ndjson` records a
+both-tier, nonce-guarded verdict, read only by the commit check above.
+Writing a row there for a ledger document risks a path collision with
+a code-repository path of the same name (both share one
+`git-common-dir`), and nothing would read it anyway: tsk's own git
+commands run with hooks disabled, so the commit check never sees a
+ledger document. The hook's exit status and printed output are its
+whole answer; tsk shows both unchanged.
+
+**Deterministic tier only, always.** Unlike the commit check above,
+this is not configurable: the hook runs outside any Claude Code
+session, with no model attached, and `tsk ledger push` must not wait
+on one. `/swe:lint-file <path>` still runs both tiers, on demand, on
+one document.
+
+**Finding the plugin's linter at run time.** Lookup order: first
+`$SWE_PLUGIN_ROOT` (manual override, and what the test suite sets),
+then `<git-common-dir>/swe/plugin-root`, the same pointer file
+[`../scripts/install-commit-hook.sh`](../scripts/install-commit-hook.sh)
+already writes for the commit check above, read here via `git
+rev-parse --git-common-dir` from inside the documents worktree, which
+resolves to the *code* repository's own `.git` (a linked worktree
+shares it). `install-docs-hook.sh` (re)writes that same pointer on
+every successful `--place`, regardless of which of the three places
+has the *hook script itself*: the pointer is per code-repository,
+not per hook-script location, so a user- or clone-level hook script
+shared across many repositories still resolves the right plugin
+install for whichever repository's ledger is under lint, provided
+`/swe:install-commit-hook` ran at least once from inside that
+repository. With neither pointer present, the hook fails open with a
+note naming the fix (re-run `/swe:install-commit-hook`). This also
+means a swe update does not silently break the hook: the pointer is
+stale only until that command runs again, the same contract the
+commit check's own pointer already has.
+
+**Fail-open boundary.** No `python3` on `PATH`, no linter found, no
+rule catalogue cached (`data/core-rules.toml` missing; this hook never
+runs the fetch script itself, matching the commit check's own
+restraint, to keep a push from waiting on a network call), or any
+linter exit code other than 0 or 1 (an uncaught Python exception exits
+1, so it counts as a real failure, not a fail-open case: an accepted,
+narrow edge rather than a special case to add). It blocks only on an
+evaluated error-severity finding.
+
+**The three install places**, matching what `tsk config docs-hook`
+itself resolves, in the same precedence order (`TSK_DOCS_HOOK`, then
+clone, then user, then repo):
+
+- **user**: `${XDG_CONFIG_HOME:-$HOME/.config}/tsk/hooks/pre-docs-commit`.
+- **clone**: a `hooks/` directory next to the ledger's own state
+  directory: the `dirname` of `tsk ledger path`'s own printed path,
+  which this task confirmed ends in `/repos/<clone-id>/ledger-db`,
+  sibling to `hooks/`. Unavailable with no clone id yet (`tsk ledger
+  fetch` mints one).
+- **repo**: `.tsk/hooks/pre-docs-commit` at the repository's toplevel.
+
+`install-docs-hook.sh --place` never chains a foreign file the way the
+commit check's installer does for an existing `pre-commit`: the issue
+this implements specifies stop, not chain, since a documents hook has
+no established convention yet for what a foreign script there would
+mean.
+
+**Agents must not use `TSK_SKIP_DOC_CHECK`.** tsk itself reads this
+environment variable and skips calling the hook entirely when it is
+set; the hook script never reads it and never mentions it in its own
+output, so only tsk's own documentation describes the bypass, not this
+plugin. An agent working in a repository with this hook installed must
+not set it to get past a blocked `tsk ledger push` or `tsk ledger doc
+put`: fix the finding, the same discipline `git commit --no-verify`
+already gets in this plugin's own skills.
+
 ## Where the rule data comes from
 
 [`../software-english.json`](../software-english.json) pins a tag of

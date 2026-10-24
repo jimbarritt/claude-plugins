@@ -130,6 +130,42 @@ it still runs, first, unchanged.
 each clone of the repository. Run `/swe:install-commit-hook uninstall`
 to remove it.
 
+## Check tsk ledger documents
+
+When [tsk](https://github.com/jimbarritt/tsk) 0.26.1 or later is
+installed, `/swe:install-commit-hook` also offers a `pre-docs-commit`
+hook: tsk calls it directly, through its own documents-hook point, not
+through git, since `tsk ledger push` and `tsk ledger doc put` run git
+with hooks disabled. Choose one of three places for it:
+
+- **User**, `${XDG_CONFIG_HOME:-$HOME/.config}/tsk/hooks/pre-docs-commit`:
+  covers every ledger of this user, including a repository the user
+  does not control. The right default there.
+- **Clone**, inside this clone's own state directory: covers this
+  clone only.
+- **Repo**, `.tsk/hooks/pre-docs-commit`: committed, so every
+  contributor is checked. Use only in a repository the user controls.
+
+`tsk config docs-hook` names which of these, if any, currently
+applies. The installed hook checks the deterministic tier only, never
+the model-judged inference tier, since a push must not wait on a model
+call and the hook runs with no Claude Code session attached. An
+error-severity finding makes `tsk ledger doc put` exit 1, with the
+document still written locally, or stops `tsk ledger push` before
+anything is pushed. `/swe:lint-file <path>` still runs both tiers, on
+demand, on one document.
+
+A repository where a contributor has not installed the swe plugin
+finds no linter at the hook's run time and allows the commit, printing
+why; that is by design, not a fault to fix.
+
+The hook finds the installed swe plugin at run time rather than at a
+fixed, version-pinned path, so a swe update does not break it;
+re-running `/swe:install-commit-hook` after an update refreshes the
+pointer it reads. Run `/swe:install-commit-hook uninstall` to remove
+both hooks; it offers to remove the documents hook from whichever
+place(s) it is installed.
+
 ## Report a wrong finding, or feedback about the tooling itself
 
 If you see a finding that looks wrong, or want to report something
