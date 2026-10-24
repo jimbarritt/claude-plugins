@@ -1,10 +1,16 @@
 # State
 
-Last updated: 2026-10-23 (software-english#21 shipped, closed)
+Last updated: 2026-10-24 (claude-plugins#21 claimed, in progress)
 
 ## In progress
 
-None.
+[tasks/issue-21-plugin-root-env-var.md](tasks/issue-21-plugin-root-env-var.md)
+([#21](https://github.com/jimbarritt/claude-plugins/issues/21), opened by
+`jimbarritt`): a bare `$CLAUDE_PLUGIN_ROOT` (missing the `${...}` braces
+the harness actually substitutes) in three `swe` skills' script-path
+fences, plus a bare `$ARGUMENTS` used as a backticked sentence subject in
+the same three skills' Step 1 (renders as `` `` `` when no argument is
+given). Claimed by the self-maintaining-repo Routine.
 
 ## Waiting on others
 
