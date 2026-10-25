@@ -2,7 +2,7 @@
 
 This document is the briefing for an unattended session that fires from
 the self-maintaining-repo Routine. It is a ledger document of mission
-`M-SELF-MAINTAIN`, at `missions/operational/M-SELF-MAINTAIN/MAINTAINER-RUN.md`.
+`M-SWE-SELF-MAINTAIN`, at `missions/operational/M-SWE-SELF-MAINTAIN/MAINTAINER-RUN.md`.
 The trusted-author overlay is the document `ALLOWLIST.md` beside it.
 
 The tsk ledger is the only record of the work. The `planning` branch is
@@ -30,16 +30,20 @@ version bump or a release.
 
 ## Mission names
 
-Each issue has one mission:
+This ledger has the mission prefix `SWE` (`tsk mission prefix`). Each issue has one
+mission, with an ID of the form `M-SWE-<NAME>`:
 
-- A `claude-plugins` issue: `M-CP-<N>`, named `claude-plugins#<N>: <issue title>`.
-- A `software-english` issue: `M-SE-<N>`, named `software-english#<N>: <issue title>`.
+- `<NAME>` is 2 to 4 words from the issue title, in capitals, joined with hyphens, for
+  example `M-SWE-LEDGER-NONCE`. It does not end in a number.
+- A number at the end of an ID marks a part of a mission. Do not use the issue number
+  in the ID. Put it in the mission name instead: `claude-plugins#<N>: <issue title>` or
+  `software-english#<N>: <issue title>`. The two trackers number independently, so the
+  name states the repo.
+- `tsk mission create` adds the prefix when it is missing. Give the full ID.
 
-The two trackers number independently, so the prefix keeps the IDs apart.
-Before you create a mission, run `tsk mission list` and look for the issue
-number in the names. A mission imported from the old plan can have another
-ID, for example `M-DOCS-HOOK` for claude-plugins#22. Use that mission when
-one exists.
+Before you create a mission, run `tsk mission list` and look for the issue number in the
+names. A mission can exist already for the issue, for example `M-SWE-DOCS-HOOK` for
+claude-plugins#22. Use that mission when one exists.
 
 ## Steps
 
