@@ -602,6 +602,11 @@ LINK_TARGET = re.compile(r"\]\([^)]*\)")
 URL = re.compile(r"https?://\S+")
 HTML_TAG = re.compile(r"<[^>]+>")
 WORD = re.compile(r"[A-Za-z][A-Za-z']*")
+# Like WORD, but a whole code span counts as one token: the no-cadence-device
+# locator (claude-plugins#25) needs a code-span subject to count as a noun
+# phrase, not to vanish the way strip_noise()'s blanking makes it for every
+# other rule.
+CADENCE_TOKEN = re.compile(r"`[^`]*`|[A-Za-z][A-Za-z']*")
 SENTENCE_END = (".", "!", "?")
 
 SYSTEM_PRONOUNS = {"it", "this", "that"}
@@ -686,6 +691,32 @@ NOUN_DETERMINERS = {
 # "this" and "that" are left out: each is also a system-referring pronoun,
 # and so a subject in its own right.
 NOUN_USE_DETERMINERS = NOUN_DETERMINERS - SYSTEM_PRONOUNS
+
+# claude-plugins#25: a word directly before one of these object pronouns, with
+# a subject token before it, reads as a finite verb even when it is outside
+# the closed verb lexicon ("Every client trusts them."). "this" and "that"
+# are left out: both are also complementisers ("Not this."), so including
+# them would misread a negated fragment as verbed.
+OBJECT_PRONOUNS = {"them", "it", "these", "those", "him", "her", "us", "me", "itself", "themselves"}
+# Words that precede an object pronoun without being a verb themselves, so
+# the OBJECT_PRONOUNS rule does not misread "None of them.", "Not for
+# these." or "Both of them." as having a verb.
+NON_VERB_BEFORE_OBJECT = {
+    # prepositions
+    "of", "for", "to", "with", "from", "in", "on", "at", "by", "into", "onto",
+    "about", "over", "under", "between", "among", "without", "within",
+    "through", "per", "via", "like", "than", "as", "against", "across",
+    "around", "behind", "beyond", "near", "after", "before", "since",
+    "until", "despite", "except", "up", "down", "out", "off",
+    # conjunctions
+    "and", "or", "but", "nor", "so",
+    # negators and quantifiers
+    "not", "no", "all", "both", "each", "none", "any", "some", "most",
+    "many", "few", "either", "neither",
+    # focusing adverbs
+    "only", "just", "even", "also", "too",
+    "worth",
+} | NOUN_DETERMINERS
 # A clause with only these words before the verb is an imperative or an
 # infinitive, with no subject: "do not leave a heading empty", "to enter
 # the value". "does" is not here: a third-person subject precedes it.
@@ -875,13 +906,14 @@ def load_banned():
     return rules
 
 
-def strip_noise(line):
-    for pattern in (INLINE_CODE, LINK_TARGET, URL, HTML_TAG):
+def strip_noise(line, keep_code=False):
+    patterns = (LINK_TARGET, URL, HTML_TAG) if keep_code else (INLINE_CODE, LINK_TARGET, URL, HTML_TAG)
+    for pattern in patterns:
         line = pattern.sub(lambda m: " " * len(m.group(0)), line)
     return line
 
 
-def prose_lines(text, exemptions, only_lines=None):
+def prose_lines(text, exemptions, only_lines=None, keep_code=False):
     skip_line_marker = exemptions["skip_line_marker"]
     in_fence = False
     for number, line in enumerate(text.splitlines(), start=1):
@@ -898,7 +930,7 @@ def prose_lines(text, exemptions, only_lines=None):
             continue
         if only_lines is not None and number not in only_lines:
             continue
-        yield number, strip_noise(line)
+        yield number, strip_noise(line, keep_code=keep_code)
 
 
 def lemma_candidates(word):
@@ -1165,21 +1197,32 @@ def prose_units(numbered_lines):
     return units
 
 
-def split_sentences(paragraph):
+def split_sentences(paragraph, mirror=None):
     """Splits one paragraph block's (n, line) pairs into [(start_line,
     sentence_text), ...] on SENTENCE_BREAK, joining wrapped lines with a
-    single space first so a sentence split across lines reads as one."""
+    single space first so a sentence split across lines reads as one.
+
+    mirror, when given, is a same-length, same-offsets (n, line) pairing
+    for the same paragraph (claude-plugins#25: paragraph's own lines with
+    code spans kept rather than blanked). Sentence boundaries are always
+    found on paragraph's text, so a period or "?" inside a code span can
+    never create one; each returned sentence is then read from mirror's
+    text at the same offsets, so its code spans are intact."""
     joined_parts = []
+    mirror_parts = []
     offsets = []
     pos = 0
-    for n, line in paragraph:
+    for idx, (n, line) in enumerate(paragraph):
         if joined_parts:
             joined_parts.append(" ")
+            mirror_parts.append(" ")
             pos += 1
         offsets.append((pos, n))
         joined_parts.append(line)
+        mirror_parts.append(mirror[idx][1] if mirror is not None else line)
         pos += len(line)
     full = "".join(joined_parts)
+    full_mirror = "".join(mirror_parts) if mirror is not None else full
 
     def line_at(offset):
         result = offsets[0][1]
@@ -1193,11 +1236,11 @@ def split_sentences(paragraph):
     sentences = []
     start = 0
     for m in SENTENCE_BREAK.finditer(full):
-        sentence = full[start:m.start()].strip()
+        sentence = full_mirror[start:m.start()].strip()
         if sentence:
             sentences.append((line_at(start), sentence))
         start = m.end()
-    tail = full[start:].strip()
+    tail = full_mirror[start:].strip()
     if tail:
         sentences.append((line_at(start), tail))
     return sentences
@@ -1205,35 +1248,54 @@ def split_sentences(paragraph):
 
 def sentence_has_verb(sentence, verbs):
     """True when sentence has a word a stdlib-only linter can read as a
-    verb: a contraction ("doesn't", "it's"), an auxiliary, or a word in
-    verbs, unless a determiner right before it (NOUN_DETERMINERS) marks it
-    read as a noun instead ("No retries.", "a read")."""
-    words = WORD.findall(sentence)
-    for i, word in enumerate(words):
+    verb: a contraction ("doesn't", "it's"), an auxiliary, a word in verbs
+    (unless a determiner right before it, NOUN_DETERMINERS, marks it read
+    as a noun instead: "No retries.", "a read"), or a word directly before
+    an object pronoun with a subject token before it (claude-plugins#25:
+    "Every client trusts them.", outside the closed lexicon). A code span
+    (CADENCE_TOKEN) is opaque throughout: never a verb, an auxiliary, or a
+    determiner, and its own contents are never looked up."""
+    tokens = CADENCE_TOKEN.findall(sentence)
+    for i, word in enumerate(tokens):
+        if word.startswith("`"):
+            continue
         if CONTRACTION_SUFFIX.search(word):
             return True
         candidates = list(lemma_candidates(word.lower()))
         if any(c in AUXILIARY_VERBS for c in candidates):
             return True
         if any(c in verbs for c in candidates):
-            prev = words[i - 1].lower() if i > 0 else None
+            prev = tokens[i - 1].lower() if i > 0 else None
             if prev in NOUN_DETERMINERS:
                 continue
             return True
+        if i >= 1 and i + 1 < len(tokens) and word[0].isalpha() and word.islower():
+            nxt = tokens[i + 1].lower()
+            if nxt in OBJECT_PRONOUNS and word not in NON_VERB_BEFORE_OBJECT:
+                return True
     return False
 
 
-def find_cadence_fragments(blocks, verbs):
+def find_cadence_fragments(blocks, verbs, code_lines=None):
     """Locates candidates for no-cadence-device's first shape: a verbless
     fragment set as its own sentence right after a sentence of
     CADENCE_MIN_PRECEDING_WORDS or more words, within the same paragraph.
     Never decides the fault: whether the fragment states a fact the
-    preceding sentence does not is left to the judging model."""
+    preceding sentence does not is left to the judging model.
+
+    code_lines, when given, is prose_lines()'s unfiltered output with code
+    spans kept (claude-plugins#25): sentence boundaries and the preceding
+    sentence's word count still use the blanked text in blocks, but the
+    fragment's own tokenising, verb check, and reported detail use the
+    code-kept mirror, so a code-span subject or object is read as a noun
+    phrase rather than disappearing."""
+    code_by_line = dict(code_lines) if code_lines is not None else None
     results = []
     for kind, data in blocks:
         if kind != "paragraph":
             continue
-        sentences = split_sentences(data)
+        mirror = [(n, code_by_line.get(n, line)) for n, line in data] if code_by_line is not None else None
+        sentences = split_sentences(data, mirror=mirror)
         for i in range(1, len(sentences)):
             _, prev_text = sentences[i - 1]
             frag_line, frag_text = sentences[i]
@@ -1244,7 +1306,7 @@ def find_cadence_fragments(blocks, verbs):
                 continue
             if not frag_text or frag_text[-1] not in (".", "!"):
                 continue
-            frag_words = WORD.findall(frag_text)
+            frag_words = CADENCE_TOKEN.findall(frag_text)
             if not (1 <= len(frag_words) <= CADENCE_MAX_FRAGMENT_WORDS):
                 continue
             if sentence_has_verb(frag_text, verbs):
@@ -1810,7 +1872,7 @@ def find_count_list_mismatches(blocks):
     return results
 
 
-def find_register_candidates(numbered_lines, only_lines, lexicon, rule_ids):
+def find_register_candidates(numbered_lines, only_lines, lexicon, rule_ids, code_lines=None):
     """Returns {rule_id: [(line, detail), ...]} of located candidates for
     whichever of no-cadence-device, no-mechanical-repetition,
     no-unanchored-reference, no-unstated-presupposition, define-before-use,
@@ -1818,7 +1880,11 @@ def find_register_candidates(numbered_lines, only_lines, lexicon, rule_ids):
     (prose_lines()'s unfiltered output for one source). With only_lines set
     (--diff --added-only), keeps a candidate only where it touches a
     changed line. Candidates never enter a findings list and never affect
-    error_total or the exit code."""
+    error_total or the exit code.
+
+    code_lines, when given, is prose_lines()'s unfiltered output with code
+    spans kept (claude-plugins#25), used only by find_cadence_fragments()
+    so a code-span subject or object reads as a noun phrase."""
     out = {}
     if not numbered_lines or not rule_ids:
         return out
@@ -1826,7 +1892,7 @@ def find_register_candidates(numbered_lines, only_lines, lexicon, rule_ids):
     verbs, connectives, structure_nouns, qualities, vocabulary, banned_words = lexicon
 
     if "no-cadence-device" in rule_ids:
-        candidates = find_cadence_fragments(blocks, verbs) + find_matched_pairs(
+        candidates = find_cadence_fragments(blocks, verbs, code_lines) + find_matched_pairs(
             blocks, verbs, connectives, structure_nouns, qualities
         )
         candidates.sort(key=lambda c: c[0])
@@ -2141,8 +2207,11 @@ def main():
     ignore_patterns = load_ignore_patterns(cwd)
 
     # sources: list of (label, findings, prose_text_for_threshold, candidate_input)
-    # candidate_input is (numbered_lines, only_lines) for find_register_candidates(),
-    # or None where adjacency between lines is not real prose adjacency (--html-file).
+    # candidate_input is (numbered_lines, only_lines, code_lines) for
+    # find_register_candidates(), code_lines None where there is no
+    # code-preserving mirror (a code file's extracted comments, already
+    # unblanked), or candidate_input itself None where adjacency between
+    # lines is not real prose adjacency (--html-file).
     sources = []
 
     file_list = list(args.files)
@@ -2165,13 +2234,14 @@ def main():
                 check_line(number, comment, vocabulary, structure_nouns, banned_rules, rules, findings)
                 comment_pairs.append((number, comment))
             prose_for_threshold = "\n".join(c for _, c in comment_pairs)
-            candidate_input = (comment_pairs, None)
+            candidate_input = (comment_pairs, None, None)
         else:
             only_lines = changed_line_numbers(f) if (args.diff and args.added_only and f in changed_markdown_files()) else None
             findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions, only_lines)
             numbered_lines = list(prose_lines(text, exemptions))
+            code_lines = list(prose_lines(text, exemptions, keep_code=True))
             prose_for_threshold = "\n".join(line for _, line in prose_lines(text, exemptions, only_lines))
-            candidate_input = (numbered_lines, only_lines)
+            candidate_input = (numbered_lines, only_lines, code_lines)
         sources.append((f, findings, prose_for_threshold, candidate_input))
 
     if args.text:
@@ -2179,24 +2249,27 @@ def main():
         label = args.source_label or "text"
         findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
         numbered_lines = list(prose_lines(text, exemptions))
+        code_lines = list(prose_lines(text, exemptions, keep_code=True))
         prose_for_threshold = "\n".join(line for _, line in numbered_lines)
-        sources.append((label, findings, prose_for_threshold, (numbered_lines, None)))
+        sources.append((label, findings, prose_for_threshold, (numbered_lines, None, code_lines)))
 
     if args.reply_file:
         path = Path(args.reply_file)
         text = path.read_text() if path.exists() else ""
         findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
         numbered_lines = list(prose_lines(text, exemptions))
+        code_lines = list(prose_lines(text, exemptions, keep_code=True))
         prose_for_threshold = "\n".join(line for _, line in numbered_lines)
-        sources.append(("reply", findings, prose_for_threshold, (numbered_lines, None)))
+        sources.append(("reply", findings, prose_for_threshold, (numbered_lines, None, code_lines)))
 
     if args.transcript:
         path = Path(args.transcript)
         text = extract_transcript_reply_text(path) if path.exists() else ""
         findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
         numbered_lines = list(prose_lines(text, exemptions))
+        code_lines = list(prose_lines(text, exemptions, keep_code=True))
         prose_for_threshold = "\n".join(line for _, line in numbered_lines)
-        sources.append(("transcript", findings, prose_for_threshold, (numbered_lines, None)))
+        sources.append(("transcript", findings, prose_for_threshold, (numbered_lines, None, code_lines)))
 
     if args.html_file:
         path = Path(args.html_file)
@@ -2292,8 +2365,8 @@ def main():
                     src_errors, src_warnings = per_source_counts.get(label, (0, 0))
                     candidates = None
                     if lexicon is not None and candidate_input is not None:
-                        numbered_lines, only_lines = candidate_input
-                        candidates = find_register_candidates(numbered_lines, only_lines, lexicon, register_rule_ids)
+                        numbered_lines, only_lines, code_lines = candidate_input
+                        candidates = find_register_candidates(numbered_lines, only_lines, lexicon, register_rule_ids, code_lines)
                     units = nonce_units if nonce_units is not None and label == args.files[0] else None
                     for line in format_inference_rules(label, inference_rules, src_errors, src_warnings, candidates, units):
                         print(line)

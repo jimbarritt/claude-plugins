@@ -209,7 +209,14 @@ and/or split of the lone remaining part, or of the last part when it has
 no leading Oxford and/or) differs from the stated number. Each detector reads a closed, stdlib-only verb/auxiliary list
 (`load_verb_lexicon()`), not real part-of-speech tagging, so a verb
 outside that list can still produce an extra candidate, and a word
-`vocabulary/operations.tsv` also uses as a noun can still miss one; see
+`vocabulary/operations.tsv` also uses as a noun can still miss one.
+`no-cadence-device`'s own fragment check (`find_cadence_fragments()`,
+`sentence_has_verb()`) narrows this in two ways (claude-plugins#25): a
+code span counts as one noun-phrase token, not blank space, so it no
+longer disappears from the subject or the length cap; and a word
+directly before an object pronoun ("them", "it", "these", and similar,
+with a subject token before it) counts as a finite verb even when it is
+outside the closed lexicon. The closed-list gap itself remains; see
 "Known limits" below. Candidates are capped at 20 per rule per source (a
 further line names the count omitted past the cap) and, like a pending
 rule, never affect `error_total`, `--count`, or the exit code. The
@@ -703,7 +710,11 @@ skill's own directory name exactly; the same test asserts it.
   closed, stdlib-only verb/auxiliary list, not real part-of-speech
   tagging: a verb outside that list can produce an extra
   `no-cadence-device` candidate, and a word `vocabulary/operations.tsv`
-  also uses as a noun elsewhere can still miss one.
+  also uses as a noun elsewhere can still miss one. A word directly
+  before an object pronoun ("them", "it", and similar; claude-plugins#25)
+  counts as a verb regardless of the list, and a code span now counts as
+  one noun-phrase token rather than blank space, but a verb outside the
+  list with no following pronoun and no code-span subject still misses.
 - The verbless-fragment candidate only looks within one paragraph. A
   fragment set as its own paragraph (no blank line, just a one-line
   paragraph after the long sentence's own) is not detected: nothing in

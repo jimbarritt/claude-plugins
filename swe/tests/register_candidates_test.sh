@@ -53,6 +53,14 @@ mkdir -p "$SCRATCH_HOME"
 # L is the catalogue's own no-cadence-device example sentence (19 words).
 L="The consumer retries each failed message three times with exponential backoff, then writes it to the dead-letter topic."
 
+# claude-plugins#25: the issue's own preceding sentences (20 and 16 words).
+# Single-quoted: a code span's backtick inside a double-quoted string would
+# otherwise be read as command substitution.
+S1='The config file sets the retry limit and the timeout for each client, as two integers read once at startup.'
+S2='The catalogue lists each shirt once per variant, so a search by style returns many rows.'
+F2='The fields `colour`, `size`, `sleeve` and `fabric` tell them apart.'
+F2_UNLISTED='The fields `colour`, `size`, `sleeve` and `fabric` distinguish them.'
+
 # The linter itself exits non-zero when it reports a finding, or prints an
 # advisory block. Captured to a variable rather than piped directly into
 # grep: under `pipefail`, that non-zero exit would otherwise outrank grep's
@@ -102,10 +110,53 @@ case "$WRAP_OUT" in
   *) assert "fires on its own start line when the fragment wraps onto a new line" 1 ;;
 esac
 
+# --- true positives that still fire (claude-plugins#25) --------------------
+# A code span contributes a word to the length cap but never a verb, and a
+# preposition/negator/quantifier right before a pronoun is not a verb
+# either; none of these must stop firing once a code span counts as a noun
+# phrase and a word before a pronoun can count as a verb.
+assert "fires: None of them. (preposition before a pronoun is not a verb)" \
+  "$(has_cand "$S1 None of them." no-cadence-device 1; echo $?)"
+assert "fires: Not for these. (preposition before a pronoun is not a verb)" \
+  "$(has_cand "$S1 Not for these." no-cadence-device 1; echo $?)"
+assert "fires: Only \`colour\` and \`size\`. (code spans count as words, give no verb)" \
+  "$(has_cand "$S2 Only \`colour\` and \`size\`." no-cadence-device 1; echo $?)"
+assert "fires: The \`read\` path. (contents of a code span are never read as a verb)" \
+  "$(has_cand "$S2 The \`read\` path." no-cadence-device 1; echo $?)"
+
+DETAIL_OUT="$(lint "$S2 Only \`colour\` and \`size\`.")"
+assert "candidate detail quotes the code span's own text, not blanks" \
+  "$(grep -qF 'verbless sentence "Only `colour` and `size`."' <<<"$DETAIL_OUT"; echo $?)"
+
 # --- true negatives: the fragment has a verb --------------------------------
 assert "clean: It retries. (has a verb)" "$(no_cand "$L It retries." no-cadence-device; echo $?)"
 assert "clean: The read fails. (has a verb)" "$(no_cand "$L The read fails." no-cadence-device; echo $?)"
 assert "clean: Each write is logged. (has a verb)" "$(no_cand "$L Each write is logged." no-cadence-device; echo $?)"
+
+# --- true negatives: a finite verb the closed list misses (claude-plugins#25) ---
+# Each sentence has a finite present-tense verb outside the closed lexicon
+# (operations.tsv/AUXILIARY_VERBS/COMMON_VERBS). All of these fired as
+# false-positive no-cadence-device candidates before the fix.
+assert "clean: Every client reads them. (issue #25, shape 1, verbatim)" \
+  "$(no_cand "$S1 Every client reads them." no-cadence-device; echo $?)"
+assert "clean: Every client trusts them. (verb outside the lexicon, before 'them')" \
+  "$(no_cand "$S1 Every client trusts them." no-cadence-device; echo $?)"
+assert "clean: Every client ignores it. (verb outside the lexicon, before 'it')" \
+  "$(no_cand "$S1 Every client ignores it." no-cadence-device; echo $?)"
+assert "clean: Each worker copies these. (verb outside the lexicon, before 'these')" \
+  "$(no_cand "$S1 Each worker copies these." no-cadence-device; echo $?)"
+assert "clean: ...tell them apart. (issue #25, shape 2, verbatim)" \
+  "$(no_cand "$S2 $F2" no-cadence-device; echo $?)"
+assert "clean: ...distinguish them. (code-span subject, verb outside the lexicon)" \
+  "$(no_cand "$S2 $F2_UNLISTED" no-cadence-device; echo $?)"
+
+printf '%s\n%s\n%s\n' \
+  "The catalogue lists each shirt once per variant, so a search by" \
+  'style returns many rows. The fields `colour`, `size`, `sleeve` and' \
+  '`fabric` tell them apart.' > "$TMP/codespan.md"
+CODESPAN_OUT="$(lint_file "$TMP/codespan.md")"
+assert "clean: issue #25 shape 2, wrapped across lines, code spans intact" \
+  "$(! grep -qF '[no-cadence-device] candidate at line' <<<"$CODESPAN_OUT"; echo $?)"
 
 # --- true negatives: structural exclusions ----------------------------------
 assert "clean: preceding sentence under 15 words" \
