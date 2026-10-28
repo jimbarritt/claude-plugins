@@ -57,8 +57,10 @@ numbered worklist: one `<file>:0: [warning] [inference-unit] N prose
 unit(s) follow; judge each one against every rule above.` line, then
 one `<file>:0: [warning] [inference-unit] unit N of M, <kind>,
 line(s) <range>: <text>` line per unit (`<kind>` is `heading`,
-`paragraph`, `list-item`, or `table`). This is the same worklist Step 4
-walks and Step 5's `--units-judged` checks coverage against: a heading
+`paragraph`, `list-item`, or `table`). `<text>` renders a link as
+`text (link: target)` and keeps a code span verbatim, not the
+deterministic tier's blanked placeholder. This is the same worklist
+Step 4 walks and Step 5's `--units-judged` checks coverage against: a heading
 or a paragraph outside a fenced code block, a top-level list item
 (a nested bullet or a wrapped continuation line folds into its parent
 item, not a separate unit), or a table. The block ends with one

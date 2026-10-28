@@ -153,6 +153,12 @@ doc.md:0: [warning] [inference-unit] unit 1 of 2, heading, line 1: # Title
 doc.md:0: [warning] [inference-unit] unit 2 of 2, paragraph, lines 3-4: A paragraph that wraps over two lines.
 ```
 
+A unit's text (claude-plugins#27) renders a Markdown link as
+`text (link: target)` and keeps a code span verbatim, not the
+deterministic tier's blanked, same-length placeholder. A model judges
+the worklist, and a blanked link or code span reads as an unresolved
+reference or a missing object.
+
 Each rule line is shaped like a deterministic finding (`label:line:
 [severity] [rule-id] detail`), deliberately: a caller filtering output
 for finding lines (a `grep -E ":\s*\[(error|warning)\]"`, the natural

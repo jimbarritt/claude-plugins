@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Covers the numbered worklist of prose units --force-inference prints
 # (prose_units(), format_unit_worklist()), and the --units-judged coverage
-# check on --record-lint-result (claude-plugins#20).
+# check on --record-lint-result (claude-plugins#20). Also covers a unit's
+# own readable rendering of a link and a code span (claude-plugins#27).
 # Deterministic and offline: every repository is a throwaway `git init`
 # under a scratch directory, and the linter runs against a fixture copy
 # of scripts/ carrying a small data/core-rules.toml, the same conventions
@@ -397,6 +398,75 @@ read -r H_NONCE2 H_UNITS2 <<< "$(nonce_for "$REPO4" h.md)"
 (cd "$REPO4" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$H_NONCE2" --units-judged "$H_UNITS2" h.md >/dev/null 2>&1)
 OUT="$(git -C "$REPO4" -c user.email=t@t.com -c user.name=t commit -q -m full 2>&1)"
 assert "a full lint record unblocks the same commit" "$([ $? -eq 0 ]; echo $?)"
+
+# --- a unit's own text renders links and code spans readably (claude-plugins#27) --
+
+REPO5="$(new_repo links)"
+cat > "$REPO5/links.md" <<'MD'
+# The `retry` flag
+
+See [Rotating the signing key](#rotating-the-signing-key).
+
+Do **not** add `orders.write` to the read-only role.
+
+`orders.read`, `orders.write` and `orders.admin` grant access to one service.
+
+- See [the guide](https://example.com/guide) for setup.
+
+A span with a link inside it: `[x](y)`.
+MD
+git -C "$REPO5" add links.md
+LINKS_OUT="$(cd "$REPO5" && python3 "$LINTER" links.md --force-inference --quiet-vocab 2>&1)"
+LINKS_UNITS="$(printf '%s\n' "$LINKS_OUT" | grep '\[inference-unit\]' | grep -v 'prose unit(s) follow')"
+
+case "$LINKS_UNITS" in
+  *'unit 1 of 6, heading, line 1: # The `retry` flag'*)
+    assert "a heading's own code span stays verbatim" 0 ;;
+  *) assert "a heading's own code span stays verbatim" 1 ;;
+esac
+case "$LINKS_UNITS" in
+  *'unit 2 of 6, paragraph, line 3: See Rotating the signing key (link: #rotating-the-signing-key).'*)
+    assert "an in-document link renders as text plus a resolved (link: target), brackets gone" 0 ;;
+  *) assert "an in-document link renders as text plus a resolved (link: target), brackets gone" 1 ;;
+esac
+case "$LINKS_UNITS" in
+  *'[Rotating'*) assert "no unit shows the link's broken opening bracket" 1 ;;
+  *) assert "no unit shows the link's broken opening bracket" 0 ;;
+esac
+case "$LINKS_UNITS" in
+  *'unit 3 of 6, paragraph, line 5: Do **not** add `orders.write` to the read-only role.'*)
+    assert "a code span as the sentence object stays verbatim, not blanked" 0 ;;
+  *) assert "a code span as the sentence object stays verbatim, not blanked" 1 ;;
+esac
+case "$LINKS_UNITS" in
+  *'add              to'*) assert "no unit shows the code span blanked to spaces" 1 ;;
+  *) assert "no unit shows the code span blanked to spaces" 0 ;;
+esac
+case "$LINKS_UNITS" in
+  *'unit 4 of 6, paragraph, line 7: `orders.read`, `orders.write` and `orders.admin` grant access to one service.'*)
+    assert "a list of code spans as the sentence subject stays verbatim (the #25 shape)" 0 ;;
+  *) assert "a list of code spans as the sentence subject stays verbatim (the #25 shape)" 1 ;;
+esac
+case "$LINKS_UNITS" in
+  *'unit 5 of 6, list-item, line 9: See the guide (link: https://example.com/guide) for setup.'*)
+    assert "a link in a list item renders the same readable way" 0 ;;
+  *) assert "a link in a list item renders the same readable way" 1 ;;
+esac
+case "$LINKS_UNITS" in
+  *'unit 6 of 6, paragraph, line 11: A span with a link inside it: `[x](y)`.'*)
+    assert "a link inside a code span is left alone, the span still verbatim" 0 ;;
+  *) assert "a link inside a code span is left alone, the span still verbatim" 1 ;;
+esac
+
+# The deterministic tier still blanks code-span contents: an unknown word
+# inside one of the spans above ("orders") must not be flagged, proving
+# strip_noise()'s own blanking (used by check_line(), never readable_line())
+# is unaffected by this change.
+VOCAB_OUT="$(cd "$REPO5" && python3 "$LINTER" links.md 2>&1)"
+case "$VOCAB_OUT" in
+  *orders*) assert "the deterministic tier's own vocabulary check still never sees code-span contents" 1 ;;
+  *) assert "the deterministic tier's own vocabulary check still never sees code-span contents" 0 ;;
+esac
 
 echo
 echo "$PASS passed, $FAIL failed"

@@ -601,6 +601,10 @@ INLINE_CODE = re.compile(r"`[^`]*`")
 LINK_TARGET = re.compile(r"\]\([^)]*\)")
 URL = re.compile(r"https?://\S+")
 HTML_TAG = re.compile(r"<[^>]+>")
+# claude-plugins#27: the --force-inference worklist's own rendering, read by
+# readable_line() below. One alternation, so a link inside a code span is
+# left alone.
+READABLE_SPAN = re.compile(r"(`[^`]*`)|!?\[([^\]]*)\]\(([^)]*)\)")
 WORD = re.compile(r"[A-Za-z][A-Za-z']*")
 # Like WORD, but a whole code span counts as one token: the no-cadence-device
 # locator (claude-plugins#25) needs a code-span subject to count as a noun
@@ -913,7 +917,27 @@ def strip_noise(line, keep_code=False):
     return line
 
 
-def prose_lines(text, exemptions, only_lines=None, keep_code=False):
+def readable_line(line):
+    """claude-plugins#27: the --force-inference worklist's own view of a
+    line, read by prose_units() through prose_lines(readable=True). A code
+    span stays verbatim. A link or image, [text](target) / ![text](target),
+    renders as "text (link: target)" (or just "text", or "(link: target)"
+    when either side is empty), so the model reads a resolved reference
+    instead of strip_noise()'s blanked, bracket-breaking placeholder. Not
+    same-length: never used by the deterministic tier or as a
+    split_sentences() mirror, both of which need strip_noise()'s blanking to
+    keep positions and vocabulary stable."""
+    def repl(m):
+        if m.group(1):
+            return m.group(1)
+        text, target = m.group(2).strip(), m.group(3).strip()
+        if not target:
+            return text
+        return f"{text} (link: {target})" if text else f"(link: {target})"
+    return HTML_TAG.sub(" ", READABLE_SPAN.sub(repl, line))
+
+
+def prose_lines(text, exemptions, only_lines=None, keep_code=False, readable=False):
     skip_line_marker = exemptions["skip_line_marker"]
     in_fence = False
     for number, line in enumerate(text.splitlines(), start=1):
@@ -930,7 +954,7 @@ def prose_lines(text, exemptions, only_lines=None, keep_code=False):
             continue
         if only_lines is not None and number not in only_lines:
             continue
-        yield number, strip_noise(line, keep_code=keep_code)
+        yield number, (readable_line(line) if readable else strip_noise(line, keep_code=keep_code))
 
 
 def lemma_candidates(word):
@@ -1155,7 +1179,7 @@ def register_blocks(numbered_lines):
     return blocks
 
 
-def prose_units(numbered_lines):
+def prose_units(numbered_lines, text_lines=None):
     """The numbered worklist --force-inference prints for a single named
     file (claude-plugins#20): one unit per register_blocks() block, except
     an "hr" block, which is never a unit. Reuses that same parse, so "a
@@ -1170,6 +1194,13 @@ def prose_units(numbered_lines):
     taken from the item's start line up to the line before the next item's
     start (or the block's last line, for the final item).
 
+    text_lines, when given (claude-plugins#27), is a second (n, line)
+    stream, read in place of numbered_lines for each unit's own text only:
+    block structure and line ranges still come from register_blocks() on
+    numbered_lines, unaffected. Pass prose_lines(..., readable=True) here so
+    a judged unit shows a link resolved and a code span intact, rather than
+    strip_noise()'s blanked placeholder.
+
     Returns [(kind, first_line, last_line, text), ...] in document order;
     kind is "heading", "paragraph", "list-item", or "table". text is the
     unit's own prose, read back for the judging pass to work from: the
@@ -1177,22 +1208,25 @@ def prose_units(numbered_lines):
     a list item's own first line (register_blocks() does not keep a
     continuation line's text), or a table block's first row."""
     line_by_number = dict(numbered_lines)
+    text_by_line = dict(text_lines) if text_lines is not None else line_by_number
     units = []
     for kind, data in register_blocks(numbered_lines):
         if kind == "heading":
-            units.append(("heading", data, data, line_by_number[data].strip()))
+            units.append(("heading", data, data, text_by_line[data].strip()))
         elif kind == "paragraph":
             first, last = data[0][0], data[-1][0]
-            text = " ".join(line.strip() for _, line in data)
+            text = " ".join(text_by_line[n].strip() for n, _ in data)
             units.append(("paragraph", first, last, text))
         elif kind == "list":
             item_starts = [n for n, _ in data["items"]]
             block_last = data["lines"][-1]
             for idx, (start, first_text) in enumerate(data["items"]):
                 end = item_starts[idx + 1] - 1 if idx + 1 < len(item_starts) else block_last
-                units.append(("list-item", start, end, first_text.strip()))
+                bm = BULLET.match(text_by_line[start])
+                text = bm.group(2).strip() if bm else first_text.strip()
+                units.append(("list-item", start, end, text))
         elif kind == "table":
-            units.append(("table", data[0], data[-1], line_by_number[data[0]].strip()))
+            units.append(("table", data[0], data[-1], text_by_line[data[0]].strip()))
         # "hr" is never a unit.
     return units
 
@@ -2207,11 +2241,15 @@ def main():
     ignore_patterns = load_ignore_patterns(cwd)
 
     # sources: list of (label, findings, prose_text_for_threshold, candidate_input)
-    # candidate_input is (numbered_lines, only_lines, code_lines) for
-    # find_register_candidates(), code_lines None where there is no
-    # code-preserving mirror (a code file's extracted comments, already
-    # unblanked), or candidate_input itself None where adjacency between
-    # lines is not real prose adjacency (--html-file).
+    # candidate_input is (numbered_lines, only_lines, code_lines, unit_lines).
+    # numbered_lines, only_lines and code_lines feed find_register_candidates();
+    # code_lines is None where there is no code-preserving mirror (a code
+    # file's extracted comments, already unblanked). unit_lines
+    # (claude-plugins#27) is prose_lines(readable=True), read by prose_units()
+    # for the --force-inference worklist in place of numbered_lines, so a
+    # unit shows a link resolved and a code span intact. candidate_input
+    # itself is None where adjacency between lines is not real prose
+    # adjacency (--html-file).
     sources = []
 
     file_list = list(args.files)
@@ -2234,14 +2272,15 @@ def main():
                 check_line(number, comment, vocabulary, structure_nouns, banned_rules, rules, findings)
                 comment_pairs.append((number, comment))
             prose_for_threshold = "\n".join(c for _, c in comment_pairs)
-            candidate_input = (comment_pairs, None, None)
+            candidate_input = (comment_pairs, None, None, None)
         else:
             only_lines = changed_line_numbers(f) if (args.diff and args.added_only and f in changed_markdown_files()) else None
             findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions, only_lines)
             numbered_lines = list(prose_lines(text, exemptions))
             code_lines = list(prose_lines(text, exemptions, keep_code=True))
+            unit_lines = list(prose_lines(text, exemptions, readable=True))
             prose_for_threshold = "\n".join(line for _, line in prose_lines(text, exemptions, only_lines))
-            candidate_input = (numbered_lines, only_lines, code_lines)
+            candidate_input = (numbered_lines, only_lines, code_lines, unit_lines)
         sources.append((f, findings, prose_for_threshold, candidate_input))
 
     if args.text:
@@ -2250,8 +2289,9 @@ def main():
         findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
         numbered_lines = list(prose_lines(text, exemptions))
         code_lines = list(prose_lines(text, exemptions, keep_code=True))
+        unit_lines = list(prose_lines(text, exemptions, readable=True))
         prose_for_threshold = "\n".join(line for _, line in numbered_lines)
-        sources.append((label, findings, prose_for_threshold, (numbered_lines, None, code_lines)))
+        sources.append((label, findings, prose_for_threshold, (numbered_lines, None, code_lines, unit_lines)))
 
     if args.reply_file:
         path = Path(args.reply_file)
@@ -2259,8 +2299,9 @@ def main():
         findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
         numbered_lines = list(prose_lines(text, exemptions))
         code_lines = list(prose_lines(text, exemptions, keep_code=True))
+        unit_lines = list(prose_lines(text, exemptions, readable=True))
         prose_for_threshold = "\n".join(line for _, line in numbered_lines)
-        sources.append(("reply", findings, prose_for_threshold, (numbered_lines, None, code_lines)))
+        sources.append(("reply", findings, prose_for_threshold, (numbered_lines, None, code_lines, unit_lines)))
 
     if args.transcript:
         path = Path(args.transcript)
@@ -2268,8 +2309,9 @@ def main():
         findings = lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions)
         numbered_lines = list(prose_lines(text, exemptions))
         code_lines = list(prose_lines(text, exemptions, keep_code=True))
+        unit_lines = list(prose_lines(text, exemptions, readable=True))
         prose_for_threshold = "\n".join(line for _, line in numbered_lines)
-        sources.append(("transcript", findings, prose_for_threshold, (numbered_lines, None, code_lines)))
+        sources.append(("transcript", findings, prose_for_threshold, (numbered_lines, None, code_lines, unit_lines)))
 
     if args.html_file:
         path = Path(args.html_file)
@@ -2327,7 +2369,7 @@ def main():
     if args.force_inference and inference_key is not None and sources and sources[0][0] == args.files[0]:
         nonce_candidate_input = sources[0][3]
         if nonce_candidate_input is not None:
-            nonce_units = prose_units(nonce_candidate_input[0])
+            nonce_units = prose_units(nonce_candidate_input[0], nonce_candidate_input[3])
 
     due_for_inference = args.force_inference or (args.advise_inference and error_total == 0 and not stop_hook_active)
     if due_for_inference:
@@ -2365,7 +2407,7 @@ def main():
                     src_errors, src_warnings = per_source_counts.get(label, (0, 0))
                     candidates = None
                     if lexicon is not None and candidate_input is not None:
-                        numbered_lines, only_lines, code_lines = candidate_input
+                        numbered_lines, only_lines, code_lines, _ = candidate_input
                         candidates = find_register_candidates(numbered_lines, only_lines, lexicon, register_rule_ids, code_lines)
                     units = nonce_units if nonce_units is not None and label == args.files[0] else None
                     for line in format_inference_rules(label, inference_rules, src_errors, src_warnings, candidates, units):
