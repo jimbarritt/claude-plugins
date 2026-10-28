@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Software English linter: deterministic tier plus a gated inference tier.
+r"""Software English linter: deterministic tier plus a gated inference tier.
 
 Checks prose against Software English's rules. Vocabulary data and the
 rule catalogue are vendored under ../data/ from the software-english

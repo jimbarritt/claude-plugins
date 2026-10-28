@@ -1,0 +1,27 @@
+name: swe Python syntax warnings
+
+# A backslash in a normal string literal that is not a recognised escape
+# (for example "\s" in a docstring quoting a regex) is silently accepted
+# today but reported as a warning before it becomes an error in a future
+# Python version. Without this check, that warning lines print on every
+# run of the script, ahead of any real finding (claude-plugins#26).
+# swe/tests/python_syntax_warnings_test.sh holds the rule.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check every swe/scripts .py file parses with no invalid-escape warning
+        run: swe/tests/python_syntax_warnings_test.sh
