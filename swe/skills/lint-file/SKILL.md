@@ -97,9 +97,10 @@ recorded in Step 5, with `--units-judged 0`.
 
 ## Step 4: Judge the file against the inference rules yourself
 
-Step 4 has two passes, in this order: the body, then the headings.
-Both passes use the same rules: the `inference pending` lines from
-Step 3.
+Step 4 has three passes, in this order: the body, the headings, then
+the whole document. Passes 1 and 2 use the same rules: the `inference
+pending` lines from Step 3. Pass 3 uses the checks given under it,
+below.
 
 A judgement made earlier, in this session or any other, never applies
 to changed content. Even a one-token edit makes this a new file. Judge
@@ -140,8 +141,70 @@ Note each violation at the heading's own line number, in the same
 format as Pass 1.
 
 Do Pass 2 even when Pass 1 found violations: Step 6 reports every
-finding from both passes. Skip Pass 2 for a file that is not Markdown,
-and for a Markdown file with no heading.
+finding from all three passes. Skip Pass 2 for a file that is not
+Markdown, and for a Markdown file with no heading.
+
+### Pass 3: the whole document
+
+After Pass 2, read the file once more as a whole, start to end. Some
+faults span more than one unit: a heading, a paragraph, or a list
+item. No per-unit pass detects them. Report each Pass 3 finding at
+`warning` severity, in the same `<file-path>:<line>: [severity]
+[rule-id] detail` format as Pass 1, at the line given for each check
+below. Do Pass 3 even when Passes 1 and 2 found violations. Skip
+Pass 3 for a file that is not Markdown, and for a Markdown file with
+fewer than two headings.
+
+Check the whole document against each of the following:
+
+- **`[no-contradiction-between-sections]`.** A later section (a
+  decision record, a discussion point, an amendment) states a rule
+  that an earlier section contradicts, or a status marker on a later
+  entry states that a decision is agreed but not yet applied to the
+  body ("agreed, not yet reflected above/below"). Report two findings:
+  the earlier, contradicted sentence, and the status marker itself.
+  Example: §3 states "every queue has at least one consumer, so the
+  router never checks for an empty queue"; §9, decision Q-4, states
+  "status: agreed, not yet reflected above. A queue can have zero
+  consumers; the router checks before it sends." Report §3's sentence
+  as contradicted by Q-4, and Q-4's status marker as stale. Not this
+  fault: a later section that states an exception to the earlier rule
+  and names it as an exception; an open question that states no
+  decision.
+- **`[summary-before-detail]` (SPEC §7.1).** A Design or API Design
+  document of 300 lines or more with no Summary section and no opening
+  paragraph, before the first section heading, giving the document's
+  own decision or description. Report at line 1.
+- **`[no-mechanical-repetition]`, across sections (SPEC §8.2).** One
+  argument or consequence, not only a measurement, restated in more
+  than one section in different words, for example the reason a type
+  excludes a category of records, given three or four times. Report
+  each restatement after the first, at its own line. Not this fault:
+  the one restatement a summary is allowed (SPEC §7.1); a
+  cross-reference ("for the reason in §3") that states the argument
+  only once.
+- **Contents list, two rules.** `[no-mechanical-repetition]`: a
+  contents list out of scale with the document (SPEC §8.2's own
+  threshold: under about 300 lines, none; longer, top-level headings
+  only, with a subsection listed only where a reader looks it up by
+  number). `[no-unanchored-reference]`: a contents entry, or a bold
+  group label inside a contents list, that matches no heading in the
+  document: a reference with no referent (SPEC §7.5), not repetition.
+  Report one finding per unmatched entry, at that entry's line.
+- **`[no-precedent-before-subject]`.** A section whose heading names
+  one subject describes a different component, system, or precedent
+  first, at more than one paragraph or list, before it states the
+  subject's own facts. Fix: state the subject's own facts first; move
+  or cut the precedent.
+
+A Pass 3 finding never changes Step 5's error count, and Pass 3 judges
+no worklist unit, so `--units-judged` is the same with or without it.
+Three of these rule ids are lint-file's own, not from the fetched
+`software-english` catalogue: `no-contradiction-between-sections`,
+`summary-before-detail`, and `no-precedent-before-subject`.
+`no-mechanical-repetition` and `no-unanchored-reference` are
+catalogued; Pass 3 applies each past the one-unit scope its catalogue
+description covers on its own.
 
 ## Step 5: Record the verdict
 
@@ -153,12 +216,13 @@ already checked here.
 
 Count the `error`-severity findings: the deterministic tier's own count
 from Step 3, plus any you found judging the inference rules in Step 4
-(0 if Step 4 was skipped for lack of prose). Warnings do not count.
+(0 if Step 4 was skipped for lack of prose; Pass 3 adds only warnings,
+so it never changes this count). Warnings do not count.
 
 Also count the units from Step 3's worklist judged in Step 4. Walking
-the whole worklist (both passes) is the normal case; state that count
-honestly, never the total by default. `M` below is the total Step 3
-printed as `swe-lint-units`.
+the whole worklist (Passes 1 and 2; Pass 3 judges no worklist unit) is
+the normal case; state that count honestly, never the total by
+default. `M` below is the total Step 3 printed as `swe-lint-units`.
 
 Every unit judged (the normal case), zero errors:
 
@@ -202,7 +266,7 @@ Step 3 and run Steps 3, 4, and 5 again on the file as it is now.
 ## Step 6: Report
 
 Print every finding, deterministic and inference-tier alike, one line
-each with severity. This is the violations found in Step 4, both
+each with severity. This is the violations found in Step 4, all three
 passes, not the `inference pending` lines, the `candidate at line N`
 lines, the worklist's `inference-unit` lines, or the
 `[inference-pending]` summary line from Step 3, which name rules and

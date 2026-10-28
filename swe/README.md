@@ -100,7 +100,11 @@ this when you want the full check without editing the file first.
 The inference tier lists the file as a numbered worklist of prose
 units (one per heading, paragraph, list item, and table) and judges
 each one in turn, rather than reading the file once and hoping nothing
-was missed.
+was missed. After the per-unit passes, it reads the whole document
+once more for a fault that spans several units: a contradiction
+between sections, a missing summary, an argument restated across
+sections, a contents-list fault, or a section that states a precedent
+before its own subject. It reports each as a warning.
 
 ## Check commits against a clean lint
 
