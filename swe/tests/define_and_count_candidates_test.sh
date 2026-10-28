@@ -150,6 +150,8 @@ assert "clean: occurrences only inside a fenced code block do not count toward t
 # --- true positives: no-count-list-mismatch -----------------------------------
 assert "fires: 'The service exposes three endpoints: read and write.' (stated 3, actual 2)" \
   "$(has_cand "The service exposes three endpoints: read and write." no-count-list-mismatch 1 "colon list of 2 items"; echo $?)"
+assert "fires: 'three sources: alpha, beta, gamma and delta.' (stated 3, actual 4: a serial 'and' with no Oxford comma is two items) (#24)" \
+  "$(has_cand "The service reads from three sources: alpha, beta, gamma and delta." no-count-list-mismatch 1 "colon list of 4 items"; echo $?)"
 
 # --- true negatives: no-count-list-mismatch, counts match --------------------
 assert "clean: 'The cache has three tiers: memory, disk, and remote.'" \
@@ -166,6 +168,12 @@ assert "clean: ambiguous and/or split (more than one conjunction) is not reporte
   "$(no_cand "The service exposes two endpoints: read and write and delete." no-count-list-mismatch; echo $?)"
 assert "clean: 'Two of the five routes drop an entry: read and write.' (a part of a larger set)" \
   "$(no_cand "Two of the five routes drop an entry: read and write." no-count-list-mismatch; echo $?)"
+assert "clean: seven items, a serial 'and' with no Oxford comma (#24)" \
+  "$(no_cand "The service reads from seven sources: alpha, beta, gamma, delta, the Northwind Order Archive, epsilon and zeta." no-count-list-mismatch; echo $?)"
+assert "clean: the same seven items with an Oxford comma (#24)" \
+  "$(no_cand "The service reads from seven sources: alpha, beta, gamma, delta, the Northwind Order Archive, epsilon, and zeta." no-count-list-mismatch; echo $?)"
+assert "clean: ambiguous serial and/or in the last comma-part (more than one conjunction) is not reported (#24)" \
+  "$(no_cand "The service exposes three endpoints: read, write and delete or purge." no-count-list-mismatch; echo $?)"
 
 printf '```\nThree costs follow from that: one, two, three, four.\n```\n' > "$TMP/fenced-count.md"
 FC_OUT="$(lint_file "$TMP/fenced-count.md")"

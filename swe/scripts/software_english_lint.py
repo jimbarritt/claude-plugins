@@ -1720,8 +1720,11 @@ def count_list_items(tail):
     empty parts and a leading "and"/"or" on the last part. Where exactly
     one part remains, splits it on a bare "and"/"or": one conjunction
     gives 2 items, none gives 1, more than one is ambiguous and returns
-    None (not reported). Otherwise returns the number of comma-split
-    parts."""
+    None (not reported). Otherwise, where the last part had no leading
+    "and"/"or" (no Oxford comma), a single bare "and"/"or" inside it
+    (claude-plugins#24) counts as a serial conjunction and adds one item;
+    more than one is ambiguous and returns None. Otherwise returns the
+    number of comma-split parts."""
     tail = re.sub(r"[.!?]+\s*$", "", tail.strip()).strip()
     if not tail:
         return None
@@ -1750,7 +1753,9 @@ def count_list_items(tail):
     if not parts:
         return None
 
-    parts[-1] = re.sub(r"^(?:and|or)\s+", "", parts[-1], flags=re.IGNORECASE)
+    stripped_last = re.sub(r"^(?:and|or)\s+", "", parts[-1], flags=re.IGNORECASE)
+    oxford = stripped_last != parts[-1]
+    parts[-1] = stripped_last
 
     if len(parts) == 1:
         conjunctions = list(re.finditer(r"\s+(?:and|or)\s+", parts[0], re.IGNORECASE))
@@ -1759,6 +1764,13 @@ def count_list_items(tail):
         if len(conjunctions) == 0:
             return 1
         return None
+
+    if not oxford:
+        conjunctions = list(re.finditer(r"\s+(?:and|or)\s+", parts[-1], re.IGNORECASE))
+        if len(conjunctions) == 1:
+            return len(parts) + 1
+        if len(conjunctions) > 1:
+            return None
 
     return len(parts)
 

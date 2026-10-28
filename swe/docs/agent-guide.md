@@ -205,8 +205,8 @@ clause (a bold span, "X means"/"refers to"/"is defined as", "called X",
 "one", no "both") immediately before a short lowercase noun phrase and a
 colon, in the same sentence, whose following list's item count
 (`count_list_items()`: comma-split outside parentheses/quotes, then an
-and/or split when exactly one part remains) differs from the stated
-number. Each detector reads a closed, stdlib-only verb/auxiliary list
+and/or split of the lone remaining part, or of the last part when it has
+no leading Oxford and/or) differs from the stated number. Each detector reads a closed, stdlib-only verb/auxiliary list
 (`load_verb_lexicon()`), not real part-of-speech tagging, so a verb
 outside that list can still produce an extra candidate, and a word
 `vocabulary/operations.tsv` also uses as a noun can still miss one; see
