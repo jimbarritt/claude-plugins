@@ -33,15 +33,27 @@ stop: there is nothing to check against.
 ## Step 3: Run the deterministic tier and get the inference rules
 
 ```
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/software_english_lint.py" <file-path> --force-inference --quiet-vocab
+out="$(mktemp "${TMPDIR:-/tmp}/swe-lint.XXXXXX")"; python3 "${CLAUDE_PLUGIN_ROOT}/scripts/software_english_lint.py" <file-path> --force-inference --quiet-vocab > "$out" 2>&1; echo "swe-lint output: $out"
 ```
 
-This prints the deterministic tier's findings, if any, the normal way,
-plus a `swe: rule data <tag>, fetched <age>` line on stderr. If a `swe:
-stale rule data: ...` line follows it, Step 2's fetch did not update the
-cache (claude-plugins#28): report this to the user along with the
-results, rather than treating the findings above as current.
-`--force-inference` additionally prints a fenced
+This writes the full output to a new file outside the working tree,
+with a name unique to this run, and prints that file's path after
+`swe-lint output:`. Do not write this output, or a copy of it, inside
+the repository: an untracked file there shows in `git status`, and a
+later `git add -A` stages it (claude-plugins#29). Do not use a fixed
+file name: two runs on different files at the same time then write to
+the same file, and one overwrites the other. Read the named file with
+the `Read` tool, in full, in parts if it is long; everything below
+describes that file's content. The file stays outside the repository
+after this command; do not delete it.
+
+The file contains the deterministic tier's findings, if any, the normal
+way, plus a `swe: rule data <tag>, fetched <age>` line, joined in by
+the command's `2>&1`. If a `swe: stale rule data: ...` line follows
+it, Step 2's fetch did not update the cache (claude-plugins#28):
+report this to the user along with the results, rather than treating
+the findings above as current.
+`--force-inference` additionally writes a fenced
 `===INFERENCE_ADVISED===`...`===END_INFERENCE_ADVISED===` block: one
 line per inference-based rule that applies here, each shaped like a
 finding so it survives a findings-shaped filter, `<file>:0: [warning]
@@ -56,7 +68,7 @@ count that does not match its own list, and similar), never a decision
 that the fault is real. Treat a candidate as a place to check first, not
 a substitute for judging the whole file in Step 4.
 
-After every rule's own lines, the block prints the file's prose as a
+After every rule's own lines, the block writes the file's prose as a
 numbered worklist: one `<file>:0: [warning] [inference-unit] N prose
 unit(s) follow; judge each one against every rule above.` line, then
 one `<file>:0: [warning] [inference-unit] unit N of M, <kind>,
@@ -80,15 +92,17 @@ spawns one. It records this pass in
 on the same file counts too, for the throttle `--advise-inference`
 applies.
 
-Do not filter or truncate this command's output (no `head`, `sed`,
-`tail`, or `grep`). Step 4 must judge against the rules and the
-worklist printed here, in full, not a list recalled from earlier in
-the conversation. A findings-shaped grep now keeps the rule, worklist,
-and summary lines (they are line-0, `[warning]` lines like any other),
-but still drops the `swe-lint-units` and `swe-lint-nonce` lines Step 5
-needs, so filtering still loses something.
+Do not filter or truncate the file's content when reading it (no
+`head`, `sed`, `tail`, or `grep`): this is why the command above
+writes to a file instead of printing directly, since the output is
+too large to filter safely. Step 4 must judge against the rules and
+the worklist written here, in full, not a list recalled from earlier
+in the conversation. A findings-shaped grep now keeps the rule,
+worklist, and summary lines (they are line-0, `[warning]` lines like
+any other), but still drops the `swe-lint-units` and `swe-lint-nonce`
+lines Step 5 needs, so filtering still loses something.
 
-The last two lines of output are `swe-lint-units: <total>` then
+The last two lines of the file are `swe-lint-units: <total>` then
 `swe-lint-nonce: <value>`. Step 5 needs both values. They are valid
 for this file's exact current content only, and only once. If instead
 the last line reads `swe: no lint nonce issued for <file>: <reason>`,
@@ -96,9 +110,9 @@ the file needs no ledger row (it is outside a git repository, or
 matched by `.swe-ignore`); do Step 4 and skip Step 5.
 
 If the file has no prose to check (e.g. empty, or a code file with no
-comments), no `===INFERENCE_ADVISED===` block is printed, so the
+comments), no `===INFERENCE_ADVISED===` block is written, so the
 worklist total is 0; skip Step 4. The units and nonce lines still
-print in this case, since a no-prose file still needs a `clean` row
+appear in this case, since a no-prose file still needs a `clean` row
 recorded in Step 5, with `--units-judged 0`.
 
 ## Step 4: Judge the file against the inference rules yourself
@@ -246,11 +260,11 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/software_english_lint.py" \
   --units-judged <M> <file-path>
 ```
 
-Only some units judged (for example, output was truncated and Step 3
-had to be re-run on part of the file): pass `--units-judged "<N> of
-<M>"`, quoted. This records as a `partial` row, which blocks a commit
-the same way `failed` does, whatever the verdict given, since a
-partial pass is not proof the file is clean.
+Only some units judged (for example, the output file was only read in
+part and Step 3 had to be re-run on part of the file): pass
+`--units-judged "<N> of <M>"`, quoted. This records as a `partial`
+row, which blocks a commit the same way `failed` does, whatever the
+verdict given, since a partial pass is not proof the file is clean.
 
 The row is keyed to the file's exact content at this moment, via its
 git blob id. Any later edit invalidates it, so run this after judging,
