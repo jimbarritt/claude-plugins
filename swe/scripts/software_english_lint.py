@@ -598,6 +598,12 @@ def is_path_ignored(file_path, cwd, patterns):
 
 FENCE = re.compile(r"^\s*(```|~~~)")
 INLINE_CODE = re.compile(r"`[^`]*`")
+# software-english#27: a code span's own text reads as code, and keeps the
+# no-em-dash exemption, when it has no space or shows one of these signs:
+# "::", "->", a function call ("f("), a path or dotted name ("a/b", "a.b"),
+# or a flag ("--title", "-x").
+CODE_SPAN_CODE_SIGNAL = re.compile(r"::|->|\w\(|\w[/.]\w|(?:^|\s)--?[A-Za-z]")
+CODE_SPAN_TEXT_RATIO = 0.8
 LINK_TARGET = re.compile(r"\]\([^)]*\)")
 URL = re.compile(r"https?://\S+")
 HTML_TAG = re.compile(r"<[^>]+>")
@@ -1046,6 +1052,57 @@ def subject_gate_passes(rule, lowered, start, structure_nouns):
     return any(w in gate_nouns or w in SYSTEM_PRONOUNS for w in preceding)
 
 
+ARTICLE_LEAD = re.compile(r'^["\'“”]*\b(the|a|an)\b', re.IGNORECASE)
+
+
+def code_span_reads_as_text(content, em_dash):
+    """software-english#27: True when an inline code span's own content
+    (the text between the backticks) is a sample value or a sample message
+    in natural language, rather than code, so an em dash inside it is a
+    real finding rather than a token that is exempt from no-em-dash (SPEC
+    §3.5). False for every content strip_noise() already keeps exempt via
+    CODE_SPAN_CODE_SIGNAL, plus three further signals SPEC §3.5 names: no
+    space touches the dash itself (a title's or a compound's own
+    convention); the content opens with "the"/"a"/"an" (a label or a value
+    is a bare phrase, not a clause); the content holds an inner quote mark
+    (a quotation inside a quotation). The two readings this is built to
+    tell apart: `2 — Main Office` (a sample display value, reads as text)
+    against `the Messages resource — the beating heart` and `IEEE Standard
+    for Information Technology—Systems Design—Software Design
+    Descriptions` (a quoted fault example and a standard's title, both
+    already in this repository, that the plain "has a space and is mostly
+    letters" test alone would misread as sample values too)."""
+    if " " not in content or CODE_SPAN_CODE_SIGNAL.search(content):
+        return False
+    if not re.search(r"\s" + re.escape(em_dash) + r"|" + re.escape(em_dash) + r"\s", content):
+        return False
+    if ARTICLE_LEAD.match(content.strip()):
+        return False
+    if '"' in content:
+        return False
+    body = content.replace(em_dash, "")
+    if not body.strip():
+        return False
+    return sum(c.isalnum() or c == " " for c in body) / len(body) >= CODE_SPAN_TEXT_RATIO
+
+
+def check_code_span_em_dash(number, line, rules, findings):
+    """software-english#27: a second, narrower em-dash check, run on the
+    keep_code=True view of the same line (code spans intact) so it sees
+    exactly the text check_line()'s em-dash count on the keep_code=False
+    view never sees (strip_noise() blanks it there). The two views never
+    double-count the same character: one only ever looks inside a code
+    span, the other only ever looks outside one."""
+    rule = rules["no-em-dash"]
+    em_dash = rule["character"]
+    severity = rule.get("code_span_severity", "warning")
+    for m in INLINE_CODE.finditer(line):
+        content = m.group(0)[1:-1]
+        if em_dash in content and code_span_reads_as_text(content, em_dash):
+            for _ in range(content.count(em_dash)):
+                findings.append((number, severity, "no-em-dash", "em dash in a code span that reads as natural-language text: replace with a period, a colon, or a comma"))
+
+
 def check_line(number, line, vocabulary, structure_nouns, banned_rules, rules, findings):
     banned_spans = []
     for phrase, fix, pattern in banned_rules:
@@ -1114,8 +1171,11 @@ def check_line(number, line, vocabulary, structure_nouns, banned_rules, rules, f
 
 def lint_text(text, vocabulary, structure_nouns, banned_rules, rules, exemptions, only_lines=None):
     findings = []
-    for number, line in prose_lines(text, exemptions, only_lines):
+    blanked = prose_lines(text, exemptions, only_lines)
+    kept = prose_lines(text, exemptions, only_lines, keep_code=True)
+    for (number, line), (_, code_line) in zip(blanked, kept):
         check_line(number, line, vocabulary, structure_nouns, banned_rules, rules, findings)
+        check_code_span_em_dash(number, code_line, rules, findings)
     return findings
 
 
