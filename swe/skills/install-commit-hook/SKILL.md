@@ -1,7 +1,7 @@
 ---
 name: install-commit-hook
 description: Install swe's git pre-commit check here, and the tsk documents hook when tsk 0.26.1 or later is installed
-argument-hint: "[uninstall] [repo-path]"
+argument-hint: "[session-start] [uninstall] [repo-path]"
 allowed-tools: Bash, Read
 disable-model-invocation: false
 ---
@@ -19,31 +19,67 @@ commands with git hooks disabled. `docs_hook.enabled` defaults to
 `false` (claude-plugins#22: built and released, off by default pending
 some use of the manual route).
 
+`.git/` is never cloned, so a fresh clone or Claude Code cloud session
+starts with no hook until this command runs again there. A repository
+the user controls can commit a `session-start` entry instead (Step 2a),
+so every clone and cloud session gets the hook with no one running this
+command by hand.
+
 ## Step 1: Read the arguments
 
 Arguments given: $ARGUMENTS
 
-This is blank, a repository path, the word `uninstall`, or `uninstall`
-followed by a path. Blank means the current project. Pass `uninstall` to
-the installer as `--uninstall`, and pass any path as `<repo-path>`.
+This is blank, or some mix of a repository path, the word `uninstall`,
+and the word `session-start`, in any order. Blank means the current
+project. Pass `uninstall` to the installer as `--uninstall`, pass
+`session-start` as `--session-start`, and pass any remaining word as
+`<repo-path>`.
 
 ## Step 2: Run the git-commit-hook installer
 
 ```
-"${CLAUDE_PLUGIN_ROOT}/scripts/install-commit-hook.sh" [--uninstall] [<repo-path>]
+"${CLAUDE_PLUGIN_ROOT}/scripts/install-commit-hook.sh" [--uninstall] [--session-start] [<repo-path>]
 ```
+
+When `session-start` was given, pass `--session-start` straight through
+here: Step 2a's own question below applies only when the argument was
+not already given.
 
 Exit 0 means the hook is in place (installed, updated, already current,
 or removed for `--uninstall`). Exit 1 means nothing was changed: the
-path is not a git repository, or a `pre-commit` hook and a
-`pre-commit.local` file both already exist there, which the installer
-never overwrites. Report the script's own lines as it printed them.
+path is not a git repository, a `pre-commit` hook and a
+`pre-commit.local` file both already exist there (never overwritten),
+or, with `--session-start`, `.claude/settings.json` has invalid JSON
+or `.claude/hooks/swe-commit-hook.sh` is a file this script did not
+write. Report the script's own lines as it printed them.
 
 If the installer reported that it chained an existing hook, name the
 file it moved (`pre-commit.local`) and say that hook still runs first,
 unchanged. Continue to Step 3 either way: the tsk documents hook needs
 no git repository for its own user place, so a Step 2 failure does not
 rule it out.
+
+## Step 2a: Offer the session-start entry
+
+Skip this step when `session-start` was already given in Step 1 (the
+installer call above already covered it), or when `uninstall` was
+given (Step 2's `--uninstall --session-start`, if passed, already
+removed it).
+
+When neither was given, and `tsk ledger path` or its own git commands
+show this is a repository the user controls (not a third party's), ask
+one question, per this project's one-question-at-a-time convention:
+"Also commit a session-start entry, so every clone and cloud session of
+this repository installs the commit check automatically? (yes/no)". On
+`yes`, run:
+
+```
+"${CLAUDE_PLUGIN_ROOT}/scripts/install-commit-hook.sh" --session-start [<repo-path>]
+```
+
+and report its lines, including the reminder to commit
+`.claude/settings.json` and `.claude/hooks/swe-commit-hook.sh`. On `no`
+or when the repository is not the user's own, skip it silently.
 
 ## Step 3: Check for tsk
 
@@ -114,7 +150,8 @@ State, in a few short lines: which file(s) it installed and where; that
 a staged markdown file then needs a `clean` record from
 `/swe:lint-file` for its exact staged content; and that `.git/` is
 never cloned, so each clone of this repository needs this command run
-again.
+again, unless a committed session-start entry (Step 2a) does it
+automatically.
 
 If a tsk documents hook was also installed, add: `tsk ledger doc put`
 and `tsk ledger push` now run the deterministic tier on changed

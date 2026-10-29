@@ -131,8 +131,14 @@ A commit with no staged markdown prints nothing from this check.
 it still runs, first, unchanged.
 
 `.git/` is never cloned, so run `/swe:install-commit-hook` again in
-each clone of the repository. Run `/swe:install-commit-hook uninstall`
-to remove it.
+each clone of the repository, or commit a session-start entry instead:
+`/swe:install-commit-hook session-start` also writes
+`.claude/settings.json` and `.claude/hooks/swe-commit-hook.sh`, so every
+clone and Claude Code cloud session re-installs the hook automatically.
+Opt-in, and committed by the repository itself, not by this plugin. Run
+`/swe:install-commit-hook uninstall` to remove the git hook, or
+`/swe:install-commit-hook uninstall session-start` to remove the
+session-start entry too.
 
 ## Check tsk ledger documents
 

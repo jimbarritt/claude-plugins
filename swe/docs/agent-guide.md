@@ -470,6 +470,54 @@ equivalent key, because the git hook cannot reach it:
 { "commit-check": { "enabled": true, "block_on_deterministic": false, "paths": ["*.md"] } }
 ```
 
+**The session-start entry** (claude-plugins#31). `.git/` is never
+cloned, so a fresh clone or Claude Code cloud session starts with no
+git hook, however many earlier clones ran `/swe:install-commit-hook`.
+`install-commit-hook.sh --session-start` writes two files the
+repository itself commits: `.claude/hooks/swe-commit-hook.sh` (copied
+from [`../session-start/swe-commit-hook.sh`](../session-start/swe-commit-hook.sh),
+with its own `swe-session-start-version` marker) and one new
+`SessionStart` group in `.claude/settings.json`, naming the shim by a
+fixed `"$CLAUDE_PROJECT_DIR"/.claude/hooks/swe-commit-hook.sh` command.
+The installer appends its own group and never edits another plugin's
+own `SessionStart` entries — the issue's constraint was that this stays
+separate from any other plugin's session-start hook, not merged into
+one. Idempotent by identity: a repeat run matches the exact command
+string already present and changes nothing (`jq empty` refuses invalid
+JSON rather than guess at a merge).
+
+The shim then runs this same installer again at every session start.
+To find the installed swe plugin from inside a project's own
+`.claude/hooks/`, which carries no `CLAUDE_PLUGIN_ROOT`, it tries, in
+order: `$SWE_PLUGIN_ROOT` (the override tests use, and the same
+variable name `pre-commit.sh` itself honours); the newest `swe@*` entry
+in `~/.claude/plugins/installed_plugins.json` whose `projectPath`
+matches this repository, else the newest user-scope one; the newest
+versioned directory under `~/.claude/plugins/cache/*/swe/`. That last
+fallback is not theoretical: a real install can be missing from
+`installed_plugins.json` while the plugin cache holds it. The shim
+trusts only files already on disk under the user's own
+`~/.claude/plugins/`, the same plugin files an agent in this session
+could otherwise reach or install.
+
+Every path through the shim exits 0: a `SessionStart` hook runs before
+an agent does any work, so it never blocks a session over a missing
+plugin, a missing `jq`, or the installer refusing (a foreign
+`pre-commit` and `pre-commit.local` both present, for instance) — it
+only tells the transcript what happened, or that nothing could be, on
+stderr.
+
+**Why not `core.hooksPath`.** The issue's other option — a committed
+hooks directory set with `core.hooksPath`, plus a session-start step to
+set that config — was rejected. `core.hooksPath` disables every other
+hook in `.git/hooks/` for that clone, undoing the chaining
+`install-commit-hook.sh` already does for a pre-existing hook; a copy
+of `pre-commit.sh` committed under that directory goes stale across
+plugin updates, where the session-start route instead re-copies the
+current version each run; and `core.hooksPath` is git config, not
+cloned either, so it still needs the same session-start step with
+neither benefit.
+
 ## The tsk documents check
 
 Controlled by `docs_hook.enabled` in [`../config.json`](../config.json),

@@ -424,6 +424,14 @@ bash -n "$HOOK" 2>/dev/null
 assert "installed hook passes bash -n" "$([ $? -eq 0 ]; echo $?)"
 assert "installer records the plugin root" "$([ -f "$REPO/.git/swe/plugin-root" ]; echo $?)"
 
+# claude-plugins#31: the already-current no-op path used to return before
+# writing the plugin-root pointer, so a re-install under a different
+# CLAUDE_PLUGIN_ROOT (as a session-start shim would run with) left a stale
+# pointer in place; it must now refresh on every run, not just a fresh one.
+RESTAMPED="$(cd "$REPO" && CLAUDE_PLUGIN_ROOT=/fake/restamped-root "$INSTALLER" . 2>&1)"
+assert "re-install under a new CLAUDE_PLUGIN_ROOT still refreshes the pointer" \
+  "$([ "$(cat "$REPO/.git/swe/plugin-root")" = "/fake/restamped-root" ]; echo $?)"
+
 BEFORE="$(cat "$HOOK")"
 OUT="$(cd "$REPO" && "$INSTALLER" . 2>&1)"
 AFTER="$(cat "$HOOK")"
