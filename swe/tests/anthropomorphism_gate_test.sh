@@ -7,7 +7,12 @@
 # after a determiner, or a possessive does not count as a subject. Also
 # covers the catalogue-driven switch: a rule entry with no subject_gate
 # field keeps the older system-subject check, so an older pinned tag
-# behaves as before.
+# behaves as before. Also covers the do-support base-form match
+# (software-english#26): "does not say" and "doesn't tell" fire on the
+# word_list's base form, since do-support puts the verb in its base form
+# and the literal word_list match never sees it; "never tells" and "no
+# longer arrives" need no such handling, since neither triggers
+# do-support and the verb stays inflected.
 #
 # Runs twice: against real Software English data (SWE_SRC=<checkout>, or
 # the tag pinned in software-english.json; skips that half with exit 0 if
@@ -91,6 +96,23 @@ if [ -n "$REAL" ]; then
   assert "fires: it knows the row" "$(fires "$REAL" 'It knows the row.' 'knows'; echo $?)"
   assert "fires: this decides the retry count" "$(fires "$REAL" 'This decides the retry count.' 'decides'; echo $?)"
   assert "fires: the schema does not move" "$(fires "$REAL" 'The schema does not move.' 'move'; echo $?)"
+  assert "fires exactly once: the schema does not move" "$(out="$(lint "$REAL" 'The schema does not move.')"; [ "$(grep -c '\[anthropomorphism\]' <<<"$out")" -eq 1 ]; echo $?)"
+
+  # --- software-english#26: do-support puts the verb in its base form ---
+  assert "fires: does not say (the issue's own case)" "$(fires "$REAL" 'A missing scope usually does not say so.' 'say'; echo $?)"
+  assert "fires: does not tell" "$(fires "$REAL" 'The parser does not tell you which line failed.' 'tell'; echo $?)"
+  assert "fires: doesn't know" "$(fires "$REAL" "The cache doesn't know the key." 'know'; echo $?)"
+  assert "fires: doesn't want (curly apostrophe)" "$(fires "$REAL" 'The client doesn’t want the full row.' 'want'; echo $?)"
+  assert "fires: do not ask (plural subject)" "$(fires "$REAL" 'The workers do not ask the database.' 'ask'; echo $?)"
+  assert "fires: does not always try (adverb, -ies derivation)" "$(fires "$REAL" 'The retry does not always try again.' 'try'; echo $?)"
+  assert "fires: does not worry" "$(fires "$REAL" 'The parser does not worry about whitespace.' 'worry'; echo $?)"
+  assert "fires: does not go (irregular base form)" "$(fires "$REAL" 'The handler does not go to the cache.' 'go'; echo $?)"
+  assert "fires: does not give up (multi-word entry)" "$(fires "$REAL" 'The job does not give up.' 'give up'; echo $?)"
+  assert "fires: it does not know (pronoun subject)" "$(fires "$REAL" 'It does not know the row.' 'know'; echo $?)"
+
+  # --- regression: "never" and "no longer" need no do-support handling ---
+  assert "fires: never tells (already correct, no negator)" "$(fires "$REAL" 'The parser never tells you which line failed.' 'tells'; echo $?)"
+  assert "fires: no longer arrives (already correct, no negator)" "$(fires "$REAL" 'The record no longer arrives with a default status.' 'arrives'; echo $?)"
 
   # --- a human referent in an earlier clause does not reach across the boundary ---
   assert "fires: if the user asks, the service knows" "$(fires "$REAL" 'If the user asks, the service knows the answer.' 'knows'; echo $?)"
@@ -104,6 +126,21 @@ if [ -n "$REAL" ]; then
   assert "clean: a reader who knows the spec" "$(clean "$REAL" 'A reader who knows the spec can skip this section.'; echo $?)"
   assert "clean: if you disagree, open an issue" "$(clean "$REAL" 'If you disagree, open an issue.'; echo $?)"
   assert "clean: the operator moves the file" "$(clean "$REAL" 'The operator moves the file to the archive.'; echo $?)"
+
+  # --- software-english#26: the human-subject exemption also holds for the do-support base form ---
+  assert "clean: the operator does not say so (the issue's own case)" "$(clean "$REAL" 'The operator does not say so.'; echo $?)"
+  assert "clean: the operator usually does not always say so (gate runs at the negator)" "$(clean "$REAL" 'The operator usually does not always say so.'; echo $?)"
+  assert "clean: users do not know the password (plural human referent)" "$(clean "$REAL" 'Users do not know the password.'; echo $?)"
+  assert "clean: the reviewer doesn't agree" "$(clean "$REAL" "The reviewer doesn't agree."; echo $?)"
+
+  # --- software-english#26: an imperative do-support stays clean, same as the affirmative imperative ---
+  assert "clean: do not say so" "$(clean "$REAL" 'Do not say so.'; echo $?)"
+  assert "clean: then do not ask the user" "$(clean "$REAL" 'Then do not ask the user.'; echo $?)"
+
+  # --- software-english#26: a base form with no do-support present is not matched (guards against adding bare base forms to word_list) ---
+  assert "clean: it is hard to tell which line failed" "$(clean "$REAL" 'It is hard to tell which line failed.'; echo $?)"
+  assert "clean: the agreed plan has three steps" "$(clean "$REAL" 'The agreed plan has three steps.'; echo $?)"
+  assert "clean: your own answer is in the log" "$(clean "$REAL" 'Your own answer is in the log.'; echo $?)"
 
   # --- no subject: an imperative, an infinitive, a determiner before a noun ---
   assert "clean: tell the user the build failed" "$(clean "$REAL" 'Tell the user the build failed.'; echo $?)"
@@ -183,6 +220,7 @@ make_fixture "$OLD"
 scratch_catalogue "$OLD" ""
 assert "older catalogue, no subject_gate: Postgres knows stays clean" "$(clean "$OLD" 'Postgres knows the row.'; echo $?)"
 assert "older catalogue, no subject_gate: the database knows fires" "$(fires "$OLD" 'The database knows the row.' 'knows'; echo $?)"
+assert "older catalogue, no subject_gate: does not know fires on the base form" "$(fires "$OLD" 'The database does not know the row.' 'know'; echo $?)"
 
 NEW="$TMP/new"
 make_fixture "$NEW"
@@ -190,6 +228,8 @@ scratch_catalogue "$NEW" 'subject_gate = "not-human-subject"
 human_referents = ["user"]'
 assert "not-human-subject, empty human list: Postgres knows fires" "$(fires "$NEW" 'Postgres knows the row.' 'knows'; echo $?)"
 assert "not-human-subject: the user knows stays clean" "$(clean "$NEW" 'The user knows the row.'; echo $?)"
+assert "not-human-subject: the database does not know fires on the base form" "$(fires "$NEW" 'The database does not know the row.' 'know'; echo $?)"
+assert "not-human-subject: the user does not know stays clean" "$(clean "$NEW" 'The user does not know the row.'; echo $?)"
 
 echo
 echo "$PASS passed, $FAIL failed"

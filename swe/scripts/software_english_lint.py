@@ -726,6 +726,15 @@ NON_VERB_BEFORE_OBJECT = {
 # the value". "does" is not here: a third-person subject precedes it.
 IMPERATIVE_LEAD = {"do", "not", "never", "always", "then", "also", "first", "please", "just", "only", "to"}
 
+# software-english#26: do-support puts a verb in its base form ("does not
+# say"), which anthropomorphism-fixed-list's word_list (inflected forms
+# only) never matches directly. At most one word (an adverb) sits between
+# the negator and the verb: "does not always say". "never" and "no longer"
+# need no special handling here, since they take no auxiliary and leave the
+# verb inflected, so the existing literal match already catches them.
+DO_NEGATION = r"\b(?:do|does)(?:\s+not|n['’]t)\s+(?:[a-z]+\s+)?"
+BASE_FORM_IRREGULAR = {"has": "have", "goes": "go", "does": "do"}
+
 # A bullet item whose first line opens with a bold span and has real text
 # after it closes: "**Fast startup.** The service starts in 200 ms." A
 # bullet that is wholly bold ("**Fast startup.**") is not a lead-in.
@@ -970,6 +979,34 @@ def lemma_candidates(word):
         yield word[:-1]
 
 
+def do_support_base_forms(word_list):
+    # Derives the base form do-support puts a word_list verb into ("says"
+    # -> "say", "has patience" -> "have patience"). Skips the copula
+    # ("is happy"), which takes no do-support, and drops a result already
+    # in word_list ("arrives" -> "arrive" is already a literal entry), so
+    # the literal pass keeps reporting those and nothing is reported twice.
+    seen = set(word_list)
+    bases = []
+    for phrase in word_list:
+        head, _, rest = phrase.partition(" ")
+        if head == "is":
+            continue
+        base = BASE_FORM_IRREGULAR.get(head)
+        if base is None:
+            if head.endswith("ies") and len(head) > 3:
+                base = head[:-3] + "y"
+            elif head.endswith("s") and not head.endswith("ss") and len(head) > 1:
+                base = head[:-1]
+        if base is None or base == head:
+            continue
+        derived = f"{base} {rest}" if rest else base
+        if derived in seen:
+            continue
+        seen.add(derived)
+        bases.append(derived)
+    return bases
+
+
 def is_literal_token(word, line, start):
     if LITERAL_TOKEN.match(word):
         return True
@@ -1049,6 +1086,18 @@ def check_line(number, line, vocabulary, structure_nouns, banned_rules, rules, f
                 if subject_gate_passes(rule, lowered, pm.start(), structure_nouns):
                     flagged_spans.append((pm.start(), pm.end()))
                     findings.append((number, rule["severity"], finding_id, f'"{phrase}"'))
+        if rule_id == "anthropomorphism-fixed-list":
+            # The gate runs at the negator's own position, not the verb's,
+            # so the lookback window is spent on the words before "does
+            # not", not consumed by the negator and its optional adverb.
+            for base in do_support_base_forms(rule["word_list"]):
+                for nm in re.finditer(DO_NEGATION + r"(" + re.escape(base) + r")\b", lowered):
+                    vstart, vend = nm.start(1), nm.end(1)
+                    if any(s <= vstart < e for s, e in flagged_spans):
+                        continue
+                    if subject_gate_passes(rule, lowered, nm.start(), structure_nouns):
+                        flagged_spans.append((vstart, vend))
+                        findings.append((number, rule["severity"], finding_id, f'"{base}"'))
 
     vocab_severity = rules["vocabulary-membership"]["severity"]
     for wm in WORD.finditer(line):
