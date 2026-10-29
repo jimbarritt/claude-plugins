@@ -283,7 +283,9 @@ has no access to `config.json`:
 ## Pick up a newer version of the Software English spec
 
 Edit the tag in [`software-english.json`](software-english.json). The
-next hook run fetches it.
+next PreToolUse hook run (bash, artifact, mcp-send) fetches it. A direct
+call, the git commit hook, and the tsk documents hook do not fetch, and
+print `swe: stale rule data: ...` on stderr until the fetch script runs.
 
 ## Read a `warning`-severity finding
 

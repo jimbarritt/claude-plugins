@@ -218,7 +218,7 @@ INV_OUT="$(lint "$ISSUE_SENT")"
 REAL_LINE_HITS="$(grep -cE '^t:[1-9][0-9]*: .*\[(no-unanchored-reference|no-unstated-presupposition)\]' <<<"$INV_OUT" || true)"
 assert "no candidate is reported at a real (1+) line number" "$([ "$REAL_LINE_HITS" -eq 0 ]; echo $?)"
 
-COUNT_OUT="$(printf '%s\n' "$ISSUE_SENT" | HOME="$SCRATCH_HOME" python3 -B "$LINTER" --text --source-label t --count --quiet-vocab 2>&1)"
+COUNT_OUT="$(printf '%s\n' "$ISSUE_SENT" | HOME="$SCRATCH_HOME" python3 -B "$LINTER" --text --source-label t --count --quiet-vocab 2>/dev/null)"
 case "$COUNT_OUT" in
   "0 errors"*) assert "--count reports 0 errors: a candidate never affects the exit code" 0 ;;
   *) assert "--count reports 0 errors: a candidate never affects the exit code" 1 ;;

@@ -311,7 +311,7 @@ STRIPPED="$(sed '/^===INFERENCE_ADVISED===$/,/^===END_INFERENCE_ADVISED===$/d' <
 assert "outside the advisory block, no candidate line leaks into the plain report" \
   "$(! grep -q 'candidate at line' <<<"$STRIPPED"; echo $?)"
 
-COUNT_OUT="$(printf '%s\n' "$L No silent drops." | HOME="$SCRATCH_HOME" python3 -B "$LINTER" --text --source-label t --count --quiet-vocab 2>&1)"
+COUNT_OUT="$(printf '%s\n' "$L No silent drops." | HOME="$SCRATCH_HOME" python3 -B "$LINTER" --text --source-label t --count --quiet-vocab 2>/dev/null)"
 case "$COUNT_OUT" in
   "0 errors"*) assert "--count reports 0 errors: a candidate never affects the exit code" 0 ;;
   *) assert "--count reports 0 errors: a candidate never affects the exit code" 1 ;;

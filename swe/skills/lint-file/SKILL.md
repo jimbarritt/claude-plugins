@@ -36,7 +36,11 @@ stop: there is nothing to check against.
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/software_english_lint.py" <file-path> --force-inference --quiet-vocab
 ```
 
-This prints the deterministic tier's findings, if any, the normal way.
+This prints the deterministic tier's findings, if any, the normal way,
+plus a `swe: rule data <tag>, fetched <age>` line on stderr. If a `swe:
+stale rule data: ...` line follows it, Step 2's fetch did not update the
+cache (claude-plugins#28): report this to the user along with the
+results, rather than treating the findings above as current.
 `--force-inference` additionally prints a fenced
 `===INFERENCE_ADVISED===`...`===END_INFERENCE_ADVISED===` block: one
 line per inference-based rule that applies here, each shaped like a

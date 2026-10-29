@@ -204,6 +204,9 @@ PLUGIN_ROOT = HERE.parent
 DATA = PLUGIN_ROOT / "data"
 CONFIG_PATH = PLUGIN_ROOT / "config.json"
 PLUGIN_RULES_PATH = PLUGIN_ROOT / "rules" / "plugin-rules.toml"
+FETCHED_TAG_PATH = DATA / ".fetched-tag"
+PIN_PATH = PLUGIN_ROOT / "software-english.json"
+FETCH_SCRIPT = HERE / "fetch-software-english-data.sh"
 INFERENCE_STATE_PATH = Path.home() / ".claude" / "swe" / "inference-state.json"
 
 
@@ -836,6 +839,64 @@ BOLD_SPAN = re.compile(r"(\*\*|__)(.+?)\1")
 def load_config():
     with CONFIG_PATH.open() as f:
         return json.load(f)
+
+
+def format_age(seconds):
+    """A phrase for seconds elapsed, for the rule-data info line below."""
+    seconds = max(0, seconds)
+    if seconds < 60:
+        return "less than a minute ago"
+    minutes = int(seconds // 60)
+    if minutes < 60:
+        return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+    hours = int(seconds // 3600)
+    if hours < 48:
+        return f"{hours} hour{'s' if hours != 1 else ''} ago"
+    days = int(seconds // 86400)
+    return f"{days} day{'s' if days != 1 else ''} ago"
+
+
+def read_data_status():
+    """Returns (fetched_tag, pinned_tag, age_seconds): the tag last written
+    to data/.fetched-tag by fetch-software-english-data.sh, the tag pinned
+    in software-english.json, and the marker's age in seconds. Any value
+    that cannot be read is None."""
+    fetched_tag = None
+    age_seconds = None
+    try:
+        fetched_tag = FETCHED_TAG_PATH.read_text().strip() or None
+        age_seconds = datetime.datetime.now().timestamp() - FETCHED_TAG_PATH.stat().st_mtime
+    except OSError:
+        pass
+    pinned_tag = None
+    try:
+        with PIN_PATH.open() as f:
+            pinned_tag = json.load(f)["tag"]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError):
+        pass
+    return fetched_tag, pinned_tag, age_seconds
+
+
+def data_status_lines(fetched_tag, pinned_tag, age_seconds):
+    """The stderr lines reporting the cached rule data's identity (claude-
+    plugins#28): one line naming the cached tag and its age, plus a second
+    line only when the cache holds a tag other than the one pinned in
+    software-english.json. The marker's age alone is never a reason to
+    warn: fetch-software-english-data.sh pins an exact tag and exits at
+    once, with the marker untouched, once that tag is already cached, so
+    an old but matching marker is still exactly correct."""
+    lines = []
+    if fetched_tag is not None:
+        lines.append(f"swe: rule data {fetched_tag}, fetched {format_age(age_seconds)}")
+    else:
+        lines.append("swe: rule data version unknown (no data/.fetched-tag marker)")
+    if fetched_tag is not None and pinned_tag is not None and fetched_tag != pinned_tag:
+        lines.append(
+            f"swe: stale rule data: the cache holds {fetched_tag}, but "
+            f"software-english.json pins {pinned_tag}. Findings from this "
+            f"run use the old rules. Run {FETCH_SCRIPT} to refresh."
+        )
+    return lines
 
 
 def load_rule_catalogue():
@@ -2434,6 +2495,10 @@ def main():
     if not sources:
         print("No sources to check.")
         return 0
+
+    fetched_tag, pinned_tag, age_seconds = read_data_status()
+    for line in data_status_lines(fetched_tag, pinned_tag, age_seconds):
+        print(line, file=sys.stderr)
 
     if args.count:
         error_total = sum(1 for _, findings, _, _ in sources for _, sev, _, _ in findings if sev == "error")

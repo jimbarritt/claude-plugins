@@ -596,6 +596,15 @@ message and returns 0 rather than crash with an uncaught
 traceback, not a real finding, used to reach `report_and_maybe_block` as
 a misleading "0 errors, 0 warnings" block).
 
+Every linting run prints a `swe: rule data <tag>, fetched <age>` line to
+stderr, naming the tag in `data/.fetched-tag` and its age (claude-plugins#28).
+A tag's age alone is never a reason to warn: the fetch script pins an
+exact tag and leaves an already-matching marker untouched, so an old but
+matching marker still reports exactly correct data. A second stderr
+line, `swe: stale rule data: ...`, prints instead when the marker holds a
+tag other than the one pinned in `../software-english.json` — the case
+where editing happened against a cache the pin has since moved past.
+
 ## Run the linter directly
 
 ```bash
@@ -623,8 +632,10 @@ text states the source's real deterministic error/warning counts.
 Neither flag can be combined with `--count` (exits 2).
 
 Run `scripts/fetch-software-english-data.sh` once by hand first, if
-`data/` is empty — the hooks do this automatically, a manual run does
-not.
+`data/` is empty. Only the three PreToolUse hooks (bash, artifact,
+mcp-send) run the fetch script before linting; the git commit hook, the
+tsk documents hook, and a direct call do not, so a mismatch between the
+cache and the pin shows there as the stale-rule-data line above instead.
 
 ```bash
 python3 scripts/software_english_lint.py FILE.md --force-inference --quiet-vocab
