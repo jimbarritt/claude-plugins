@@ -693,7 +693,19 @@ skill's own directory name exactly; the same test asserts it.
 - Code-comment extraction covers only Python (`#`) and Bash (`#`).
 - `bash-check.sh`'s quote-parsing is regex-based, not a real shell
   parser. A commit or PR body passed through a heredoc
-  (`git commit -F - <<'EOF' ... EOF`) passes through unchecked.
+  (`git commit -F - <<'EOF' ... EOF`) passes through unchecked. A
+  `-m`/`--title`/`--body` value built with `$(...)` whose own
+  substitution contains a double quote is also not parsed reliably: the
+  capture stops at that inner quote, a false negative rather than a
+  false block.
+- `bash-check.sh` reads a `-F`/`--body-file` target from disk at hook
+  time, before the rest of the same Bash command has run. When that
+  file's path also appears earlier in the same command (edited with
+  `sed -i`, written by a redirect or heredoc, or by a script's own
+  `open(path, "w")`), the hook treats the file as stale and does not
+  read it, rather than lint pre-fix content and block the command that
+  fixes it (claude-plugins#30). An inline `--title`/`--body`/`-m` value
+  in the same call is still linted either way.
 - `/swe:lint-file`'s heading pass judges headings only against the
   catalogued inference rules. Inconsistent grammatical form across
   sibling headings has no catalogue rule yet (proposed against
