@@ -43,7 +43,7 @@ written) both existed here previously and were removed: reviewed and
 found to be doing very little once the output style existed to shape a
 reply directly, at a fixed ~2-second cost on every single turn
 regardless of whether anything needed checking (claude-plugins#6). See
-`STATE.md` on the `planning` branch for the fuller record.
+the ledger mission `M-SWE-STOP-HOOK-DELAY` for the fuller record.
 
 Each config key resolves via `hook_enabled()` in
 [`../hooks/_lib.sh`](../hooks/_lib.sh): the project's own

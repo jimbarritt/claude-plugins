@@ -213,9 +213,9 @@ names, ticket ids, or excerpts from private work.
 Some issues on `jimbarritt/claude-plugins` go through an unattended
 Routine rather than an attended session. A Routine starts a fresh
 Claude session on a schedule. That session reads its briefing,
-`MAINTAINER-RUN.md`, from the `planning` branch, then takes one open
-issue. It writes a task file on `planning`, then does the work on
-`main`. It runs the test suites and the lint checks. It bumps the
+`MAINTAINER-RUN.md`, from the repository's tsk ledger, then takes one
+open issue. It records the issue in the ledger as a mission with a
+plan and tasks, then does the work on `main`. It runs the test suites and the lint checks. It bumps the
 affected plugin's `version` in `plugin.json` and runs the release
 workflow. It then comments on the issue with the commit and the
 release tag, and closes the issue.
@@ -228,9 +228,9 @@ an answer writes one question on the issue. It swaps the
 This Routine is part of the repository's own maintenance, not
 behaviour the plugin installs.
 
-`tasks/future-self-maintaining-repo.md` on the `planning` branch
-contains the full design. It states the labels, the trusted-account
-rule, the model split, and the escalation path.
+The ledger mission `M-SWE-SELF-MAINTAIN` contains the full design and
+the briefing. The design states the labels, the trusted-account rule,
+the model split, and the escalation path.
 
 ## Exempt a whole file from every check
 
