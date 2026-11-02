@@ -110,9 +110,24 @@ claude-plugins#22. Use that mission when one exists.
    - Do the work on `main` of the issue's own repository.
    - Before you start a task, set it to `in-progress`. When it is done,
      set it to `done`.
-   - Run the `claude-plugins` test suites. Run `/swe:lint-file` on every
-     prose file touched, in either repository. Run
-     `scripts/check-unshipped.sh`.
+   - Run the `claude-plugins` test suites.
+   - Lint every prose file you touched, in either repository. No plugin
+     loads in this session, so `/swe:lint-file` does not exist here. Run
+     its steps with the script from the `claude-plugins` checkout. Read
+     `/home/user/claude-plugins/swe/skills/lint-file/SKILL.md` once for
+     the full procedure. For each file, from the root of the file's own
+     repository:
+     1. Run `bash /home/user/claude-plugins/swe/scripts/fetch-software-english-data.sh`.
+     2. Run `python3 /home/user/claude-plugins/swe/scripts/software_english_lint.py <file> --cwd . --force-inference --quiet-vocab`.
+        Do not filter its output.
+     3. Fix every deterministic error, then run step 2 again.
+     4. Judge every unit of the worklist against every inference rule
+        the output lists: the body first, then the headings. Fix each
+        fault, then run step 2 again on the changed file.
+     5. With no error left in either tier, record the verdict:
+        `python3 /home/user/claude-plugins/swe/scripts/software_english_lint.py --record-lint-result clean --findings 0 --nonce <swe-lint-nonce> --units-judged <swe-lint-units> <file>`,
+        with the two values from the last run of step 2.
+   - Run `scripts/check-unshipped.sh`.
 6. **Ship.** Commit with `closes #N` in the issue's own repository,
    so the commit closes it. Push `main`.
    - A `claude-plugins` issue: bump `version` in the affected
