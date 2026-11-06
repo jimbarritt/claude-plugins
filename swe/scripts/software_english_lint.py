@@ -1226,9 +1226,18 @@ def check_line(number, line, vocabulary, structure_nouns, banned_rules, rules, f
     for rule_id in ("anthropomorphism-fixed-list", "abstract-location"):
         rule = rules[rule_id]
         finding_id = "anthropomorphism" if rule_id == "anthropomorphism-fixed-list" else rule_id
+        # software-english#31: a word_list entry can also be the exact-case
+        # name of a thing (REST, the protocol, versus "rest" the verb).
+        # lowered has already discarded case, so case_sensitive_exemptions
+        # is checked against the original line; a length mismatch between
+        # line and lowered (rare Unicode case folding) means the offsets
+        # cannot be trusted, so the exemption is skipped rather than guessed.
+        exempt = set(rule.get("case_sensitive_exemptions", []))
         for phrase in rule["word_list"]:
             for pm in re.finditer(r"\b" + re.escape(phrase) + r"\b", lowered):
                 if any(s <= pm.start() < e for s, e in flagged_spans):
+                    continue
+                if exempt and len(line) == len(lowered) and line[pm.start():pm.end()] in exempt:
                     continue
                 if subject_gate_passes(rule, lowered, pm.start(), structure_nouns):
                     flagged_spans.append((pm.start(), pm.end()))

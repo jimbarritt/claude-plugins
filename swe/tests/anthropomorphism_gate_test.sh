@@ -12,7 +12,11 @@
 # word_list's base form, since do-support puts the verb in its base form
 # and the literal word_list match never sees it; "never tells" and "no
 # longer arrives" need no such handling, since neither triggers
-# do-support and the verb stays inflected.
+# do-support and the verb stays inflected. Also covers
+# case_sensitive_exemptions (software-english#31): a word_list entry
+# ("rest") that is also the exact-case name of a thing ("REST", the
+# protocol) is exempt only in that exact case, since lowering the line
+# for matching otherwise erases the distinction.
 #
 # Runs twice: against real Software English data (SWE_SRC=<checkout>, or
 # the tag pinned in software-english.json; skips that half with exit 0 if
@@ -155,12 +159,20 @@ if [ -n "$REAL" ]; then
   assert "location fires: a rule sits in one tier" "$(location "$REAL" 'A rule sits in one tier.' 'sits'; echo $?)"
   assert "location clean: the operator sits at the console" "$(! location "$REAL" 'The operator sits at the console.' 'sits'; echo $?)"
   assert "location clean: Postgres is a live database" "$(! location "$REAL" 'Postgres is a live database.' 'live'; echo $?)"
+
+  # --- software-english#31: REST, the protocol, is exempt; lowercase rest still fires ---
+  assert "location fires: the config rests in the environment file" "$(location "$REAL" 'The config rests in the environment file.' 'rests'; echo $?)"
+  assert "location fires: this rests on the cache" "$(location "$REAL" 'This rests on the cache.' 'rests'; echo $?)"
+  assert "location clean: the service exposes a REST API" "$(! location "$REAL" 'The service exposes a REST API.' 'rest'; echo $?)"
+  assert "location clean: the request is a REST call" "$(! location "$REAL" 'The request is a REST call.' 'rest'; echo $?)"
+  assert "location clean: the issue's own sentence" "$(! location "$REAL" 'The adapter exposes no REST endpoint, because that module runs inside the host process.' 'rest'; echo $?)"
 fi
 
 # ---------------------------------------------------------------------------
 # Part 2: the catalogue switch, with a scratch catalogue
 # ---------------------------------------------------------------------------
-scratch_catalogue() {  # scratch_catalogue <dir> <extra anthropomorphism fields>
+scratch_catalogue() {  # scratch_catalogue <dir> <extra anthropomorphism fields> <extra abstract-location fields> <abstract-location word_list, default []>
+  local anthro_extra="${2:-}" location_extra="${3:-}" location_word_list="${4:-[]}"
   mkdir -p "$1/data"
   : > "$1/data/banned.tsv"
   printf 'word\tdefinition\ndatabase\tthe store\nrow\tone record\n' > "$1/data/structure.tsv"
@@ -197,13 +209,14 @@ id = "anthropomorphism-fixed-list"
 lookback_words = 4
 word_list = ["knows"]
 severity = "error"
-$2
+$anthro_extra
 
 [[rules]]
 id = "abstract-location"
 lookback_words = 4
-word_list = []
+word_list = $location_word_list
 severity = "error"
+$location_extra
 
 [[rules]]
 id = "vocabulary-membership"
@@ -230,6 +243,23 @@ assert "not-human-subject, empty human list: Postgres knows fires" "$(fires "$NE
 assert "not-human-subject: the user knows stays clean" "$(clean "$NEW" 'The user knows the row.'; echo $?)"
 assert "not-human-subject: the database does not know fires on the base form" "$(fires "$NEW" 'The database does not know the row.' 'know'; echo $?)"
 assert "not-human-subject: the user does not know stays clean" "$(clean "$NEW" 'The user does not know the row.'; echo $?)"
+
+# ---------------------------------------------------------------------------
+# Part 3: software-english#31, case_sensitive_exemptions on a word_list rule
+# ---------------------------------------------------------------------------
+NO_EXEMPT="$TMP/no_exempt"
+make_fixture "$NO_EXEMPT"
+scratch_catalogue "$NO_EXEMPT" "" "" '["rest"]'
+assert "no case_sensitive_exemptions field: REST fires (the default, proved)" \
+  "$(location "$NO_EXEMPT" 'The database exposes a REST API.' 'rest'; echo $?)"
+
+WITH_EXEMPT="$TMP/with_exempt"
+make_fixture "$WITH_EXEMPT"
+scratch_catalogue "$WITH_EXEMPT" "" 'case_sensitive_exemptions = ["REST"]' '["rest"]'
+assert "case_sensitive_exemptions: REST stays clean" \
+  "$(! location "$WITH_EXEMPT" 'The database exposes a REST API.' 'rest'; echo $?)"
+assert "case_sensitive_exemptions: lowercase rest still fires" \
+  "$(location "$WITH_EXEMPT" 'The database can rest on the cache.' 'rest'; echo $?)"
 
 echo
 echo "$PASS passed, $FAIL failed"
