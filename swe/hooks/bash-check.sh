@@ -17,6 +17,18 @@
 # the fault (claude-plugins#30). An inline --title/--body/-m value is
 # always linted too, alongside any file content, so a title is never
 # dropped just because a body file is also present.
+#
+# The git/gh call is located on a heredoc-blanked copy of the command
+# (SCAN, below). A Software English issue proposing a new banned word
+# has to show that word in an example, and the example often sits
+# inside a heredoc body; blanking it stops the example being mistaken
+# for the invocation and linted in its place (claude-plugins#33). A
+# heredoc header naming its own file (e.g. `cat > body.md <<'EOF'`) is
+# never blanked, only the body between it and its terminator line, so
+# the claude-plugins#30 basename check above still sees that name in
+# PRE. Recognises `<<`/`<<-` with an unquoted, single- or double-quoted
+# tag; a here-string (`<<<`) is excluded by the leading-`<` lookbehind,
+# and a backslash-escaped tag (`<<\EOF`) is not recognised.
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LINTER="$HERE/../scripts/software_english_lint.py"
@@ -32,9 +44,23 @@ hook_enabled '.hooks.bash' "$CWD" || exit 0
 # Split at the first git/gh call: PRE is the shell plumbing before it,
 # INVOCATION is that call onward. Everything below reads only INVOCATION
 # for flags, and PRE only to check whether a file was named earlier.
+# SCAN blanks every heredoc body's own characters (newlines kept, so
+# offsets line up with COMMAND) before the split regex runs, so a line
+# inside a heredoc body is never read as the git/gh call itself; PRE is
+# still sliced from the unblanked COMMAND, INVOCATION from SCAN.
 SPLIT="$(printf '%s' "$COMMAND" | perl -0777 -ne '
-  if (/(?:^|[;&|]) *(?=git commit|gh pr|gh issue)/m) {
-    print substr($_, 0, $-[0]), "\n\x01\n", substr($_, $+[0]);
+  my $command = $_;
+  my $scan = $command;
+  $scan =~ s{
+    (?<!<)<<-?[ \t]*([\x27"]?)(\w+)\1[^\n]*\n
+    \K
+    (.*?)
+    (?=^[ \t]*\2[ \t]*$)
+  }{
+    (my $b = $3) =~ s/[^\n]/ /g; $b
+  }gmsxe;
+  if ($scan =~ /(?:^|[;&|]) *(?=git commit|gh pr|gh issue)/m) {
+    print substr($command, 0, $-[0]), "\n\x01\n", substr($scan, $+[0]);
   }
 ')"
 [ -n "$SPLIT" ] || exit 0
@@ -89,7 +115,7 @@ if [ "$STATUS" -eq 0 ] && [ -n "$ADVISE_RULES" ]; then
 
 $ADVISE_RULES
 
-Each line above names one rule to check (line 0 means the whole text, and \"inference pending\" means not yet judged); a \"candidate at line N\" line under a rule points at a place to check first for it, not a finding; the last line is a summary, not a rule.
+Each line above names one rule to check (line 0 means the whole text, and \"inference pending\" means not yet judged); a \"candidate at line N\" line under a rule points at a place to check first for it, not a finding; the last line is a summary, not a rule. A blockquote line, a fenced or indented code block, and a code span hold quoted material; the deterministic tier already skips them, so report no finding inside one.
 
 Text:
 ---

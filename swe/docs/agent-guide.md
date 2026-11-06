@@ -764,12 +764,22 @@ skill's own directory name exactly; the same test asserts it.
   sentence hard-wrapped across two lines is undercounted for length.
 - Code-comment extraction covers only Python (`#`) and Bash (`#`).
 - `bash-check.sh`'s quote-parsing is regex-based, not a real shell
-  parser. A commit or PR body passed through a heredoc
-  (`git commit -F - <<'EOF' ... EOF`) passes through unchecked. A
-  `-m`/`--title`/`--body` value built with `$(...)` whose own
-  substitution contains a double quote is also not parsed reliably: the
-  capture stops at that inner quote, a false negative rather than a
-  false block.
+  parser. Before it looks for the `git commit`/`gh pr`/`gh issue` call,
+  it blanks every heredoc body's own characters in a scan copy of the
+  command, so a quoted git/gh example sitting inside a heredoc body
+  (what filing a report about a new banned-word rule needs) is never
+  mistaken for the real invocation and linted in its place
+  (claude-plugins#33). This covers only `<<`/`<<-` with an unquoted,
+  single- or double-quoted tag; a `<<\EOF`-style backslash-escaped tag
+  is not recognised, and `<<<` here-strings are deliberately excluded.
+  Two gaps this does not touch: a commit or PR body piped through a
+  heredoc as the message's own source (`git commit -F - <<'EOF' ...
+  EOF`) still passes through unchecked, since `-F -` is deliberately
+  skipped; and a `-m`/`--title`/`--body` inline value is extracted one
+  line at a time, so any such value spanning more than one line —
+  whether a literal multi-line quoted string or a `$(...)` substitution
+  whose own text contains a double quote — is not linted at all, a
+  false negative rather than a false block.
 - `bash-check.sh` reads a `-F`/`--body-file` target from disk at hook
   time, before the rest of the same Bash command has run. When that
   file's path also appears earlier in the same command (edited with

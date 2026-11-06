@@ -2,7 +2,9 @@
 # Covers the PreToolUse Bash hook (hooks/bash-check.sh): the text it
 # extracts from a `git commit`/`gh pr`/`gh issue` call, and in
 # particular that it never lints a message file whose path the same
-# command also names before that call (claude-plugins#30).
+# command also names before that call (claude-plugins#30), and that a
+# quoted git/gh example inside a heredoc body is never mistaken for the
+# invocation itself (claude-plugins#33).
 # Deterministic and offline: runs against a fixture copy of the plugin
 # with a small data/core-rules.toml and a data/.fetched-tag already in
 # place, so scripts/fetch-software-english-data.sh exits at its marker
@@ -111,13 +113,13 @@ denies() { [ "$STATUS" -eq 0 ] && [[ "$OUT" == *'"permissionDecision": "deny"'* 
 passes() { [ "$STATUS" -eq 0 ] && [[ "$OUT" != *'"permissionDecision": "deny"'* ]]; }
 silent() { [ "$STATUS" -eq 0 ] && [ -z "$OUT" ]; }
 
-# --- positive control: the fixture rule actually fires -------------------
+# --- positive control: the fixture rule fires -----------------------------
 
 run_hook "git commit -m \"$FAULTY\""
 assert "positive control: a faulty -m message is denied" "$(denies; echo $?)"
 
 # --- issue's three original fixtures (regressions; already true on the
-#     code before this change, since the gate and extraction already
+#     code before this change, since the check and extraction already
 #     existed) ---------------------------------------------------------
 
 echo "$FAULTY" > "$WORK/f.md"
@@ -182,6 +184,22 @@ assert "no -m/--title/--body/-F at all: silent" "$(silent; echo $?)"
 
 run_hook "git commit -F -"
 assert "-F - (stdin): silent, no attempt to read a file literally named '-'" "$(silent; echo $?)"
+
+# --- claude-plugins#33: a quoted git/gh example sitting inside a heredoc
+#     body (exactly what filing a report about a new banned-word rule
+#     needs) is never mistaken for the invocation itself -----------------
+
+run_hook "$(printf "cat > body5.md <<'EOF'\ngit commit -m \"%s\"\nEOF\ngh issue create --title \"Clean title\" --body-file body5.md" "$FAULTY")"
+assert "a faulty git-commit example quoted inside a heredoc body is not mistaken for the real call: silent" "$(silent; echo $?)"
+
+run_hook "$(printf "cat > body5.md <<'EOF'\ngit commit -m \"%s\"\nEOF\ngh issue create --title \"%s\" --body-file body5.md" "$CLEAN" "$FAULTY")"
+assert "a real fault in --title is still denied alongside a clean example quoted in the heredoc body" "$(denies; echo $?)"
+
+run_hook "grep -F wants notes.txt <<< \"git commit noise\" ; git commit -m \"$FAULTY\""
+assert "a <<< here-string before the real call is not mistaken for a heredoc: the real -m fault after it is still denied" "$(denies; echo $?)"
+
+run_hook "grep -F wants notes.txt <<< \"git commit noise\" ; git commit -m \"$CLEAN\""
+assert "a <<< here-string before a clean real call: passes" "$(passes; echo $?)"
 
 echo
 echo "$PASS passed, $FAIL failed"
