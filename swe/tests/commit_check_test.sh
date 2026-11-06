@@ -125,10 +125,14 @@ nonce_for() {  # nonce_for <repo> <file> -- prints "<nonce> <units>" from one fo
   printf '%s %s\n' "$nonce" "$units"
 }
 
-lint_and_record() {  # lint_and_record <repo> <file> <status> <findings>
-  local repo="$1" file="$2" status="$3" findings="$4" nonce units
+lint_and_record() {  # lint_and_record <repo> <file> <status> <findings> [reason]
+  local repo="$1" file="$2" status="$3" findings="$4" reason="${5:-}" nonce units
   read -r nonce units < <(nonce_for "$repo" "$file")
-  (cd "$repo" && python3 "$LINTER" --record-lint-result "$status" --findings "$findings" --nonce "$nonce" --units-judged "$units" "$file" >/dev/null 2>&1)
+  if [ -n "$reason" ]; then
+    (cd "$repo" && python3 "$LINTER" --record-lint-result "$status" --findings "$findings" --reason "$reason" --nonce "$nonce" --units-judged "$units" "$file" >/dev/null 2>&1)
+  else
+    (cd "$repo" && python3 "$LINTER" --record-lint-result "$status" --findings "$findings" --nonce "$nonce" --units-judged "$units" "$file" >/dev/null 2>&1)
+  fi
 }
 
 # --- --force-inference: nonce issuance -------------------------------------
@@ -359,6 +363,50 @@ assert "two positional files: exits 2" "$([ $? -eq 2 ]; echo $?)"
 python3 "$LINTER" --record-lint-result maybe a.md >/dev/null 2>&1
 assert "invalid status value: exits 2" "$([ $? -eq 2 ]; echo $?)"
 
+# --- --record-lint-result ignored: mandatory --reason (claude-plugins#32) --
+
+echo "# quoted" > "$REPO/quoted.md"
+git -C "$REPO" add quoted.md
+read -r NONCE_Q UNITS_Q <<< "$(nonce_for "$REPO" quoted.md)"
+
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result ignored --findings 1 --nonce "$NONCE_Q" --units-judged "$UNITS_Q" quoted.md 2>&1)"
+assert "ignored with no --reason exits 2" "$([ $? -eq 2 ]; echo $?)"
+
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result ignored --reason "" --findings 1 --nonce "$NONCE_Q" --units-judged "$UNITS_Q" quoted.md 2>&1)"
+assert "ignored with an empty --reason exits 2" "$([ $? -eq 2 ]; echo $?)"
+
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result ignored --reason "   " --findings 1 --nonce "$NONCE_Q" --units-judged "$UNITS_Q" quoted.md 2>&1)"
+assert "ignored with a whitespace-only --reason exits 2" "$([ $? -eq 2 ]; echo $?)"
+
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --reason x --findings 0 --nonce "$NONCE_Q" --units-judged "$UNITS_Q" quoted.md 2>&1)"
+assert "clean with a --reason exits 2" "$([ $? -eq 2 ]; echo $?)"
+
+OUT="$(cd "$REPO" && python3 "$LINTER" --reason x quoted.md 2>&1)"
+assert "--reason with no --record-lint-result exits 2" "$([ $? -eq 2 ]; echo $?)"
+
+# none of the malformed calls above spent the nonce: it still records.
+OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result ignored --reason "verbatim quoted source; wording is the artefact" --findings 1 --nonce "$NONCE_Q" --units-judged "$UNITS_Q" quoted.md 2>&1)"
+assert "ignored with a reason records after the rejected malformed calls (nonce never spent)" "$([ $? -eq 0 ]; echo $?)"
+ROW="$(tail -1 "$(ledger_path "$REPO")")"
+GOT_STATUS="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['status'])" "$ROW")"
+assert "recorded status is ignored" "$([ "$GOT_STATUS" = "ignored" ]; echo $?)"
+GOT_REASON="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['reason'])" "$ROW")"
+assert "recorded reason matches" "$([ "$GOT_REASON" = "verbatim quoted source; wording is the artefact" ]; echo $?)"
+GOT_FINDINGS="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['findings'])" "$ROW")"
+assert "recorded findings count is the real error count, not zero" "$([ "$GOT_FINDINGS" = "1" ]; echo $?)"
+case "$OUT" in
+  *"recorded ignored"*"reason: verbatim quoted source"*) assert "success line names the status and reason" 0 ;;
+  *) assert "success line names the status and reason" 1 ;;
+esac
+
+echo "# plain" > "$REPO/plain.md"
+git -C "$REPO" add plain.md
+read -r NONCE_PL UNITS_PL <<< "$(nonce_for "$REPO" plain.md)"
+(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE_PL" --units-judged "$UNITS_PL" plain.md >/dev/null 2>&1)
+PLAIN_ROW="$(tail -1 "$(ledger_path "$REPO")")"
+HAS_REASON="$(python3 -c "import json,sys; print('reason' in json.loads(sys.argv[1]))" "$PLAIN_ROW")"
+assert "a clean row has no reason key" "$([ "$HAS_REASON" = "False" ]; echo $?)"
+
 echo "ignoreme.md" > "$REPO/.swe-ignore"
 echo "# ignored content" > "$REPO/ignoreme.md"
 git -C "$REPO" add .swe-ignore ignoreme.md
@@ -562,6 +610,73 @@ case "$OUT" in
 esac
 rm -f "$REPO/.swe-ignore"
 git -C "$REPO" rm -q --cached .swe-ignore >/dev/null 2>&1 || true
+
+# --- an ignored verdict lets the commit through, with the reason printed --
+# (claude-plugins#32: distinct from .swe-ignore above, which needs no row at
+# all; "quoted.md" is named to avoid colliding with that test's own
+# "ignored.md" fixture.)
+
+echo "# quoted material" > "$REPO/quoted.md"
+git -C "$REPO" add quoted.md
+lint_and_record "$REPO" quoted.md ignored 1 "verbatim quoted source; wording is the artefact"
+OUT="$(commit "ignored verdict" 2>&1)"
+assert "an ignored row for the staged content: commit succeeds" "$([ $? -eq 0 ]; echo $?)"
+case "$OUT" in
+  *"1 ignored"*) assert "ignored commit: summary counts it as ignored" 0 ;;
+  *) assert "ignored commit: summary counts it as ignored" 1 ;;
+esac
+case "$OUT" in
+  *"ignored: verbatim quoted source; wording is the artefact"*) assert "ignored commit: reason is printed" 0 ;;
+  *) assert "ignored commit: reason is printed" 1 ;;
+esac
+
+echo "# quoted material, edited" > "$REPO/quoted.md"
+git -C "$REPO" add quoted.md
+commit "edited after ignored record" 2>/dev/null
+assert "content edited after an ignored record: commit is blocked (blob-keyed)" "$([ $? -ne 0 ]; echo $?)"
+lint_and_record "$REPO" quoted.md ignored 1 "still exempt after the edit"
+OUT="$(commit "re-ignored after edit" 2>&1)"
+assert "re-recording ignored on the edited content: commit succeeds again" "$([ $? -eq 0 ]; echo $?)"
+
+echo "# clean sibling" > "$REPO/sibling.md"
+echo "# quoted material, second" > "$REPO/quoted2.md"
+git -C "$REPO" add sibling.md quoted2.md
+lint_and_record "$REPO" sibling.md clean 0
+lint_and_record "$REPO" quoted2.md ignored 1 "a second exempt file"
+OUT="$(commit "mixed clean and ignored" 2>&1)"
+assert "a mixed clean+ignored commit succeeds" "$([ $? -eq 0 ]; echo $?)"
+case "$OUT" in
+  *"2 staged markdown file(s) have a lint record for their staged content: 1 clean, 1 ignored."*)
+    assert "mixed commit: summary names both counts" 0 ;;
+  *) assert "mixed commit: summary names both counts" 1 ;;
+esac
+
+echo "# tabbed reason" > "$REPO/tabbed.md"
+git -C "$REPO" add tabbed.md
+lint_and_record "$REPO" tabbed.md ignored 1 "$(printf 'line one\tline two\nline three')"
+OUT="$(commit "reason with embedded whitespace" 2>&1)"
+assert "a reason with a tab/newline still lets the commit through" "$([ $? -eq 0 ]; echo $?)"
+REASON_LINES="$(printf '%s\n' "$OUT" | grep -c "tabbed.md")"
+assert "the printed reason line for tabbed.md is exactly one line" "$([ "$REASON_LINES" -eq 1 ]; echo $?)"
+
+mkdir -p "$REPO/.claude"
+echo '{"commit-check": {"block_on_deterministic": true}}' > "$REPO/.claude/swe-lint.json"
+git -C "$REPO" add .claude/swe-lint.json
+printf '# has an em dash \xe2\x80\x94 in the quote\n' > "$REPO/det-quote.md"
+git -C "$REPO" add det-quote.md
+lint_and_record "$REPO" det-quote.md ignored 1 "quoted source contains the character verbatim"
+OUT="$(commit "block_on_deterministic excludes ignored files" 2>&1)"
+assert "block_on_deterministic: an ignored file's own deterministic error does not block" "$([ $? -eq 0 ]; echo $?)"
+
+printf '# has an em dash \xe2\x80\x94 again\n' > "$REPO/det-clean.md"
+git -C "$REPO" add det-clean.md
+lint_and_record "$REPO" det-clean.md clean 0
+commit "block_on_deterministic still blocks a clean file with a real error" 2>/dev/null
+assert "block_on_deterministic: a clean file's own deterministic error still blocks" "$([ $? -ne 0 ]; echo $?)"
+
+rm -f "$REPO/.claude/swe-lint.json"
+git -C "$REPO" add .claude/swe-lint.json 2>/dev/null || true
+git -C "$REPO" rm -q --cached .claude/swe-lint.json >/dev/null 2>&1 || true
 
 mkdir -p "$REPO/.claude"
 echo '{"commit-check": {"enabled": false}}' > "$REPO/.claude/swe-lint.json"

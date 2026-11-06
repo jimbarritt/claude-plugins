@@ -266,22 +266,49 @@ part and Step 3 had to be re-run on part of the file): pass
 row, which blocks a commit the same way `failed` does, whatever the
 verdict given, since a partial pass is not proof the file is clean.
 
+A judged file that breaks a rule, and where fixing it would destroy
+the artefact itself (the common case is verbatim quoted source, where
+the fault is inside the quotation and the wording must not change):
+use `ignored` instead of `clean` or `failed`. It needs a `--reason`,
+mandatory and non-empty, stating why the file is deliberately exempted
+rather than fixed. If the user has not already asked for the
+exemption, ask them before recording it, so it stays a deliberate
+decision rather than a shortcut around a fault that could be fixed.
+Never use `ignored` to get past an error that could be fixed, and
+never in place of fixing your own prose.
+
+```
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/software_english_lint.py" \
+  --record-lint-result ignored --findings <count> \
+  --reason "<why this file is exempt, specific to its content>" \
+  --nonce <value from Step 3> --units-judged <M> <file-path>
+```
+
+`ignored` is proved the same way as `clean`: the same nonce and
+`--units-judged` requirements apply, and `--units-judged "<N> of <M>"`
+with `N` below `M` records as `partial` here too, which blocks the
+commit the same way a partial `clean` does. `.swe-ignore` is a
+separate, coarser mechanism (a path exclusion with no record of being
+read and no reason); prefer `ignored` for a single judged file.
+
 The row is keyed to the file's exact content at this moment, via its
 git blob id. Any later edit invalidates it, so run this after judging,
 not before, and re-run `/swe:lint-file` after a fix.
 
 Exit 0 means recorded (including a one-line note when the file is
 outside a git repository, which needs no further action). Exit 2 means
-the command itself was malformed (for example, `<N>` above `<M>`); fix
-the arguments and run it again. Exit 3 means the ledger could not be
-written: report that line as-is, because a commit staging this file
-will then be blocked with no other explanation. Exit 4 means the
-nonce or the units claim was rejected: no `--nonce`, an unknown or
-already-used nonce, a nonce issued for another file, the file changed
-after Step 3, no `--units-judged`, a nonce that predates this flag
-(re-run Step 3), or a `--units-judged` value that does not match the
-total Step 3 printed for this exact blob. Do not retry with another value: go back to
-Step 3 and run Steps 3, 4, and 5 again on the file as it is now.
+the command itself was malformed (for example, `<N>` above `<M>`,
+`ignored` given with no non-empty `--reason`, or `--reason` given with
+any verdict but `ignored`); fix the arguments and run it again. Exit 3
+means the ledger could not be written: report that line as-is, because
+a commit staging this file will then be blocked with no other
+explanation. Exit 4 means the nonce or the units claim was rejected: no
+`--nonce`, an unknown or already-used nonce, a nonce issued for another
+file, the file changed after Step 3, no `--units-judged`, a nonce that
+predates this flag (re-run Step 3), or a `--units-judged` value that
+does not match the total Step 3 printed for this exact blob. Do not
+retry with another value: go back to Step 3 and run Steps 3, 4, and 5
+again on the file as it is now.
 
 ## Step 6: Report
 
@@ -293,5 +320,7 @@ lines, the worklist's `inference-unit` lines, or the
 places to check, not findings. If there are none, say the file is
 clean, both tiers. When Step 5 recorded a `partial` row, say so and
 name the coverage (`N of M units judged`): the file is not recorded
-clean, whatever Step 4 found, until a later pass judges the rest. Do
-not fix anything unless asked: this command is a check, not an edit.
+clean, whatever Step 4 found, until a later pass judges the rest. When
+Step 5 recorded `ignored`, say the file is recorded as ignored and
+quote the reason; never report it as clean. Do not fix anything
+unless asked: this command is a check, not an edit.

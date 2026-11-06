@@ -334,6 +334,25 @@ assert "a failed verdict records failed, never partial, regardless of coverage" 
 GOT_JUDGED="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['units_judged'])" "$ROW")"
 assert "a failed row still records units_judged" "$([ "$GOT_JUDGED" = "1" ]; echo $?)"
 
+# --- an ignored verdict with partial coverage also records partial ---------
+# (claude-plugins#32: any verdict that lets a commit through needs full
+# coverage; only "failed" does not.)
+
+echo "# edited again" >> "$REPO2/r.md"
+git -C "$REPO2" add r.md
+read -r R_NONCE5 R_UNITS5 <<< "$(nonce_for "$REPO2" r.md)"
+OUT="$(cd "$REPO2" && python3 "$LINTER" --record-lint-result ignored --reason "quoted source" --findings 1 --nonce "$R_NONCE5" --units-judged "1 of $R_UNITS5" r.md 2>&1)"
+assert "an ignored verdict with partial coverage still exits 0" "$([ $? -eq 0 ]; echo $?)"
+ROW="$(tail -1 "$(ledger_path "$REPO2")")"
+GOT_STATUS="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['status'])" "$ROW")"
+assert "an ignored verdict with partial coverage records status partial, not ignored" "$([ "$GOT_STATUS" = "partial" ]; echo $?)"
+GOT_REASON="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['reason'])" "$ROW")"
+assert "the partial row still carries the reason" "$([ "$GOT_REASON" = "quoted source" ]; echo $?)"
+case "$OUT" in
+  *"recorded partial"*"reason: quoted source"*) assert "the success line states partial coverage and the reason" 0 ;;
+  *) assert "the success line states partial coverage and the reason" 1 ;;
+esac
+
 # --- malformed --units-judged values: malformed call (exit 2) --------------
 
 python3 "$LINTER" --record-lint-result clean --nonce x --units-judged "abc" r.md >/dev/null 2>&1

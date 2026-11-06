@@ -336,27 +336,36 @@ by every linked worktree). Append-only NDJSON, one row per
 `--record-lint-result` call: `ts`, `path` (repo-relative), `blob` (git's
 own blob object id for the exact content judged, via `git hash-object`,
 not a `sha256` of the working-tree file), `algo` (`sha1`/`sha256`),
-`status` (`clean`/`failed`/`partial`), `tier` (`"both"`), `findings`,
-`rules_tag`, `plugin_version`, `recorded_by`, `units_total`,
+`status` (`clean`/`failed`/`partial`/`ignored`), `tier` (`"both"`),
+`findings`, `rules_tag`, `plugin_version`, `recorded_by`, `units_total`,
 `units_judged` (the last two from claude-plugins#20; absent on a row
-recorded before that change, see "Proof that Step 3 ran" next). A row
-is a candidate for a staged file when `path` and `blob` both match
-that file's exact staged git blob (not the working-tree copy, which
-can differ from what a partial `git add -p` staged); among candidates
-for the same `(path, blob)`, the last row in file order wins. `clean`
-means zero `error`-severity findings across both tiers together, over
-the whole worklist; `partial` means the same verdict over less than
-the whole worklist. A warning never blocks anything here either,
-matching every other check in this plugin, and the pre-commit hook
-treats `partial` exactly like `failed`: anything but `clean` blocks.
+recorded before that change, see "Proof that Step 3 ran" next), and
+`reason` (claude-plugins#32; present only when `status` was given as
+`ignored`). A row is a candidate for a staged file when `path` and
+`blob` both match that file's exact staged git blob (not the
+working-tree copy, which can differ from what a partial `git add -p`
+staged); among candidates for the same `(path, blob)`, the last row in
+file order wins. `clean` means zero `error`-severity findings across
+both tiers together, over the whole worklist; `ignored` means the
+file was judged, breaks a rule, and is deliberately exempted rather
+than fixed (the recurring case is verbatim quoted source, where the
+fault sits inside the quotation); `partial` means a `clean` or
+`ignored` verdict over less than the whole worklist. A warning never
+blocks anything here either, matching every other check in this
+plugin, and the pre-commit hook treats `partial` exactly like `failed`:
+anything but `clean` or `ignored` blocks.
 
 **Recording a verdict.** Only `/swe:lint-file`'s own Step 5 does this
 today, right after it judges a file's inference-tier findings itself
 (see [`../skills/lint-file/SKILL.md`](../skills/lint-file/SKILL.md)):
 
 ```
-python3 scripts/software_english_lint.py --record-lint-result {clean|failed} --findings N --nonce N --units-judged M <file-path>
+python3 scripts/software_english_lint.py --record-lint-result {clean|failed|ignored} --findings N [--reason TEXT] --nonce N --units-judged M <file-path>
 ```
+
+`--reason` is mandatory, and must be non-empty, exactly when the
+verdict given is `ignored`; given with any other verdict, or absent
+with `ignored`, the call is malformed (exit 2).
 
 A standalone mode: no rule catalogue read, no report printed, no other
 flag honoured alongside it. Exit 0 means recorded (including a
@@ -397,10 +406,14 @@ still needs a fresh `--force-inference` pass, not a retry with the
 same value. A `failed` verdict needs a nonce and a units claim for the
 same reason a `clean` one does: without that, a `failed` recording
 could be followed by a `clean` recording on the same nonce, letting
-the second one through unjudged. A `clean` verdict with `N` below the
+the second one through unjudged. An `ignored` verdict needs the same
+proof too, for the same reason again: without it, an exemption could
+be recorded without ever running Step 3. A `clean` or `ignored` verdict with `N` below the
 stored total records `partial` instead (claude-plugins#20's "declares
-itself"); a `failed` verdict always records `failed`, whatever `N` is,
-since a fault found in part of a file still fails it.
+itself"; claude-plugins#32 extends the rule to `ignored` — any verdict
+that lets a commit through needs full coverage); a `failed` verdict
+always records `failed`, whatever `N` is, since a fault found in part
+of a file still fails it.
 
 This proves that `--force-inference` ran on this exact content, that
 its output reached the caller, and that the caller saw the worklist's
@@ -430,37 +443,48 @@ for the same path in every other clone sharing that global file, and
 would force the throttle file to grow without bound. `/swe:lint-file`
 writes to all three, at different steps; that is their only coupling.
 The ledger row schema gained the `units_total`/`units_judged` fields
-and the `partial` status (claude-plugins#20); the pre-commit hook is
-unchanged by any of this, since it already blocks on anything but
-`clean` — it still cannot tell how a row was written, and the guard
-sits entirely at the only sanctioned writer, `--record-lint-result`
-itself.
+and the `partial` status (claude-plugins#20), then the `ignored`
+status and its `reason` field (claude-plugins#32, which bumped the
+hook's own `swe-commit-check-version` marker to 3, since blocking on
+status now excludes `ignored` as well as `clean` — see
+`../scripts/install-commit-hook.sh`'s version check). The guard on how
+a row gets written sits entirely at the only sanctioned writer,
+`--record-lint-result` itself; the hook still cannot tell how a row
+was written and continues to trust the ledger as given.
 
 **Fail-open boundary.** The check fails open only when it cannot
 evaluate the ledger at all: no `python3` on `PATH`, or the ledger file
 present but unreadable. It fails closed on every answer it does
-evaluate that is not `clean`, including an absent ledger file, which is
-a fresh clone with nothing yet recorded: exactly the case this check
-exists for. `git commit --no-verify` is the standing bypass; the block message
-repeats it.
+evaluate that is not `clean` or `ignored`, including an absent ledger
+file, which is a fresh clone with nothing yet recorded: exactly the
+case this check exists for. `git commit --no-verify` is the standing
+bypass; the block message repeats it.
 
 **A passing commit prints too** (claude-plugins#11): one line, naming
-the number of staged markdown files verified and the clean verdict:
-`swe: commit check passed. N staged markdown file(s) have a clean lint
-record for their staged content.` It prints right before the hook's own
-final `exit 0`, so it shows only once the commit proceeds (after the
-ledger check and `block_on_deterministic`, not before). Every path
-where nothing was checked (no staged files matching
-`commit-check.paths`, `commit-check.enabled: false`, everything staged
-matched by `.swe-ignore`) and every fail-open path (no `python3`, an
-unreadable ledger) stays silent on this line, since neither confirms
-the ledger clean.
+the number of staged markdown files verified: `swe: commit check
+passed. N staged markdown file(s) have a clean lint record for their
+staged content.` when every one is `clean`, or, once any is `ignored`
+(claude-plugins#32), `swe: commit check passed. N staged markdown
+file(s) have a lint record for their staged content: C clean, K
+ignored.` followed by one line per ignored file naming its path and
+its reason. It prints right before the hook's own final `exit 0`, so
+it shows only once the commit proceeds (after the ledger check and
+`block_on_deterministic`, not before). Every path where nothing was
+checked (no staged files matching `commit-check.paths`,
+`commit-check.enabled: false`, everything staged matched by
+`.swe-ignore`) and every fail-open path (no `python3`, an unreadable
+ledger) stays silent on this line, since neither confirms the ledger
+clean.
 
 **Deterministic tier at commit time.** Advisory by default: findings
 print but do not block, run against each staged file's exact staged
 content (`git show :<path>`, not the working tree). Set
 `commit-check.block_on_deterministic: true` in the project's
-`.claude/swe-lint.json` to make it blocking too.
+`.claude/swe-lint.json` to make it blocking too — except for a staged
+file with an `ignored` row: that file is excluded from this
+deterministic re-check (claude-plugins#32), since its deterministic
+errors are exactly what it was exempted for; a `clean` row gets no
+such exclusion.
 
 **Project configuration**, read from `<repo>/.claude/swe-lint.json`
 only, under `commit-check` — the plugin's own `config.json` has no

@@ -137,11 +137,11 @@ standalone mode: it lints nothing and reads no rule catalogue. It
 appends one row to a repository-local ledger,
 <git-common-dir>/swe/lint-log.ndjson, proving that one named file's
 exact current content (identified by its git blob id, not a path or a
-mtime) was judged, both tiers together, with a "clean" or "failed"
-verdict. That ledger is read by the pre-commit hook installed by
-/swe:install-commit-hook (swe/git-hooks/pre-commit), which blocks a
-commit staging a markdown file unless its staged blob has a "clean"
-row. This is deliberately not the same file as
+mtime) was judged, both tiers together, with a "clean", "failed", or
+"ignored" verdict. That ledger is read by the pre-commit hook installed
+by /swe:install-commit-hook (swe/git-hooks/pre-commit), which blocks a
+commit staging a markdown file unless its staged blob has a "clean" or
+"ignored" row. This is deliberately not the same file as
 ~/.claude/swe/inference-state.json above: that file is global, per-user,
 keyed by path, and answers "is a fresh advisory pass worth it"; the
 ledger is per-repository, keyed by (path, blob), and answers "was this
@@ -160,10 +160,11 @@ reached the caller, closing the shortcut where a verdict gets recorded
 on an earlier, or wholly imagined, judgement of different content. It
 cannot prove the caller judged the file against the printed rules in
 Step 4; that step happens inside the model and is invisible to this
-script by construction. A "failed" verdict needs a nonce too, for the
-same reason: without that, a "failed" recording followed by "clean" on
-the same nonce would let the second recording through unjudged. See
-claude-plugins#10.
+script by construction. A "failed" or "ignored" verdict needs a nonce
+too, for the same reason: without that, a "failed" recording followed
+by "clean" on the same nonce would let the second recording through
+unjudged, and "ignored" would be a back door around the nonce
+altogether. See claude-plugins#10.
 
 --record-lint-result also requires --units-judged: "N" (a claim of
 full coverage, every unit on the worklist --force-inference printed
@@ -173,12 +174,29 @@ recorded fails with exit 4, the same as a missing, unknown, or stale
 nonce, and consumes the nonce (unlike the nonce checks, which do
 not): the mismatch itself proves the caller did not walk the real
 worklist for this blob, so a fresh --force-inference pass is needed
-regardless. A "clean" verdict with N less than M records as "partial"
-in the ledger, not "clean"; a "failed" verdict always records as
-"failed", whatever the coverage. Like the nonce, --units-judged proves
-only that the caller saw the worklist's total for this blob, not that
-it judged every unit on it: that judgement happens inside the model,
-invisible to this script. See claude-plugins#20.
+regardless. A "clean" or "ignored" verdict with N less than M records
+as "partial" in the ledger, not "clean" or "ignored": any verdict that
+lets a commit through needs full coverage. A "failed" verdict always
+records as "failed", whatever the coverage. Like the nonce,
+--units-judged proves only that the caller saw the worklist's total
+for this blob, not that it judged every unit on it: that judgement
+happens inside the model, invisible to this script. See claude-plugins#20.
+
+--record-lint-result ignored is a third verdict (claude-plugins#32),
+distinct from "clean" and from .swe-ignore (a blanket path exclusion
+with no record of being read, no reason, and no blob binding).
+"Ignored" is for a file that was judged, breaks rules, and must not be
+rewritten — the recurring case is a document of verbatim quoted
+source, where the quoted wording is the artefact and every
+deterministic error sits inside the quotation. It is proved exactly
+like "clean" (same nonce and --units-judged requirements, same
+"partial" downgrade rule above) and lets a commit through the same
+way, but its row also carries the caller's --reason, required to be
+non-empty whenever --record-lint-result is "ignored" (and rejected,
+exit 2, whenever --reason is given with any other verdict): an
+auditable, blob-keyed record that the exemption was a deliberate
+decision, not a silent one. --findings may be non-zero: the errors are
+real, not absent, and exempted rather than fixed.
 """
 
 import argparse
@@ -418,7 +436,7 @@ def _consume_nonce(store_path, nonces, nonce):
     return None
 
 
-def record_lint_result(file_path, status, findings, recorded_by, nonce, units_judged, units_declared_total):
+def record_lint_result(file_path, status, findings, recorded_by, nonce, units_judged, units_declared_total, reason=None):
     """Appends one NDJSON row to this repository's lint ledger, proving
     that file_path's exact current content (its git blob id) was judged,
     both tiers together, with this verdict. A commit staging that same
@@ -465,10 +483,18 @@ def record_lint_result(file_path, status, findings, recorded_by, nonce, units_ju
     by a plugin version before claude-plugins#20), or its value does not
     match the nonce's own stored total. Unlike save_inference_state(), a
     write failure here is never silent: a lost row turns into a commit
-    blocked with no visible cause."""
-    ctx, reason = _repo_context(file_path)
+    blocked with no visible cause.
+
+    An "ignored" status is proved the same way as "clean" (same nonce and
+    units_judged requirements) and downgrades to "partial" under the same
+    rule: any verdict that lets a commit through needs full coverage, and
+    "ignored" lets a commit through exactly as "clean" does. Its row
+    additionally carries reason (the caller-supplied text, required by
+    main() to be non-empty whenever status is "ignored", and never set
+    otherwise)."""
+    ctx, err = _repo_context(file_path)
     if ctx is None:
-        print(f"swe: {reason}; nothing recorded.")
+        print(f"swe: {err}; nothing recorded.")
         return 0
 
     store_path = ctx["git_common"] / NONCE_STORE_RELPATH
@@ -529,7 +555,7 @@ def record_lint_result(file_path, status, findings, recorded_by, nonce, units_ju
         return rc
 
     partial = units_judged < units_total
-    recorded_status = "partial" if (status == "clean" and partial) else status
+    recorded_status = "partial" if (status in ("clean", "ignored") and partial) else status
 
     row = {
         "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -545,6 +571,8 @@ def record_lint_result(file_path, status, findings, recorded_by, nonce, units_ju
         "units_total": units_total,
         "units_judged": units_judged,
     }
+    if status == "ignored":
+        row["reason"] = reason
 
     log_path = ctx["git_common"] / LINT_LOG_RELPATH
     try:
@@ -555,9 +583,10 @@ def record_lint_result(file_path, status, findings, recorded_by, nonce, units_ju
         print(f"swe: could not write the lint log: {exc}")
         return 3
 
+    reason_suffix = f": reason: {reason}" if status == "ignored" else ""
     print(
         f"swe: recorded {recorded_status} ({units_judged} of {units_total} "
-        f"units) for {ctx['rel']} (blob {ctx['blob'][:12]}) in {log_path}"
+        f"units) for {ctx['rel']} (blob {ctx['blob'][:12]}) in {log_path}{reason_suffix}"
     )
     return 0
 
@@ -2359,9 +2388,10 @@ def main():
     parser.add_argument("--stop-hook-active", default="false", choices=["true", "false"])
     parser.add_argument("--quiet-vocab", action="store_true", help="omit vocabulary-membership lines from the printed report (they never block; this only reduces noise)")
     parser.add_argument("--cwd", default=None, help="project root .swe-ignore is read from (defaults to the current directory)")
-    parser.add_argument("--record-lint-result", choices=["clean", "failed"], default=None, help="record a both-tier verdict for one named file in this repository's lint ledger (<git-common-dir>/swe/lint-log.ndjson) and exit; lints nothing itself; requires --nonce and --units-judged (exit 4 without a valid, matching pair)")
+    parser.add_argument("--record-lint-result", choices=["clean", "failed", "ignored"], default=None, help="record a both-tier verdict for one named file in this repository's lint ledger (<git-common-dir>/swe/lint-log.ndjson) and exit; lints nothing itself; requires --nonce and --units-judged (exit 4 without a valid, matching pair); 'ignored' records a judged file as deliberately exempted (lets the commit through, like 'clean') and requires --reason")
     parser.add_argument("--findings", type=int, default=0, help="error-severity finding count to record with --record-lint-result")
     parser.add_argument("--recorded-by", default="lint-file", help="label for whoever judged the file, recorded with --record-lint-result")
+    parser.add_argument("--reason", default=None, help="required with, and only with, --record-lint-result ignored: why this judged file is deliberately exempted rather than fixed; stored in the ledger row; a missing or empty reason, or a reason given with any other verdict, is a malformed call (exit 2)")
     parser.add_argument("--nonce", default=None, help="the swe-lint-nonce value a prior --force-inference run printed for this file's current content; required by --record-lint-result inside a git repository")
     parser.add_argument("--units-judged", default=None, help='a coverage claim for --record-lint-result, checked against the swe-lint-units total that --force-inference\'s nonce recorded for this exact blob: "N" (every unit judged) or "N of M", quoted on the shell line (a declared partial; records as a "partial" status, not "clean"). Required inside a git repository; rejected with exit 4 when missing, when the nonce predates this flag, or when the value does not match that total; a malformed value, or N > M, is a malformed call (exit 2)')
     args = parser.parse_args()
@@ -2376,9 +2406,16 @@ def main():
         )
         return 2
 
+    if args.reason is not None and args.record_lint_result != "ignored":
+        print("swe: --reason is only valid with --record-lint-result ignored", file=sys.stderr)
+        return 2
+
     if args.record_lint_result is not None:
         if len(args.files) != 1:
             print("swe: --record-lint-result takes exactly one file path", file=sys.stderr)
+            return 2
+        if args.record_lint_result == "ignored" and not (args.reason or "").strip():
+            print("swe: --record-lint-result ignored requires a non-empty --reason", file=sys.stderr)
             return 2
         units_judged = None
         units_declared_total = None
@@ -2390,7 +2427,7 @@ def main():
                 return 2
         return record_lint_result(
             args.files[0], args.record_lint_result, args.findings, args.recorded_by,
-            args.nonce, units_judged, units_declared_total,
+            args.nonce, units_judged, units_declared_total, reason=args.reason,
         )
 
     rules, exemptions = load_rule_catalogue()

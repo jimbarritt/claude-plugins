@@ -114,16 +114,17 @@ before its own subject. It reports each as a warning.
 
 Installs a git `pre-commit` hook in the current repository. Once
 installed, a commit staging a markdown file is blocked unless
-`/swe:lint-file` has already recorded a `clean` verdict for that file's
-exact staged content. An edit after the last lint pass invalidates the
-record, so re-run `/swe:lint-file` after any change.
+`/swe:lint-file` has already recorded a `clean` or `ignored` verdict
+for that file's exact staged content. An edit after the last lint pass
+invalidates the record, so re-run `/swe:lint-file` after any change.
 
 A blocked commit prints which files need a fresh lint pass and the
 exact command to run. A commit that passes prints one line naming the
-number of staged markdown files checked and the clean verdict, so a
-hook that ran and passed is distinguishable from one that never fired.
-A pass that judged only part of a file's worklist records as
-`partial`, not `clean`, and blocks the commit the same way an unjudged
+number of staged markdown files checked; once any file is recorded
+`ignored` rather than `clean`, it also names each ignored file and the
+reason given for it, so the exemption is visible, not silent. A pass
+that judged only part of a file's worklist records as `partial`, not
+`clean` or `ignored`, and blocks the commit the same way an unjudged
 file does.
 A commit with no staged markdown prints nothing from this check.
 `git commit --no-verify` bypasses the check for one commit. An existing
@@ -237,7 +238,13 @@ the model split, and the escalation path.
 Add a line to a `.swe-ignore` file at the project root, in the same
 format as `.gitignore`: a path relative to that root, or a bare
 filename to match at any depth. One pattern per line; `#` starts a
-comment.
+comment. This exempts the path outright, with no record that the file
+was ever read. For a single file that was judged and deliberately
+exempted, with a reason on record, use `/swe:lint-file`'s
+`--record-lint-result ignored --reason "<text>"` instead (see "Check
+commits against a clean lint" above): it stays keyed to the file's
+exact content, so an edit invalidates the exemption and the file needs
+judging again.
 
 ## Exempt one line from every check
 

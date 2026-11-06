@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# swe-commit-check-version: 2
+# swe-commit-check-version: 3
 #
 # Git pre-commit hook installed by /swe:install-commit-hook. Its source
 # of truth is swe/git-hooks/pre-commit.sh in the claude-plugins
@@ -12,17 +12,21 @@
 #
 #   1. Advisory. The deterministic tier, run against each file's staged
 #      content. Findings print. They never block the commit unless
-#      commit-check.block_on_deterministic is true.
+#      commit-check.block_on_deterministic is true, and then an "ignored"
+#      file (see below) is excluded from that block.
 #   2. Blocking. <git-common-dir>/swe/lint-log.ndjson must hold a row
-#      with status "clean" for each staged file's exact staged git blob
-#      id, written by /swe:lint-file's --record-lint-result step. No
-#      row, a row for different content, or a "failed" row blocks the
-#      commit and names what to run.
+#      with status "clean" or "ignored" for each staged file's exact
+#      staged git blob id, written by /swe:lint-file's
+#      --record-lint-result step. No row, a row for different content,
+#      a "failed" row, or a "partial" row blocks the commit and names
+#      what to run. An "ignored" row's reason is printed in the summary,
+#      so the exemption is visible, not silent (claude-plugins#32).
 #
 # Fail-open boundary: the commit proceeds when this hook cannot evaluate
 # the ledger at all (no python3, an unreadable log file). It blocks on
-# every answer it does evaluate that is not "clean": an absent ledger
-# counts as an evaluated "no record", not a failure to evaluate.
+# every answer it does evaluate that is not "clean" or "ignored": an
+# absent ledger counts as an evaluated "no record", not a failure to
+# evaluate.
 #
 # git commit --no-verify always bypasses this hook; the block message
 # says so.
@@ -161,7 +165,7 @@ cat > "$TMP/check_ledger.py" <<'PYEOF'
 import json
 import sys
 
-log_path, algo = sys.argv[1], sys.argv[2]
+log_path, algo, ignored_out_path = sys.argv[1], sys.argv[2], sys.argv[3]
 
 data = sys.stdin.buffer.read().decode()
 order, wanted = [], set()
@@ -202,18 +206,30 @@ except OSError as exc:
     raise SystemExit(2)
 
 blocked = 0
+ignored_lines = []
 for path, blob in order:
     row = latest.get((path, blob))
     if row is None:
         print("%s\tno lint record for the staged content" % path)
         blocked += 1
+    elif row.get("status") == "ignored":
+        reason = str(row.get("reason") or "(no reason recorded)")
+        reason = " ".join(reason.split())
+        ignored_lines.append("%s\t%s" % (path, reason))
     elif row.get("status") != "clean":
         print("%s\trecorded status: %s" % (path, row.get("status")))
         blocked += 1
+
+with open(ignored_out_path, "w") as f:
+    for line in ignored_lines:
+        f.write(line + "\n")
+
 raise SystemExit(1 if blocked else 0)
 PYEOF
 
-RESULT="$(git ls-files --stage -z -- "${FILES[@]}" | "$PY" "$TMP/check_ledger.py" "$LOG" "$ALGO")"
+IGNORED_TSV="$TMP/ignored.tsv"
+: > "$IGNORED_TSV"
+RESULT="$(git ls-files --stage -z -- "${FILES[@]}" | "$PY" "$TMP/check_ledger.py" "$LOG" "$ALGO" "$IGNORED_TSV")"
 LEDGER_STATUS=$?
 
 if [ "$LEDGER_STATUS" -eq 2 ]; then
@@ -223,7 +239,7 @@ fi
 
 if [ "$LEDGER_STATUS" -eq 1 ]; then
   COUNT="$(printf '%s\n' "$RESULT" | grep -c .)"
-  echo "swe: commit blocked. $COUNT staged markdown file(s) have no clean lint record for their staged content:"
+  echo "swe: commit blocked. $COUNT staged markdown file(s) have no clean or ignored lint record for their staged content:"
   echo
   printf '%s\n' "$RESULT" | while IFS=$'\t' read -r path reason; do
     printf '  %-40s %s\n' "$path" "$reason"
@@ -240,11 +256,43 @@ if [ "$LEDGER_STATUS" -eq 1 ]; then
   exit 1
 fi
 
+IGNORED_FILES=()
+if [ -s "$IGNORED_TSV" ]; then
+  while IFS=$'\t' read -r path _; do
+    [ -n "$path" ] && IGNORED_FILES+=("$path")
+  done < "$IGNORED_TSV"
+fi
+IGNORED_COUNT="${#IGNORED_FILES[@]}"
+
 if [ "$CFG_BLOCK_DET" = "true" ] && [ "$DET_STATUS" -ne 0 ]; then
-  echo "swe: commit blocked by the deterministic tier (commit-check.block_on_deterministic is true)."
-  echo "Fix the findings above, stage the fix, then commit again."
-  exit 1
+  RECHECK_FILES=()
+  for f in "${FILES[@]}"; do
+    SKIP=0
+    for ig in "${IGNORED_FILES[@]}"; do
+      [ "$f" = "$ig" ] && SKIP=1 && break
+    done
+    [ "$SKIP" -eq 0 ] && RECHECK_FILES+=("$f")
+  done
+  if [ "${#RECHECK_FILES[@]}" -eq 0 ]; then
+    DET_STATUS=0
+  elif [ "$IGNORED_COUNT" -gt 0 ]; then
+    (cd "$STAGED_DIR" && "$PY" "$LINTER" "${RECHECK_FILES[@]}" --quiet-vocab) >/dev/null 2>&1
+    DET_STATUS=$?
+  fi
+  if [ "$DET_STATUS" -ne 0 ]; then
+    echo "swe: commit blocked by the deterministic tier (commit-check.block_on_deterministic is true)."
+    echo "Fix the findings above, stage the fix, then commit again."
+    exit 1
+  fi
 fi
 
-echo "swe: commit check passed. ${#FILES[@]} staged markdown file(s) have a clean lint record for their staged content."
+CLEAN_COUNT=$(( ${#FILES[@]} - IGNORED_COUNT ))
+if [ "$IGNORED_COUNT" -eq 0 ]; then
+  echo "swe: commit check passed. ${#FILES[@]} staged markdown file(s) have a clean lint record for their staged content."
+else
+  echo "swe: commit check passed. ${#FILES[@]} staged markdown file(s) have a lint record for their staged content: $CLEAN_COUNT clean, $IGNORED_COUNT ignored."
+  while IFS=$'\t' read -r path reason; do
+    [ -n "$path" ] && printf '  %-40s ignored: %s\n' "$path" "$reason"
+  done < "$IGNORED_TSV"
+fi
 exit 0
