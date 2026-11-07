@@ -286,7 +286,7 @@ assert "clean: the 3-list run is inside a fenced code block" \
   "$(! grep -qF '[no-mechanical-repetition] candidate at line' <<<"$FENCEDRUN_OUT"; echo $?)"
 
 # --- true-negative sweep: this repo's own real prose ------------------------
-for f in README.md swe/docs/agent-guide.md swe/skills/lint-file/SKILL.md swe/output-styles/software-english.md CLAUDE.md; do
+for f in README.md swe/docs/agent-guide.md swe/skills/lint-file/SKILL.md swe/skills/lint-fix/SKILL.md swe/output-styles/software-english.md CLAUDE.md; do
   REAL_PATH="$PLUGIN_ROOT/../$f"
   [ -f "$REAL_PATH" ] || REAL_PATH="$PLUGIN_ROOT/$f"
   if [ -f "$REAL_PATH" ]; then

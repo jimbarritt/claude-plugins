@@ -65,7 +65,7 @@ the `[inference-pending]` summary line names the total when any exist. The
 judging step above still reads the whole source: a candidate names one
 place to check first, not every instance of the fault.
 
---force-inference (used by /swe:lint-file) prints the same block
+--force-inference (used by /swe:lint-file and /swe:lint-fix) prints the same block
 unconditionally: no gate, no threshold, no throttle. It is the current
 session itself that then judges the file directly, right where the
 command was run, no subagent needed. It still skips on empty prose.
@@ -145,8 +145,9 @@ A Markdown blockquote line (starts with ">") is not checked — it holds
 someone else's words, quoted verbatim, not this writer's prose. The same
 skip applies to a fenced or inline code span, at every source.
 
---record-lint-result (used by /swe:lint-file's own Step 5, after it has
-judged a file's inference-tier findings itself) is a wholly separate,
+--record-lint-result (used by /swe:lint-file's own Step 5 and
+/swe:lint-fix's own Step 5, after each has judged a file's
+inference-tier findings itself) is a wholly separate,
 standalone mode: it lints nothing and reads no rule catalogue. It
 appends one row to a repository-local ledger,
 <git-common-dir>/swe/lint-log.ndjson, proving that one named file's

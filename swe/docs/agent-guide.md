@@ -26,8 +26,10 @@ specific finding — see
 [`../skills/feedback/SKILL.md`](../skills/feedback/SKILL.md).
 
 No hook checks a file write or a chat reply automatically. Run
-`/swe:lint-file <file-path>` yourself when you want a file checked; see
-"When the inference tier runs" below for how that command works.
+`/swe:lint-file <file-path>` yourself when you want a file checked, or
+`/swe:lint-fix <file-path>` to check it, fix the findings, and check
+the edited file again; see "When the inference tier runs" below for
+how `/swe:lint-file` works.
 
 ## Hooks
 
@@ -87,6 +89,8 @@ What this does not close, whether or not the style is selected:
   nothing downstream catches it automatically for a reply or a file
   edit. `/swe:lint-file` is the deliberate, on-demand way to check a
   file, e.g. before a commit — nothing wires it up automatically.
+  `/swe:lint-fix` checks a file, fixes the findings, and checks the
+  edited file again, in one run.
 
 ## Rule tiers
 
@@ -355,13 +359,19 @@ blocks anything here either, matching every other check in this
 plugin, and the pre-commit hook treats `partial` exactly like `failed`:
 anything but `clean` or `ignored` blocks.
 
-**Recording a verdict.** Only `/swe:lint-file`'s own Step 5 does this
-today, right after it judges a file's inference-tier findings itself
-(see [`../skills/lint-file/SKILL.md`](../skills/lint-file/SKILL.md)):
+**Recording a verdict.** Only `/swe:lint-file`'s own Step 5 and
+`/swe:lint-fix`'s own Step 5 do this, right after each judges a file's
+inference-tier findings itself (see
+[`../skills/lint-file/SKILL.md`](../skills/lint-file/SKILL.md) and
+[`../skills/lint-fix/SKILL.md`](../skills/lint-fix/SKILL.md)):
 
 ```
-python3 scripts/software_english_lint.py --record-lint-result {clean|failed|ignored} --findings N [--reason TEXT] --nonce N --units-judged M <file-path>
+python3 scripts/software_english_lint.py --record-lint-result {clean|failed|ignored} --findings N [--reason TEXT] --nonce N --units-judged M [--recorded-by SKILL] <file-path>
 ```
+
+`--recorded-by` defaults to `lint-file`; `/swe:lint-fix` passes
+`--recorded-by lint-fix`, so its ledger rows show `recorded_by:
+"lint-fix"`, distinct from a `/swe:lint-file` row for the same file.
 
 `--reason` is mandatory, and must be non-empty, exactly when the
 verdict given is `ignored`; given with any other verdict, or absent
@@ -761,10 +771,13 @@ skill's own directory name exactly; the same test asserts it.
   corpus (SPEC §6.1).
 - Lemmatisation is a suffix-strip, not a real lemmatiser. Some
   inflected forms of an approved word do not match.
-- No auto-rewrite mechanism exists. A blocking hook reports a
-  violation; you edit the text yourself in response. The
-  fact-preservation check the specification names in its §9 is not yet
-  built.
+- `software_english_lint.py` has no rewrite mode. A blocking hook
+  reports a violation; the text is edited in response, by hand or via
+  `/swe:lint-fix`. `/swe:lint-fix` makes that edit with the model,
+  inside the session, not with the script. The fact-preservation check
+  the specification names in its §9 is not yet built, so
+  `/swe:lint-fix` keeps every fact through its own instruction, not a
+  built check.
 - No versioning scheme exists beyond a plain tag; `software-english` is
   pre-1.0.
 - Sentence splitting runs per Markdown line, not per paragraph. A

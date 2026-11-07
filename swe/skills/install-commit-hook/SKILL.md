@@ -10,7 +10,8 @@ disable-model-invocation: false
 
 Install a git `pre-commit` hook in one repository. Once installed, a
 commit that stages a markdown file is blocked unless that file's exact
-staged content has a `clean` verdict recorded by `/swe:lint-file`. When
+staged content has a `clean` verdict recorded by `/swe:lint-file` or
+`/swe:lint-fix`. When
 [tsk](https://github.com/jimbarritt/tsk) 0.26.1 or later is installed
 and `swe/config.json`'s `docs_hook.enabled` is `true`, also offer tsk's
 own documents hook, so a `tsk ledger push` or `tsk ledger doc put` of a
@@ -148,8 +149,9 @@ remove the documents hook from, then run `install-docs-hook.sh
 
 State, in a few short lines: which file(s) it installed and where; that
 a staged markdown file then needs a `clean` record from
-`/swe:lint-file` for its exact staged content; and that `.git/` is
-never cloned, so each clone of this repository needs this command run
+`/swe:lint-file` or `/swe:lint-fix` for its exact staged content; and
+that `.git/` is never cloned, so each clone of this repository needs
+this command run
 again, unless a committed session-start entry (Step 2a) does it
 automatically.
 

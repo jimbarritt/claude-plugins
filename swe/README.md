@@ -6,7 +6,9 @@ Code or Copilot CLI session produces, against
 automatically, once installed. Also installs an output style, written
 to the same rules, that you can select yourself
 (`/output-style`) to shape a reply or a file edit directly as it's
-written; and a `/swe:lint-file` command to check any file on demand.
+written; a `/swe:lint-file` command to check any file on demand; and a
+`/swe:lint-fix` command that checks a file, fixes the findings, and
+checks the edited file again.
 
 See [`docs/agent-guide.md`](docs/agent-guide.md) for the mechanism: the
 hooks, the rule tiers, and the inference tier's conditions. That file
@@ -106,6 +108,22 @@ between sections, a missing summary, an argument restated across
 sections, a contents-list fault, or a section that states a precedent
 before its own subject. It reports each as a warning.
 
+## Check and fix one file on demand
+
+```text
+/swe:lint-fix <file-path>
+```
+
+Runs the same two tiers as `/swe:lint-file`, then edits the named file
+for each finding, keeping every fact (a value, a name, a command, a
+path, a number, a link target, and a claim all stay the same). It
+never edits a fenced code block, an inline code span, or a blockquote
+line: that text is code or a quotation. It then checks the edited file
+again, records that verdict for the commit check, and reports the
+edits made, the findings it did not fix, and the findings that remain.
+It runs one fix pass and one re-check, not a loop to a forced-clean
+result.
+
 ## Check commits against a clean lint
 
 ```text
@@ -116,7 +134,8 @@ Installs a git `pre-commit` hook in the current repository. Once
 installed, a commit staging a markdown file is blocked unless
 `/swe:lint-file` has already recorded a `clean` or `ignored` verdict
 for that file's exact staged content. An edit after the last lint pass
-invalidates the record, so re-run `/swe:lint-file` after any change.
+invalidates the record, so re-run `/swe:lint-file` or `/swe:lint-fix`
+after any change.
 
 A blocked commit prints which files need a fresh lint pass and the
 exact command to run. A commit that passes prints one line naming the
@@ -290,7 +309,7 @@ has no access to `config.json`:
 | Key | Default | Meaning |
 |---|---|---|
 | `commit-check.enabled` | `true` | Set `false` to skip the check entirely. |
-| `commit-check.block_on_deterministic` | `false` | Set `true` to also block on a deterministic-tier finding, not just a missing or failed lint record. |
+| `commit-check.block_on_deterministic` | `false` | Set `true` to block on a deterministic-tier finding as well as a missing or failed lint record. |
 | `commit-check.paths` | `["*.md"]` | Glob patterns for which staged files this covers. |
 
 ## Pick up a newer version of the Software English spec

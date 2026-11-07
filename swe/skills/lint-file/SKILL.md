@@ -324,3 +324,5 @@ clean, whatever Step 4 found, until a later pass judges the rest. When
 Step 5 recorded `ignored`, say the file is recorded as ignored and
 quote the reason; never report it as clean. Do not fix anything
 unless asked: this command is a check, not an edit.
+`/swe:lint-fix <file-path>` runs the same check, fixes the findings,
+and checks the edited file again.

@@ -181,7 +181,7 @@ assert "clean: a colon list inside a fenced code block" \
   "$(! grep -qF '[no-count-list-mismatch] candidate' <<<"$FC_OUT"; echo $?)"
 
 # --- real-file sweep: zero no-count-list-mismatch candidates on this repo's own prose
-for f in "$PLUGIN_ROOT/README.md" "$PLUGIN_ROOT/docs/agent-guide.md" "$PLUGIN_ROOT/skills/lint-file/SKILL.md"; do
+for f in "$PLUGIN_ROOT/README.md" "$PLUGIN_ROOT/docs/agent-guide.md" "$PLUGIN_ROOT/skills/lint-file/SKILL.md" "$PLUGIN_ROOT/skills/lint-fix/SKILL.md"; do
   if [ -f "$f" ]; then
     SWEEP_OUT="$(lint_file "$f")"
     assert "zero no-count-list-mismatch candidates on $(basename "$f")" \
