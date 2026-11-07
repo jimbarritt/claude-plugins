@@ -212,6 +212,58 @@ assert "--count with --force-inference exits 2" "$([ $? -eq 2 ]; echo $?)"
 (cd "$REPO" && python3 "$LINTER" a.md --count --advise-inference >/dev/null 2>/dev/null)
 assert "--count with --advise-inference exits 2" "$([ $? -eq 2 ]; echo $?)"
 
+# --- claude-plugins#34: a bare run states what it did not check -----------
+# Neither --force-inference nor --advise-inference, so the catalogue's 2
+# model-judgement rules (tone-judgement, fixture-multiline) are never
+# selected; the bare run must say so instead of reading as a clean verdict.
+
+BARE_OUT="$(cd "$REPO" && python3 "$LINTER" a.md --quiet-vocab 2>&1)"
+BARE_LAST="$(printf '%s\n' "$BARE_OUT" | tail -1)"
+assert "bare run: trailing line names the skip count and the file" \
+  "$([ "$BARE_LAST" = "swe: inference tier not run; 2 rule(s) need model judgement; run /swe:lint-file a.md" ]; echo $?)"
+
+COUNT_OUT="$(cd "$REPO" && python3 "$LINTER" a.md --count --quiet-vocab 2>&1)"
+case "$COUNT_OUT" in
+  *$'\n''0 errors, 1 warnings across 1 files'$'\n'*) assert "--count: counts line is unchanged" 0 ;;
+  *) assert "--count: counts line is unchanged" 1 ;;
+esac
+COUNT_LAST="$(printf '%s\n' "$COUNT_OUT" | tail -1)"
+assert "--count: trailing inference-skip line follows the counts line" \
+  "$([ "$COUNT_LAST" = "swe: inference tier not run; 2 rule(s) need model judgement; run /swe:lint-file a.md" ]; echo $?)"
+
+case "$FI_OUT" in
+  *"inference tier not run"*) assert "--force-inference: prints no bare-run inference-skip line" 1 ;;
+  *) assert "--force-inference: prints no bare-run inference-skip line" 0 ;;
+esac
+
+ADV_OUT="$(cd "$REPO" && printf '# hello there\n' | python3 "$LINTER" --text --advise-inference --quiet-vocab 2>&1)"
+case "$ADV_OUT" in
+  *"inference tier not run"*) assert "--advise-inference: prints no bare-run inference-skip line" 1 ;;
+  *) assert "--advise-inference: prints no bare-run inference-skip line" 0 ;;
+esac
+
+echo "# multi one" > "$REPO/multi1.md"
+echo "# multi two" > "$REPO/multi2.md"
+git -C "$REPO" add multi1.md multi2.md
+MULTI_OUT="$(cd "$REPO" && python3 "$LINTER" multi1.md multi2.md --quiet-vocab 2>&1)"
+MULTI_LAST="$(printf '%s\n' "$MULTI_OUT" | tail -1)"
+assert "bare run, two named files: trailing line names no single file" \
+  "$([ "$MULTI_LAST" = "swe: inference tier not run; 2 rule(s) need model judgement; run /swe:lint-file" ]; echo $?)"
+
+: > "$REPO/noprose.md"
+git -C "$REPO" add noprose.md
+NOPROSE_OUT="$(cd "$REPO" && python3 "$LINTER" noprose.md --quiet-vocab 2>&1)"
+case "$NOPROSE_OUT" in
+  *"inference tier not run"*) assert "bare run, no prose: no trailing inference-skip line" 1 ;;
+  *) assert "bare run, no prose: no trailing inference-skip line" 0 ;;
+esac
+
+RECORD_OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 a.md 2>&1)"
+case "$RECORD_OUT" in
+  *"inference tier not run"*) assert "--record-lint-result: no bare-run inference-skip line" 1 ;;
+  *) assert "--record-lint-result: no bare-run inference-skip line" 0 ;;
+esac
+
 # --- --record-lint-result: recording with a valid nonce --------------------
 
 OUT="$(cd "$REPO" && python3 "$LINTER" --record-lint-result clean --findings 0 --nonce "$NONCE1" --units-judged "$UNITS1" a.md 2>&1)"
@@ -656,7 +708,7 @@ git -C "$REPO" add tabbed.md
 lint_and_record "$REPO" tabbed.md ignored 1 "$(printf 'line one\tline two\nline three')"
 OUT="$(commit "reason with embedded whitespace" 2>&1)"
 assert "a reason with a tab/newline still lets the commit through" "$([ $? -eq 0 ]; echo $?)"
-REASON_LINES="$(printf '%s\n' "$OUT" | grep -c "tabbed.md")"
+REASON_LINES="$(printf '%s\n' "$OUT" | grep -c "tabbed.md.*ignored:")"
 assert "the printed reason line for tabbed.md is exactly one line" "$([ "$REASON_LINES" -eq 1 ]; echo $?)"
 
 mkdir -p "$REPO/.claude"

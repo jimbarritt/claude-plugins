@@ -92,6 +92,20 @@ exit 0 regardless of prose content, the same one-tier-reported-as-clean
 failure this issue is about. Rejected outright (exit 2) rather than
 silently ignored.
 
+A bare run (neither flag) never selects the inference tier at all, so
+it ends with a trailing line, `swe: inference tier not run; N rule(s)
+need model judgement; run /swe:lint-file <file>` (claude-plugins#34):
+otherwise a clean deterministic result on a bare run reads as a clean
+verdict on the whole text, when every model-judgement rule was never
+asked. Prints after the findings, or after --count's one-line
+summary, whichever applies; silent when there is no prose to judge in
+any source, or when the catalogue has no model-judgement rules, since
+then nothing was skipped. Plain text, not finding-shaped: this line is
+not itself a pending rule or a candidate, so counting it as one (a
+naive `grep -c '\[warning\]'`, or an agent reading findings-shaped
+lines as the whole verdict) would overcount by one. The exit code is
+unchanged either way.
+
 The block's exit code still reflects the deterministic tier only: a
 pending inference rule is never itself a finding, and a shell pipeline
 like the one above reports the last command's (here, grep's) exit status
@@ -2381,6 +2395,18 @@ def format_inference_rules(label, inference_rules, det_errors, det_warnings, can
     return lines
 
 
+def applicable_inference_rules(rules, plugin_rules, is_conversational):
+    """The catalogue's `check == "model-judgement"` rules, plus plugin_rules
+    when is_conversational, as a single {rule_id: rule} dict. The one place
+    that sets which rules the inference tier covers for a given run, so
+    the bare-run "inference tier not run" line (claude-plugins#34) and the
+    --force-inference block count the same set."""
+    inference_rules = {rid: r for rid, r in rules.items() if r.get("check") == "model-judgement"}
+    if is_conversational:
+        inference_rules.update(plugin_rules)
+    return inference_rules
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("files", nargs="*")
@@ -2449,6 +2475,7 @@ def main():
         )
         return 0
     plugin_rules = load_plugin_rules()
+    is_conversational = bool(args.reply_file or args.transcript)
     vocabulary = load_vocabulary()
     structure_nouns = load_structure_nouns()
     banned_rules = load_banned()
@@ -2546,10 +2573,34 @@ def main():
     for line in data_status_lines(fetched_tag, pinned_tag, age_seconds):
         print(line, file=sys.stderr)
 
+    # claude-plugins#34: a bare run (neither --force-inference nor
+    # --advise-inference) never judges the model-judgement rules, and until
+    # now said nothing about that, so a clean deterministic result read as a
+    # clean verdict on the whole text. --advise-inference is excluded
+    # outright, even where it does not end up due_for_inference below: it
+    # is only ever used by the PreToolUse hooks, which already split and
+    # count their own output. This line is deliberately not finding-shaped
+    # (no "[warning]"), so it is not miscounted as a finding by a caller
+    # that greps for one, and is silent when there is nothing to skip:
+    # no prose in any source, or a catalogue with no model-judgement rules.
+    inference_skip_line = None
+    if not args.force_inference and not args.advise_inference:
+        has_prose = any(prose.strip() for _, _, prose, _ in sources)
+        skipped_rules = applicable_inference_rules(rules, plugin_rules, is_conversational)
+        if has_prose and skipped_rules:
+            single_file = len(args.files) == 1 and not (args.text or args.reply_file or args.transcript or args.html_file)
+            target = f" {args.files[0]}" if single_file else ""
+            inference_skip_line = (
+                f"swe: inference tier not run; {len(skipped_rules)} rule(s) need model "
+                f"judgement; run /swe:lint-file{target}"
+            )
+
     if args.count:
         error_total = sum(1 for _, findings, _, _ in sources for _, sev, _, _ in findings if sev == "error")
         warning_total = sum(1 for _, findings, _, _ in sources for _, sev, _, _ in findings if sev == "warning")
         print(f"{error_total} errors, {warning_total} warnings across {len(sources)} files")
+        if inference_skip_line:
+            print(inference_skip_line)
         return 1 if error_total else 0
 
     error_total = 0
@@ -2597,10 +2648,7 @@ def main():
         if combined_prose.strip():
             words, sentences = count_words_sentences(combined_prose)
             if args.force_inference or inference_eligible(inference_key, words, sentences, cfg):
-                inference_rules = {rid: r for rid, r in rules.items() if r.get("check") == "model-judgement"}
-                is_conversational = bool(args.reply_file or args.transcript)
-                if is_conversational:
-                    inference_rules.update(plugin_rules)
+                inference_rules = applicable_inference_rules(rules, plugin_rules, is_conversational)
                 # Located candidates (claude-plugins#18): a cheap structural
                 # signal for a rule above, never itself a finding. Computed
                 # once the rule set is known, only for the rule ids actually
@@ -2654,6 +2702,9 @@ def main():
             print(f"swe-lint-nonce: {nonce}")
         else:
             print(f"swe: no lint nonce issued for {args.files[0]}: {reason}")
+
+    if inference_skip_line:
+        print(inference_skip_line)
 
     if error_total and stop_hook_active:
         # Already re-running after a prior block this turn. Report, don't block again.

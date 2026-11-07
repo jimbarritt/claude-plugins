@@ -703,6 +703,13 @@ summary line, not just real warning findings; the summary line's own
 text states the source's real deterministic error/warning counts.
 Neither flag can be combined with `--count` (exits 2).
 
+A bare run — neither flag, with or without `--count` — ends with
+`swe: inference tier not run; N rule(s) need model judgement; run
+/swe:lint-file ...` (claude-plugins#34). A clean bare run is a
+deterministic-only result, not a verdict on the whole file: every
+model-judgement rule was skipped, not satisfied. Read `--force-inference`
+on the file before treating it as clean.
+
 Run `scripts/fetch-software-english-data.sh` once by hand first, if
 `data/` is empty. Only the three PreToolUse hooks (bash, artifact,
 mcp-send) run the fetch script before linting; the git commit hook, the
