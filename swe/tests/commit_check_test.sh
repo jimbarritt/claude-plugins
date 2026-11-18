@@ -606,6 +606,11 @@ case "$OUT" in
   *"commit check passed"*) assert "blocked commit: no success line" 1 ;;
   *) assert "blocked commit: no success line" 0 ;;
 esac
+case "$OUT" in
+  *'Invoke the `swe:lint-file` skill with the Skill tool. Do not run'*'`software_english_lint.py` or `--record-lint-result` yourself.'*)
+    assert "blocked commit: tells the agent to invoke the skill, not run its steps" 0 ;;
+  *) assert "blocked commit: tells the agent to invoke the skill, not run its steps" 1 ;;
+esac
 
 lint_and_record "$REPO" a.md clean 0
 OUT="$(commit "clean markdown" 2>&1)"

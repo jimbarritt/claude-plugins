@@ -8,6 +8,10 @@ disable-model-invocation: false
 
 # lint-file
 
+Invoke this skill fresh each time a file needs a check. Do not run its
+steps directly, from memory or from an earlier run in this session. If
+you edit the file after Step 3, start again at Step 1.
+
 Check one named file against Software English, both tiers, right now.
 The automatic hooks only advise a fresh inference pass when the
 deterministic tier is already clean and the prose passes a length

@@ -8,6 +8,10 @@ disable-model-invocation: false
 
 # lint-fix
 
+Invoke this skill fresh each time a file needs a check. Do not run its
+steps directly, from memory or from an earlier run in this session. If
+you edit the file after Step 3, start again at Step 1.
+
 Check one named file against Software English, both tiers, fix the
 findings in the file, then check the edited file again. `/swe:lint-file`
 runs the same check and changes nothing. This command edits the file

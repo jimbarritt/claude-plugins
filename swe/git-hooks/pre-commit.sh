@@ -252,6 +252,9 @@ if [ "$LEDGER_STATUS" -eq 1 ]; then
     echo "  /swe:lint-file $path"
   done
   echo
+  echo "Invoke the \`swe:lint-file\` skill with the Skill tool. Do not run"
+  echo "\`software_english_lint.py\` or \`--record-lint-result\` yourself."
+  echo
   echo "To commit without this check: git commit --no-verify"
   exit 1
 fi

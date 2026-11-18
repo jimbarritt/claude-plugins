@@ -78,6 +78,11 @@ assert "Step 5 heading mentions Record" "$(printf '%s' "$STEP5_SECTION" | head -
 
 assert "text refers to skills/lint-file/SKILL.md" "$(grep -q 'skills/lint-file/SKILL.md' "$FIX_SKILL"; echo $?)"
 assert "lint-file Step 6 names /swe:lint-fix" "$(grep -q '/swe:lint-fix' "$FILE_SKILL"; echo $?)"
+for SK in "$FILE_SKILL" "$FIX_SKILL"; do
+  FIRST="$(awk '/^# /{f=1;next} f&&NF{print;n++} n==3{exit}' "$SK" | tr '\n' ' ')"
+  assert "$(basename "$(dirname "$SK")"): first lines say to invoke the skill fresh, not run its steps" \
+    "$(printf '%s' "$FIRST" | grep -q 'Invoke this skill fresh each time a file needs a check. Do not run its steps directly, from memory or from an earlier run in this session. If you edit the file after Step 3, start again at Step 1.'; echo $?)"
+done
 
 # The two skills must run byte-identical fetch and check commands, so a
 # future edit to one cannot silently drift from the other (the failure
